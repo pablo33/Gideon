@@ -1,0 +1,8 @@
+Code errors
+
+procfile (while processing 1 file)
+
+"3" = Nothing was programmed, nothing to do.
+"2" = file has been overwrited
+"1" = file has been put in avidemux queue.
+"0" = destination file already exists.
