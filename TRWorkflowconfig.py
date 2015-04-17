@@ -9,11 +9,11 @@ __author__ = "pablo33"
 
 
 # Setting variables, default paths to store processed files.
-Fmovie_Folder = "/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/pelis/" # Place to store processed movies
-Faudio_Folder = "/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/Música/" # Place to store processed music
-Fother_Folder = "/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/Others/" # Place to store other processed downloads (This folder is also used as tmp folder to store avidemux pull files)
-Torrentinbox = "/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/Downloads/" # Place to get covers from. It is a repository of covers from wich the videofile finds and gets a cover. (Usually The same folther that transmission puts torrents in)
-Dropboxfolder = "/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/TRinbox/" # (input folder) Place to get new .torrents and .covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+Fmovie_Folder = "/home/user/movies/" # Place to store processed movies
+Faudio_Folder = "/home/user/audio/" # Place to store processed music
+Fother_Folder = "/home/user/Downloads/" # Place to store other processed downloads (This folder is also used as tmp folder to store avidemux pull files)
+Torrentinbox = "/home/user/Torrentinbox/" # Place to get covers from. It is a repository of covers from wich the videofile finds and gets a cover. (Usually The same folther that transmission puts torrents in)
+Dropboxfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
 
 # Chapter identifier, this prevents deleting in case it is found
 chapteridentifier = ('Cap', 'cap', 'episodio')
@@ -39,25 +39,20 @@ alert_values = {'ID_VIDEO_FORMAT':'H264',
 	}
 
 # Recipients to send info: you can add as many as you want, write them into one string and separated by spaces.
-mail_recipients = 'pablolabora@gmx.es'
+mail_recipients = 'youremail@here.es'
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "DEBUG"
-# Maximum of log files. 1 - 9999, but please half a hundred should be enough
-maxlogfiles = 15
-# Logging folder:
-logging_folder="/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/logs/"
 
 # Seconds to wait until hot folders are scanned for new items.
-s = 30
+s = 600
 
 # Command line to start Transmission
 cmd  = "/usr/bin/transmission-gtk -m &"
 
 # list of hot folders to scan for active or new torrents (if any .torren or .part is detected, transmission will be launched)
-lsdy = ['/home/pablo/Dropbox/Misdocs/python/TRWorkflow V2/Downloads']
+lsdy = ['/home/user/transmission','/home/user/transmission.tmp']
 
 
 # Shut down the system when avi's pull has finished (1 = shutdown , otherwise system will remain up)
 shdown = 0
-
