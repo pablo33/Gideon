@@ -12,7 +12,9 @@ __author__ = "pablo33"
 import os, logging, readini, TRWorkflowconfig
 
 #=== Logging Module ====
-logfile = os.path.join(TRWorkflowconfig.logging_folder,"process.log")
+global logpath
+
+logfile = os.path.join(logpath,"process.log")
 
 logging.basicConfig(
     level = TRWorkflowconfig.loginlevel,
@@ -32,7 +34,7 @@ def itemcheck(a):
 
 # ======= START ================
 logging.info("==================  New Start ====================")
-pullfile = os.path.join(TRWorkflowconfig.logging_folder,"Avidemux.pull")
+pullfile = os.path.join(logpath,"Avidemux.pull")
 if itemcheck (pullfile) == "":
 	logging.info("Thereis nothing to do, Avidemux Pull file does not exist....")
 	print ("Thereis nothing to do, Avidemux Pull file does not exist....")

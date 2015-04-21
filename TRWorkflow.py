@@ -90,7 +90,9 @@ now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
 # Getting current folder for loggin....
-logpath = os.getcwd()+"/logs/"
+logpath = os.getcwd()+"/.TRworkflow/logs/"
+if itemcheck (logpath) != "folder":
+	os.makedirs(logpath)
 logging_file = logpath + "TRworkflow.log"
 
 logging.basicConfig(
@@ -606,8 +608,9 @@ def Extractcmovieinfo(filename):
 		input:  ./path/to/video/filename.avi
 		output: {"dyctionary of atributes" : "Vaules"} , "info_file dumped"
 		"""
+	global logpath
 	# Setting folder to store information
-	info_file = addslash(TRWorkflowconfig.logging_folder,"logging folder")+os.path.basename(filename+".info")
+	info_file = addslash(logpath,"logging folder")+os.path.basename(filename+".info")
 	logging.debug("Storing movie information at:"+ info_file)
 	# We use mplayer to obtain movie information, be sure you have it istalled in your system.
 	os.system("mplayer -vo null -ao null -identify -frames 0 '"+filename+"' > '"+info_file+"'")
@@ -618,7 +621,8 @@ def add_to_pull(origin,dest):
 	""" Opens pull file and write a new line
 	
 		"""
-	pullfile = addslash(TRWorkflowconfig.logging_folder,"logging_folder")+"Avidemux.pull"
+	global logpath
+	pullfile = addslash(logpath,"logpath")+"Avidemux.pull"
 	if itemcheck (origin) == "":
 		logging.info("Initializing Avidemux Pull file at "+pullfile)
 	f = open(pullfile,"a+")
