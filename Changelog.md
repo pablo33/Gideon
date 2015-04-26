@@ -24,16 +24,12 @@ OK - Prohibited words must not be case sensitive.
 - Modified namefilcleaner, so it deletes entire words and not partial words.  
 - 
 
-Improvements:
 
+Improvements:
 
 TO DO:
 ------------------------
-Namefilm cleaner:
-    names ended in four digits are not chapters: pe:  "Karate Kid 1984"  
-    endings great than 19xx are not chapters, they are trated as years.  
-    
-
+Namefilm cleaner:    
 
 Use an idependent e-mail client. (¿python?)
 
