@@ -20,7 +20,7 @@
 	'''
 
 # module import
-import os, sys, shutil, logging, datetime, time, namefilmcleaner, readini, filmcovermatch, programstarter
+import os, sys, shutil, logging, datetime, time
 from glob import glob
 
 
@@ -103,6 +103,7 @@ if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
 	import TRWorkflowconfig
+	import namefilmcleaner, readini, filmcovermatch, programstarter
 else:
 	# Crear archivo genérico.
 	print ("No existe archivo de usuario: " + userconfig)
@@ -210,7 +211,7 @@ def procfile (origin, mode="c"):
 		inputs: full-path/to/input/filename
 		output: full-path/to/out-putt/filename
 		"""
-	global Fvideodest
+	global Fvideodest, TRWorkflowconfig
 
 	logging.debug ("Cleaning filename & delivering")
 	basename , ext = os.path.basename(os.path.splitext(origin)[0]), os.path.splitext(origin)[1]
@@ -347,6 +348,7 @@ def MailMovieInfo(moviefile,mail):
 		input: filemovie, recipient e-mail
 		output: 
 		"""
+	global TRWorkflowconfig
 	# We put send flag > off
 	send = 0
 	mydict, info_file = Extractcmovieinfo(moviefile)
@@ -412,6 +414,8 @@ def scanfolder(d):
 			list of compressed files,
 			)
 		'''
+	global TRWorkflowconfig
+
 	__version__ = 1.2
 	__date__="20/11/2014"
 	if d[-1]!="/": d = d+"/"
@@ -455,6 +459,7 @@ def fileclasify(f):
 		input: file
 		output: "other" (default), "audio", "video", "movie", "compressed" 
 		"""
+	global TRWorkflowconfig
 	ext = os.path.splitext(f)
 	if str(ext[1]) in ["","."]:
 		logging.warning("File has no extension")
@@ -780,7 +785,7 @@ def Dropfd():
 
 		Destination folder is also used as a repository of covers function.
 		'''
-
+	global TRWorkflowconfig
 	movelist = extfilemove (TRWorkflowconfig.Dropboxfolder, TRWorkflowconfig.Torrentinbox, ["torrent","jpg","png","jpeg"])
 	if movelist == []:
 		logging.debug("Nothing was in the Dropbox-hot-folder.")
