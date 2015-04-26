@@ -43,7 +43,7 @@ def add_to_pull(DW_DIRECTORY,TR_TORRENT_NAME):
 	""" Opens a pull file and writes a new line
 	
 		"""
-	f = open(spoolfile,"a+")
+	f = open(spoolfile,"a")
 	# origin must not have any commas in the title:
 	f.write("Torrent="+DW_DIRECTORY+"\t"+TR_TORRENT_NAME+"\n")
 	f.close()
@@ -51,13 +51,16 @@ def add_to_pull(DW_DIRECTORY,TR_TORRENT_NAME):
 
 
 # ==========================================
-# The logging module & main code
+# Main code
 # ==========================================
 
 # Write downloaded torrent into the spool file.
 
-# Getting current folder for loggin....
-logpath = os.getcwd()+"/logs/"
+# Getting user folder for loggin....
+logpath = os.getenv('HOME')+"/.TRWorkflow/logs/"
 spoolfile = addslash (logpath, "logpath")+"Torrent.spool"
+
+if itemcheck (logpath) == "":
+	os.makedirs(logpath)
 
 add_to_pull (DW_DIRECTORY,TR_TORRENT_NAME)

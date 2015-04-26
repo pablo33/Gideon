@@ -90,7 +90,7 @@ now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
 # Getting current folder for loggin....
-logpath = os.getcwd()+"/.TRworkflow/logs/"
+logpath = os.getenv('HOME')+"/.TRWorkflow/logs/"
 if itemcheck (logpath) != "folder":
 	os.makedirs(logpath)
 logging_file = logpath + "TRworkflow.log"
@@ -688,10 +688,10 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
 
 	logging.debug("Extracting alias definition from "+Dropboxfolder+"Videodest.ini")
-	alias = readini.readdict ("/home/pablo/Dropbox/TRinbox/Videodest.ini","alias",",")
+	alias = readini.readdict (Dropboxfolder+"Videodest.ini","alias",",")
 
 	logging.debug("Extracting dest definition")
-	dest = readini.readdict ("/home/pablo/Dropbox/TRinbox/Videodest.ini","dest",",")
+	dest = readini.readdict (Dropboxfolder+"Videodest.ini","dest",",")
 
 	logging.debug("Substituting dest alias")
 	for a in alias:
