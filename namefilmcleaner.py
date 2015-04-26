@@ -7,11 +7,11 @@
 
 # module import
 # import sys
-import os, logging, TRWorkflowconfig
+import os, logging, TRWorkflowconfig, re
 # sys.path.append ('/home/pablo/python3')
 
-__version__ = "1.1b"
-__date__ = "22/02/2015"
+__version__ = "1.2"
+__date__ = "26/04/2015"
 __author__ = "pablo33"
 #=====================================
 # Function  myfunction
@@ -79,14 +79,25 @@ def dotreplacement(a,lim):
 
 def prohibitedwords(a,lista):
 	'''  Eliminates words in text entries
-		input: "string.with.some.words."
+		those words matches if they are between spaces.
+		input: "string with some words."
 		input: ['List','of','words']
-		outputt: "string without this words (occurrences)".
+		outputt: "string without this words".
 	'''
+
 	for pw in lista:
-		x = a.upper().find(pw.upper())
+		# words in the middle
+		x = a.upper().find(" "+pw.upper()+" ")
 		if x >= 0:
-			a = a[:x]+a[x+len(pw):]
+			a = a[:x]+a[x+len(pw)+1:]
+		# words at the end
+		if len (pw)+1 < len (a):
+			if a.upper().endswith(" "+pw.upper()):
+				a = a[:-len(pw)-1]
+		# words at the begining
+		if len (pw)+1 < len (a):
+			if a.upper().startswith(pw.upper()+" "):
+				a = a[len(pw)+1:]
 	logging.debug(a)
 	return a
 
@@ -95,10 +106,12 @@ def sigcapfinder(filename):
 		filename, it will delete any punctuation character at the end and 
 		it will also try to find numbers at the end of the filename. 
 		If filename ends in three numbers, it'll change 'nnn' to 'nxnn'.
+		This not affects if filename ends in four or more numbers. 'nnnn' so they are treated as a 'year'
 		for example:
 
 		sigcapfinder("my title 123") returns>> "my title 1x23"
 		sigcapfinder("my title 123-[[[") returns>> "my title 1x23"
+		sigcapfinder("my title ending in a year 1985") returns "my title ending in a year 1985"
 		"""
 	if filename == "":
 		logging.warning("Empty filename to find chapter!")
@@ -121,7 +134,7 @@ def sigcapfinder(filename):
 
 	numbers = "0123456789"
 	# We check for an already end counter and we put into lower case if any "X" >> "x"
-	if base [-1] in numbers and base[-2] in numbers and base[-3] == "X" and base[-4] in numbers:
+	if base [-1] in numbers and base[-2] in numbers and base[-3] == "X" and base[-4] in numbers and base[-5] not in numbers:
 		logging.debug("there is a final counter >> we set it in lowerCase")
 		base = base[:-3]+"x"+base[-2:]
 		#placing a space before chapter counter.
@@ -131,7 +144,7 @@ def sigcapfinder(filename):
 		return base
 	
 	# Now we scan last 3 chars and do the transformation
-	if not (base [-1] in numbers and base[-2] in numbers and base[-3] in numbers):
+	if not (base [-1] in numbers and base[-2] in numbers and base[-3] in numbers and base[-4] not in numbers):
 		logging.debug("there isn't final counter")
 		return filename
 	else:
@@ -154,7 +167,7 @@ def chapid(item):
 		'''
 	name = os.path.splitext(os.path.basename(item))[0]
 	if len (name) < 4:
-		logging.debug("Filename ("+name+")has less than 4 char$, there isn't a cahpter identifier:")
+		logging.debug("Filename ("+name+")has less than 4 char$, there isn't a chapter identifier:")
 		return ""
 	tf = name[-4:]
 	numbers = "1234567890"

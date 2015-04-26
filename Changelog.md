@@ -18,10 +18,11 @@ OK - Prohibited words must not be case sensitive.
 1.5 OK - First registry into changelog. Software is Stable.
 
 2.0 OK
-- Put incoming process into a queue. So system will not be overloaded with many simultaneous instances. (now incoming torrents)
-- Mediaworflow.py has been included into TRWorkflow.py
-- Read user home folder and put logs in $HOME/.TRWorkflow/logs
-
+- Put incoming process into a queue. So system will not be overloaded with many simultaneous instances. (now incoming torrents)  
+- Mediaworflow.py has been included into TRWorkflow.py  
+- Read user home folder and put logs in $HOME/.TRWorkflow/logs  
+- Modified namefilcleaner, so it deletes entire words and not partial words.
+- 
 
 Improvements:
 
