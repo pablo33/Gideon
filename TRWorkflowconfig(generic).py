@@ -15,8 +15,8 @@ Fother_Folder = "/home/user/Downloads/" # Place to store other processed downloa
 Torrentinbox = "/home/user/Torrentinbox/" # Place to get covers from. It is a repository of covers from wich the videofile finds and gets a cover. (Usually The same folther that transmission puts torrents in)
 Dropboxfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
 
-# Chapter identifier, this prevents deleting in case it is found
-chapteridentifier = ('Cap', 'cap', 'episodio')
+# Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
+chapteridentifier = ('Cap', 'cap', 'episodio') 
 
 # How to tipify items
 ext = {

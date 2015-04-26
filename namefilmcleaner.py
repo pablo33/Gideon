@@ -6,8 +6,6 @@
 	or add more configurations '''
 
 # module import
-# import sys
-#import os, logging, TRWorkflowconfig
 import os, logging
 global TRWorkflowconfig
 

@@ -89,18 +89,18 @@ def copyfile(origin,dest,mode="c"):
 now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
-# Getting current folder for loggin....
+
+# Getting user folder to place log files....
 userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
 userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
-logpath =  os.path.join(userpath,"logs")+"/"
+logpath =  os.path.join(userpath,"logs")
 if itemcheck (logpath) != "folder":
 	os.makedirs(logpath)
 logging_file = os.path.join(logpath,"TRworkflow.log")
 
-
 # loading user preferences
 if itemcheck (userconfig) == "file":
-	logging.info ("Loading user configuration....")
+	print ("Loading user configuration....")
 	sys.path.append(userpath)
 	import TRWorkflowconfig
 else:
@@ -117,17 +117,21 @@ else:
 		os.system ("gedit "+userconfig)
 		exit()
 
+print ("Loginlevel:", TRWorkflowconfig.loginlevel)
 logging.basicConfig(
     level=TRWorkflowconfig.loginlevel,
     format='%(asctime)s : %(levelname)s : %(message)s',
     filename = logging_file,
     filemode = 'a', # uncomment this to overwrite log file.
 )
+print ("logging to:", logging_file)
 
 # Starting log file
 logging.debug("======================================================")
 logging.debug("================ Starting a new sesion ===============")
 logging.debug("======================================================")
+
+# exit()
 
 # Setting main variables
 Fmovie_Folder = TRWorkflowconfig.Fmovie_Folder # Default place to store movies
@@ -855,7 +859,7 @@ cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
 lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new torrents
 lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one.
 
-spoolfile = addslash (logpath, "logpath")+"Torrent.spool" # Spool file for incoming torrents
+spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file for incoming torrents
 
 # Main loop
 while True:

@@ -9,7 +9,6 @@
 	'''
 
 # module import
-# import sys
 import os, logging
 global TRWorkflowconfig
 

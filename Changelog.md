@@ -22,14 +22,13 @@ OK - Prohibited words must not be case sensitive.
 - Mediaworflow.py has been included into TRWorkflow.py  
 - Read user home folder and put logs in $HOME/.TRWorkflow/logs  
 - Modified namefilcleaner, so it deletes entire words and not partial words.  
-- 
+- Auto Store config file at user config path ("$HOME/.TRWorkflow/TRworkflowconfig.py")  
 
 
 Improvements:
 
 TO DO:
 ------------------------
-Namefilm cleaner:    
 
 Use an idependent e-mail client. (¿python?)
 
