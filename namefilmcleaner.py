@@ -7,7 +7,10 @@
 
 # module import
 # import sys
-import os, logging, TRWorkflowconfig, re
+#import os, logging, TRWorkflowconfig
+import os, logging
+global TRWorkflowconfig
+
 # sys.path.append ('/home/pablo/python3')
 
 __version__ = "1.2"

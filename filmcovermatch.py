@@ -10,7 +10,9 @@
 
 # module import
 # import sys
-import os, logging, TRWorkflowconfig
+import os, logging
+global TRWorkflowconfig
+
 from glob import glob
 
 __version__ = 1.1

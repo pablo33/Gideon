@@ -22,12 +22,22 @@ OK - Prohibited words must not be case sensitive.
 - Mediaworflow.py has been included into TRWorkflow.py  
 - Read user home folder and put logs in $HOME/.TRWorkflow/logs  
 - Modified namefilcleaner, so it deletes entire words and not partial words.
-- 
+- Modified namefilcleaner so filenames ended in years are not trated as chapters.
+- Migrate test plattform to git clone folder  
+- get user environment and place TRWorkflow-config.py into user's config file.  
+
 
 Improvements:
 
 
 TO DO:
 ------------------------
-Use an idependent e-mail client. (¿python?)
+- Include flags in config to activate-deactivate some features such:
+    - Name cleaner.
+    - dropbox supervision.
+    - movie info.
+    - movie-pull to recompress movies.
+    - notifications.
 
+
+Use an idependent e-mail client. (¿python?)

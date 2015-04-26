@@ -20,7 +20,7 @@
 	'''
 
 # module import
-import os, sys, shutil, logging, datetime, time, namefilmcleaner, TRWorkflowconfig, readini, filmcovermatch, programstarter
+import os, sys, shutil, logging, datetime, time, namefilmcleaner, readini, filmcovermatch, programstarter
 from glob import glob
 
 
@@ -90,10 +90,32 @@ now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
 # Getting current folder for loggin....
-logpath = os.getenv('HOME')+"/.TRWorkflow/logs/"
+userpath = os.path.join(os.getenv('HOME'),".TRworkflow")
+userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
+logpath =  os.path.join(userpath,"logs")+"/"
 if itemcheck (logpath) != "folder":
 	os.makedirs(logpath)
-logging_file = logpath + "TRworkflow.log"
+logging_file = os.path.join(logpath,"TRworkflow.log")
+
+
+# loading user preferences
+if itemcheck (userconfig) == "file":
+	logging.info ("Loading user configuration....")
+	sys.path.append(userpath)
+	import TRWorkflowconfig
+else:
+	# Crear archivo genérico.
+	print ("No existe archivo de usuario: " + userconfig)
+	if itemcheck ("TRWorkflowconfig(generic).py") != "file":
+		print ("Por favor, ejecuta por primera vez el programa desde el directorio donde está instalado.")
+		exit()
+	else:
+		copyfile ("TRWorkflowconfig(generic).py",userconfig,"c")
+		print ("Se ha creado el archivo de configuración de usuario: " + userconfig)
+		print ("Por favor, configura este archivo acorde con tus preferencias antes de volver a ejecutar este programa.")
+		print ("El programa intentará abir este archivo con un editor de texto.")
+		os.system ("gedit "+userconfig)
+		exit()
 
 logging.basicConfig(
     level=TRWorkflowconfig.loginlevel,
