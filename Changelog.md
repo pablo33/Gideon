@@ -21,23 +21,19 @@ OK - Prohibited words must not be case sensitive.
 - Put incoming process into a queue. So system will not be overloaded with many simultaneous instances. (now incoming torrents)  
 - Mediaworflow.py has been included into TRWorkflow.py  
 - Read user home folder and put logs in $HOME/.TRWorkflow/logs  
-- Modified namefilcleaner, so it deletes entire words and not partial words.
-- Modified namefilcleaner so filenames ended in years are not trated as chapters.
-- Migrate test plattform to git clone folder  
-- get user environment and place TRWorkflow-config.py into user's config file.  
-
+- Modified namefilcleaner, so it deletes entire words and not partial words.  
+- 
 
 Improvements:
 
 
 TO DO:
 ------------------------
-- Include flags in config to activate-deactivate some features such:
-    - Name cleaner.
-    - dropbox supervision.
-    - movie info.
-    - movie-pull to recompress movies.
-    - notifications.
+Namefilm cleaner:
+    names ended in four digits are not chapters: pe:  "Karate Kid 1984"  
+    endings great than 19xx are not chapters, they are trated as years.  
+    
 
 
 Use an idependent e-mail client. (¿python?)
+

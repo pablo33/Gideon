@@ -90,7 +90,7 @@ now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
 # Getting current folder for loggin....
-userpath = os.path.join(os.getenv('HOME'),".TRworkflow")
+userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
 userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
 logpath =  os.path.join(userpath,"logs")+"/"
 if itemcheck (logpath) != "folder":
