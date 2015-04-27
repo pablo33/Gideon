@@ -9,10 +9,26 @@ __version__ = 1.0
 __date__ = "12/12/2014"
 __author__ = "pablo33"
 
-import os, logging, readini, TRWorkflowconfig
+import os, logging
+
+userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
+userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
+logpath =  os.path.join(userpath,"logs")
+if itemcheck (logpath) != "folder":
+	os.makedirs(logpath)
+logging_file = os.path.join(logpath,"TRworkflow.log")
+
+# loading user preferences
+if itemcheck (userconfig) == "file":
+	print ("Loading user configuration....")
+	sys.path.append(userpath)
+	import TRWorkflowconfig, readini
+else:
+	print ("There is not a config file. You must create a config file first.")
+	print ("Please, run TRWorkflow.py and check your user config. ($HOME/.TRWorkflow/TRWorkflowconfig.py")
+
 
 #=== Logging Module ====
-global logpath
 
 logfile = os.path.join(logpath,"process.log")
 

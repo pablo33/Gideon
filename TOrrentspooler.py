@@ -18,13 +18,6 @@ TR_TORRENT_NAME = sys.argv[2] # Name of the item (can be a folder or a file)
 # ==========================================
 # ===============  Utils ===================
 # ==========================================
-def addslash(d,text="variable"):
-	""" Add a slash at the end if not any
-		"""
-	if d[-1]!= "/" :
-		d += "/"
-		logging.warning("..Adding a slash to "+text+":"+d)
-	return d
 
 def itemcheck(a):
 	if os.path.isfile(a):
@@ -57,8 +50,8 @@ def add_to_pull(DW_DIRECTORY,TR_TORRENT_NAME):
 # Write downloaded torrent into the spool file.
 
 # Getting user folder for loggin....
-logpath = os.getenv('HOME')+"/.TRWorkflow/logs/"
-spoolfile = addslash (logpath, "logpath")+"Torrent.spool"
+logpath = os.path.join (os.getenv('HOME'), ".TRWorkflow/logs")
+spoolfile = os.path.join (logpath, "Torrent.spool")
 
 if itemcheck (logpath) == "":
 	os.makedirs(logpath)

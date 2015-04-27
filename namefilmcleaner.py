@@ -6,8 +6,7 @@
 	or add more configurations '''
 
 # module import
-import os, logging
-global TRWorkflowconfig
+import os, logging, TRWorkflowconfig
 
 
 # sys.path.append ('/home/pablo/python3')
