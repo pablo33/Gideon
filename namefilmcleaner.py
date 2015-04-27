@@ -5,7 +5,7 @@
 	it is composed of various functions, so you can easily change
 	or add more configurations '''
 
-# module import
+# module import, normal mode
 import os, logging, TRWorkflowconfig
 
 
@@ -62,7 +62,7 @@ def dotreplacement(a,lim):
 		input: "lim" String, must contain two characters: caracter to search and character to replace with.
 		output: "String to process" (procesed string)
 	'''
-	leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()"
+	leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
 	while True :
 		logging.debug(a)
 		st = a.find(lim[0])
@@ -195,14 +195,15 @@ def clearfilename(filename):
 	logging.info("# Cleaning filename: "+filename)
 	filenametmp = filename
 
-	#1 trimming brackets
-	filenametmp = trimbetween(filenametmp, "[]")
-
-	#2 replacing dots, underscores & half  between leters.
+	
+	#1 replacing dots, underscores & half  between leters.
 	filenametmp = dotreplacement(filenametmp, ". ")
 	filenametmp = dotreplacement(filenametmp, "_ ")
 	filenametmp = dotreplacement(filenametmp, "- ")
 
+	#2 trimming brackets
+	filenametmp = trimbetween(filenametmp, "[]")
+	
 	#3 Replacing prohibited words.
 	
 	while True:
