@@ -78,8 +78,10 @@ def matchfilm(film,lista):
 		name = os.path.splitext(os.path.basename(a))[0]
 		matchw = 0
 		for b in name.split(): # for b in words(name): /// I replaced this function. 
+			logging.debug ("Word to find in cover: "+b)
 			if b.upper() in filmname.upper():
 				matchw += len(b)
+				
 		if matchw > match:
 			coveritem, match = a, matchw
 	# We need at least a match of 4 points to return a reasonable match

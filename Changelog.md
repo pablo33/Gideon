@@ -1,4 +1,4 @@
-_Main_: TRWorkflow.py
+g_Main_: TRWorkflow.py
 ----------------------
 
 OK - Finding and selecting titles to must not be Case sensitive.  
@@ -31,4 +31,6 @@ TO DO:
 ------------------------
 
 Use an idependent e-mail client. (¿python?)
+
+Process a folder that have one picture, and fetch it as a cover.
 

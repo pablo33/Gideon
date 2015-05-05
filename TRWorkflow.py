@@ -106,15 +106,15 @@ if itemcheck (userconfig) == "file":
 	import namefilmcleaner, readini, filmcovermatch, programstarter
 else:
 	# Crear archivo genérico.
-	print ("No existe archivo de usuario: " + userconfig)
+	print ("There isn't an user config file: " + userconfig)
 	if itemcheck ("TRWorkflowconfig(generic).py") != "file":
-		print ("Por favor, ejecuta por primera vez el programa desde el directorio donde está instalado.")
+		print ("Please, run TRWorkflow.py for the first time from its own intalled dir. ")
 		exit()
 	else:
 		copyfile ("TRWorkflowconfig(generic).py",userconfig,"c")
-		print ("Se ha creado el archivo de configuración de usuario: " + userconfig)
-		print ("Por favor, configura este archivo acorde con tus preferencias antes de volver a ejecutar este programa.")
-		print ("El programa intentará abir este archivo con un editor de texto.")
+		print ("An user config file has been created: " + userconfig)
+		print ("Please customize by yourself before run this software again")
+		print ("This software is going to try to open with a text editor.")
 		os.system ("gedit "+userconfig)
 		exit()
 

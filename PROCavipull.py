@@ -5,11 +5,22 @@
 	This process will go on until pull is empty.
 	"""
 
-__version__ = 1.0
-__date__ = "12/12/2014"
+__version__ = 2.0
+__date__ = "05/05/2015"
 __author__ = "pablo33"
 
-import os, logging
+import sys, os, logging
+
+
+def itemcheck(a):
+	if os.path.isfile(a):
+	    return 'file'
+	if os.path.isdir(a):
+	    return 'folder'
+	if os.path.islink(a):
+	    return 'link'
+	return ""
+
 
 userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
 userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
@@ -39,14 +50,6 @@ logging.basicConfig(
     filemode = 'a', # uncomment this to overwrite log file.
 )
 
-def itemcheck(a):
-	if os.path.isfile(a):
-	    return 'file'
-	if os.path.isdir(a):
-	    return 'folder'
-	if os.path.islink(a):
-	    return 'link'
-	return ""
 
 # ======= START ================
 logging.info("==================  New Start ====================")
@@ -55,6 +58,7 @@ if itemcheck (pullfile) == "":
 	logging.info("Thereis nothing to do, Avidemux Pull file does not exist....")
 	print ("Thereis nothing to do, Avidemux Pull file does not exist....")
 	exit("Exiting...")
+
 # Read pull file and put it into a dict
 mylist = []
 while True:	
