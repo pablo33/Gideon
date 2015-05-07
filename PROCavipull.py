@@ -37,8 +37,9 @@ if itemcheck (userconfig) == "file":
 else:
 	print ("There is not a config file. You must create a config file first.")
 	print ("Please, run TRWorkflow.py and check your user config. ($HOME/.TRWorkflow/TRWorkflowconfig.py")
+	exit()
 
-
+shdown = 0 # Shutdown flag. We only shut-down the system if at least one file is processed correctly
 #=== Logging Module ====
 
 logfile = os.path.join(logpath,"process.log")
@@ -61,6 +62,7 @@ if itemcheck (pullfile) == "":
 
 # Read pull file and put it into a dict
 mylist = []
+nfilesproc = 0 # number of files that have been procesed
 while True:	
 	mypull = readini.readdict (pullfile,"Avidemux","\t")
 	# Delete items that have been processed (first time mylist is empty)
@@ -87,6 +89,10 @@ while True:
 	for a in mylist:
 		origin, dest = a , mypull[a]
 		# Filepaths origin & dest must come without single quotes in order to work.
+		# renaming items # we need to transform this strings:
+		echoorigin = origin.replace("'","\'\"\'\"\'")
+		echodest = dest.replace("'","\'\"\'\"\'")
+				
 		# Checking origin and destination:
 		skipp = 0
 		if itemcheck (origin) != "file":
@@ -99,24 +105,39 @@ while True:
 			# Re-encoding
 			print ("Launching Avidemux")
 			# Notify Start 
-			info = "Starting encoding %s. %s files pending for now"%(a,len(mylist)-mylist.index(a))
-			os.system("echo '%s' | mutt -s 'Codificando %s' '%s'"%(info,os.path.basename(origin),TRWorkflowconfig.mail_recipients))
+			info = "Starting encoding %s. %s files pending for now"%(echoorigin,len(mylist)-mylist.index(a))
+			os.system("echo '%s' | mutt -s 'Codificando %s' '%s'"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
 			logging.info("Codification has started for "+origin)
 			# Encoding
-			os.system("avidemux --nogui --load '%s' --audio-codec COPY --video-codec Xvid --force-alt-h264 --video-conf cbr=4500 --output-format MATROSKA --save '%s' --quit"%(origin,dest))
+			os.system("avidemux --nogui --load '%s' --audio-codec COPY --video-codec Xvid --force-alt-h264 --video-conf cbr=4500 --output-format MATROSKA --save '%s' --quit"%(echoorigin,echodest))
 			logging.info(dest+" converted.")
-			# Notify End
-			info = "Encoding finished %s. %s files pending for now"%(a,len(mylist)-mylist.index(a)-1)
-			logging.debug("Sending mail: "+"echo '%s' | mutt -s 'Codificación de %s Completada' %s"%(info,os.path.basename(origin),TRWorkflowconfig.mail_recipients))
-			os.system("echo '%s' | mutt -s 'Codificación de %s Completada' %s"%(info,os.path.basename(origin),TRWorkflowconfig.mail_recipients))
-			# Removig original file
-			logging.debug("removing file: "+origin)
-			os.remove(origin)
-			logging.info("%s file has been removed from the system."%(origin))
+			# Check final file:
+			if itemcheck(dest) == 'file':
+				# Notify End
+				info = "Encoding finished %s. %s files pending for now"%(echoorigin,len(mylist)-mylist.index(a)-1)
+				logging.debug ("Sending mail: "+"echo '%s' | mutt -s 'Codificación de %s Completada' %s"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
+				os.system ("echo '%s' | mutt -s 'Codificación de %s Completada' %s"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
+				# Removig original file
+				logging.debug ("removing file: "+origin)
+				os.remove (origin)
+				logging.info("%s file has been removed from the system."%(origin))
+				shdown = TRWorkflowconfig.shdown # at least one file was procesed, the system could be shutted down.
+			else:
+				# Notify warning. File was not procesed at all.! 
+				info = "Something happend with this file %s. Nothing was encoded, review the codification by yourself at %s. %s files pending for now"%(os.path.basename(echoorigin),os.path.dirname(echoorigin),len(mylist)-mylist.index(a)-2)
+				logging.debug("Codification Error! : This file was not re-encoded:"+ origin)
+				os.system("echo '%s' | mutt -s 'Codification Error!: %s' %s"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
+				logging.info("%s file will remain on the system and deleted from Avidemux.pull"%(origin))
+				errordir = os.path.join ( os.path.dirname (origin),"Error")
+				errordest = os.path.join (errordir,os.path.basename(origin))
+				if itemcheck (errordest) == "":
+					os.renames (origin,errordest)
+
 	logging.info("List has been procesed")
 	logging.info("Cleaning pull file & looking for more files to process.....")
 
 # Shutting Down the system
-if TRWorkflowconfig.shdown == 1 :
+if shdown == 1 :
 	logging.info("Shutting down the system.....")
-	os.system("sudo halt -p")
+	print ("The sistem is sutted down!.  OK?")
+	os.system("sudo halt -p") 
