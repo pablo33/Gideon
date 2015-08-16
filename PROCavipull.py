@@ -9,7 +9,8 @@ __version__ = 2.0
 __date__ = "05/05/2015"
 __author__ = "pablo33"
 
-import sys, os, logging
+import sys, os, logging, smtplib
+from email.mime.text import MIMEText
 
 
 def itemcheck(a):
@@ -50,6 +51,8 @@ logging.basicConfig(
     filename = logfile,
     filemode = 'a', # uncomment this to overwrite log file.
 )
+
+from TRWorkflow import emailme
 
 
 # ======= START ================
@@ -106,7 +109,8 @@ while True:
 			print ("Launching Avidemux")
 			# Notify Start 
 			info = "Starting encoding %s. %s files pending for now"%(echoorigin,len(mylist)-mylist.index(a))
-			os.system("echo '%s' | mutt -s 'Codificando %s' '%s'"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
+			emailme ( TRWorkflowconfig.mailsender, 'Codificando'+ os.path.basename(echoorigin),   TRWorkflowconfig.mail_recipients,  info)
+
 			logging.info("Codification has started for "+origin)
 			# Encoding
 			os.system("avidemux --nogui --load '%s' --audio-codec COPY --video-codec Xvid --force-alt-h264 --video-conf cbr=4500 --output-format MATROSKA --save '%s' --quit"%(echoorigin,echodest))
@@ -115,8 +119,8 @@ while True:
 			if itemcheck(dest) == 'file':
 				# Notify End
 				info = "Encoding finished %s. %s files pending for now"%(echoorigin,len(mylist)-mylist.index(a)-1)
-				logging.debug ("Sending mail: "+"echo '%s' | mutt -s 'Codificación de %s Completada' %s"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
-				os.system ("echo '%s' | mutt -s 'Codificación de %s Completada' %s"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
+				emailme ( TRWorkflowconfig.mailsender, 'Codificación completada: '+ os.path.basename(echoorigin),   TRWorkflowconfig.mail_recipients,  info)
+
 				# Removig original file
 				logging.debug ("removing file: "+origin)
 				os.remove (origin)
@@ -126,7 +130,7 @@ while True:
 				# Notify warning. File was not procesed at all.! 
 				info = "Something happend with this file %s. Nothing was encoded, review the codification by yourself at %s. %s files pending for now"%(os.path.basename(echoorigin),os.path.dirname(echoorigin),len(mylist)-mylist.index(a)-2)
 				logging.debug("Codification Error! : This file was not re-encoded:"+ origin)
-				os.system("echo '%s' | mutt -s 'Codification Error!: %s' %s"%(info,os.path.basename(echoorigin),TRWorkflowconfig.mail_recipients))
+				emailme ( TRWorkflowconfig.mailsender, 'Codification Error!:'+ os.path.basename(echoorigin),   TRWorkflowconfig.mail_recipients,  info)
 				logging.info("%s file will remain on the system and deleted from Avidemux.pull"%(origin))
 				errordir = os.path.join ( os.path.dirname (origin),"Error")
 				errordest = os.path.join (errordir,os.path.basename(origin))
