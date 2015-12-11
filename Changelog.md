@@ -18,11 +18,12 @@ OK - Prohibited words must not be case sensitive.
 1.5 OK - First registry into changelog. Software is Stable.
 
 2.0 OK
-- Put incoming process into a queue. So system will not be overloaded with many simultaneous instances. (now incoming torrents)  
-- Mediaworflow.py has been included into TRWorkflow.py  
+- Put incoming process into a queue. So system will not be messed with many simultaneous instances. (now incoming torrents)  
+- Mediaworflow.py modeule has been included into TRWorkflow.py  
 - Read user home folder and put logs in $HOME/.TRWorkflow/logs  
 - Modified namefilcleaner, so it deletes entire words and not partial words.  
 - Auto Store config file at user config path ("$HOME/.TRWorkflow/TRworkflowconfig.py")  
+- 2015/08/15 Use an idependent e-mail client. smtp.lib in python.
 
 
 Improvements:
@@ -30,7 +31,14 @@ Improvements:
 TO DO:
 ------------------------
 
-Use an idependent e-mail client. (¿python?)
+La forma de dar de alta las líneas en al torrent-spool es muy patatera. Tiene el path de la descarga de torrents fija.
+
+
+Send a storage status by e-mail on each downloaded torrent. using Python code.
 
 Process a folder that have one picture, and fetch it as a cover.
+
+Send information about delivery process.
+
+Develop case of various folders.
 

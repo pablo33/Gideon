@@ -26,7 +26,7 @@ ext = {
 	"notwanted":['txt','url','lnk','DS_Store'],
 }
 # List of prohibited words. This words will be deleted from files and folder-names
-prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','www','MP3','HDTV','XviD','DVDRip','LeoParis',
+prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www','MP3','HDTV','XviD','DVDRip','LeoParis',
 	'Widescreen','DVD9.','.FULL.','PAL','Eng.','Ger.','Spa.','Ita.',
 	'Fra.','Multisubs','720p','DVD','AC3','  ','..','__','()','[]'
 	]
@@ -38,8 +38,16 @@ send_info_mail = "never"
 alert_values = {'ID_VIDEO_FORMAT':'H264',
 	}
 
-# Recipients to send info: you can add as many as you want, write them into one string and separated by spaces.
-mail_recipients = 'youremail@here.es'
+# mail config (this example is for a gmx account, with SSL autentication)
+mailmachine = 'mail.gmx.com'		# your server machine
+mailsender = 'youremail@here.com'	# your sender email account
+mailpassw = 'yourPa$$wordhere'		# your email password.
+mail_recipients = 'recipientsemail@here.com'	# Recipients to send info: you can add as many as you want, write them into one string and separated by colons (:). 
+
+# Transmission norifications
+TR_DW_DIRECTORY="/your/full/path/to/transmission/download/dir" # Path where transmission stores downloaded files.
+TR_MAILTO="peopleto@here.com" # one or more recipients in "To" separated by semi colons (;)
+TR_MAILTOCC="peopletocc@here.com" # one or more recipients in "CC" separated by semi colons (;)
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "DEBUG"

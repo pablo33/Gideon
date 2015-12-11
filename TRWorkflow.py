@@ -12,7 +12,7 @@
 	Scans videofiles properties and stores their information into a log file. (You'l need to install mplayer).
 	As videofiles can be scanned, they can be stored at a tmp-folder, stored into a queue and send a warning e-mail. (Useful if your Hardware freezes playing videos and you need to recompress them, usually into a xVid codec)
 	It can process this queue of videofiles and recompress automatically to a given codec without loosing its deliver path. Youl'l need avidemux to do that.
-	It can send e-mails to notify some processes. You'l need to have mutt client installed.
+	It can send e-mails to notify some processes. You'l need to config your mail account.
 
 	Logs are stored in TRworkflow.log file.
 
@@ -20,8 +20,9 @@
 	'''
 
 # module import
-import os, sys, shutil, logging, datetime, time
+import os, sys, shutil, logging, datetime, time, smtplib
 from glob import glob
+from email.mime.text import MIMEText
 
 
 __version__ = "2.0"
@@ -269,9 +270,9 @@ def procfolder(origin):
 	nnotwant= len (items[5]) # number of not wanted files 
 	ncompres= len (items[6]) # number of compressed files 
 	nother  = len (items[7]) # number of other files
-	print ("Executing desicions")
+	print ("Executing decisions")
 	# Decisions:
-	# ==========
+	# =========
 	#1# only one movie without folders nor other useful files.
 	if nmovies == 1 and (nfolder+naudio+nother+ncompres)==0 :
 		logging.info ("===========\n#1# Thereis only one videofile.")
@@ -343,14 +344,14 @@ def procfolder(origin):
 	logging.debug(report)
 
 def MailMovieInfo(moviefile,mail):
-	""" e-mails info movie to a mail. It uses mutt client to send the e-mail.
+	""" e-mails info movie to a mail.
 
 		input: filemovie, recipient e-mail
 		output: 
 		"""
 	global TRWorkflowconfig
-	# We put send flag > off
-	send = 0
+	
+	send = 0 # We put send flag > off
 	mydict, info_file = Extractcmovieinfo(moviefile)
 	# we add a Megapixel parameter
 	mydict ['MP'] = int(mydict ['ID_VIDEO_WIDTH']) * int(mydict ['ID_VIDEO_HEIGHT']) / 1000000
@@ -368,14 +369,48 @@ def MailMovieInfo(moviefile,mail):
 		f.write("\n")
 		f.close()
 	# checking Exceptions 
-	if send == 1 and mydict ['MP'] < 0.3 : # Videos less than 0.3Mp do not have any problems
+	if send == 1 and mydict ['MP'] < 0.3 : # Videos less than 0.3Mp do not have any problems on my machine. They do not need to be recompressed.
 		send = 0
 
 	# Sending alerts
 	if send == 1 or TRWorkflowconfig.send_info_mail == "always":
 		logging.debug("Sending alert mail")
-		os.system('echo "===========  ALERTS ===========" | mutt -s "Notificación de alerta en %s" -i "%s" %s'%(os.path.basename(moviefile),info_file,mail))
+		emailme ( TRWorkflowconfig.mailsender, 'Alert notification in %s' %(os.path.basename(moviefile)), mail, info_file)
 	return send
+
+def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
+	'''Send a mail notification.
+		parameters:
+			msgfrom = e-mail from
+			msgsubjet = Subject (string in one line)
+			msgto = mail_recipients (could be more than one parsed into a string colon (:) separated)
+			textfile = path to textfile, this is the body of the message. You can pass a string anyway,
+		'''
+	
+	global TRWorkflowconfig
+	
+	# Open a plain text file for reading.
+	if itemcheck (textfile) == "file":
+		# the text file must contain only ASCII characters.
+		with open(textfile) as fp:
+			# Create a text/plain message
+			msg = MIMEText(fp.read())
+	else:
+		msg = MIMEText(textfile)
+
+	msg['Subject'] = msgsubject
+	msg['From'] = msgfrom
+	msg['To'] = msgto
+	msg['Cc'] = msgcc
+
+	# Send the message via our own SMTP server.
+	s = smtplib.SMTP(TRWorkflowconfig.mailmachine)
+	s.starttls()
+	s.login( TRWorkflowconfig.mailsender, TRWorkflowconfig.mailpassw) # your user account and password
+	s.send_message(msg)
+	s.quit( )
+	return
+
 
 def TRprocfolder(origin):
 	global Fother_Folder
@@ -584,7 +619,7 @@ def addcover(film,Torrentinbox):
 	# If destination cover is found, we will re-write it, so covers can be update with new ones.
 	if itemcheck (dest) != "":
 		logging.warning("file already exists, deleting old cover")
-		shutil.remove(dest)
+		os.remove(dest)
 	# Finally we move cover.
 	logging.debug("moving cover to:"+dest)
 	shutil.move(cover,dest)
@@ -748,7 +783,7 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 		logging.warning("..Torrent names must not end in slash:"+TR_TORRENT_NAME)
 
 	#4 Item check:
-	for a in (DW_DIRECTORY+TR_TORRENT_NAME, Fmovie_Folder, Faudio_Folder, Fother_Folder):
+	for a in (os.path.join(DW_DIRECTORY,TR_TORRENT_NAME), Fmovie_Folder, Faudio_Folder, Fother_Folder):
 		if itemcheck(a) not in ("file","folder"):
 			logging.warning(a + " does not exists or is not a file nor a folder item, please check config file or input parameters, links items are not allowed.... Exitting")
 			print (a + " does not exists or is not a file nor a folder item, please check config file or input parameters, links items are not allowed\n Exitting....\n")
@@ -858,22 +893,35 @@ def dtsp(spoolfile):
 # ===  MAIN PROCESS                  ==========================
 # ========================================
 
-launchstate = 0 # At first run we assume that launch state is 0 (Transmission is not launched)
-s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
-cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
-lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new torrents
-lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one.
+if __name__ == '__main__':
+	launchstate = 0 # At first run we assume that launch state is 0 (Transmission is not launched)
+	s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
+	cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
+	lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new torrents
+	lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one.
 
-spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file for incoming torrents
+	spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file for incoming torrents
+	
+	# Main loop
+	while True:
+		Dropfd() # Checks Dropbox folder for .torrents and .images
+		dtsp (spoolfile) # Checks Torrent.spool file
+		if launchstate == 0 :
+			launch = programstarter.launcher (cmd, lsdy, lsext) # Finding new .Torrents & pending torrents to start Transmission
+			if launch == 1:
+				logging.info("'"+cmd + "' has been executed, turning launchstate to 1")
+				launchstate = 1
+		logging.debug("# Done!, waiting for "+str(s)+" seconds....")
+		time.sleep(s)
 
-# Main loop
-while True:
-	Dropfd() # Checks Dropbox folder for .torrents and .images
-	dtsp (spoolfile) # Checks Torrent.spool file
-	if launchstate == 0 :
-		launch = programstarter.launcher (cmd, lsdy, lsext) # Finding new .Torrents & pending torrents to start Transmission
-		if launch == 1:
-			logging.info("'"+cmd + "' has been executed, turning launchstate to 1")
-			launchstate = 1
-	logging.debug("# Done!, waiting for "+str(s)+" seconds....")
-	time.sleep(s)
+
+'''
+# def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
+	Send a mail notification.
+		parameters:
+			msgfrom = e-mail from
+			msgsubjet = Subject (string in one line)
+			msgto = mail_recipients (could be more than one parsed into a string colon (:) separated)
+			textfile = path to textfile, this is the body of the message. You can pass a string anyway,
+'''		
+#emailme ( TRWorkflowconfig.mailsender, 'Testing mail %s' %('XXXX-1-Ññ'), 'pcasas33@gmail.com', '/home/pablo/.TRWorkflow/TRWorkflowconfig.py', 'pablolabora@gmx.es')

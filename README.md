@@ -31,7 +31,6 @@ This programs needs to run the following programs in your system:
 
  * Transmission
  * Dropbox
- * Mutt (and a mail account)
  * mplayer
  * Avidemux
 
