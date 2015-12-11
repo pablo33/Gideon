@@ -13,7 +13,7 @@
 import os, sys
 from email.mime.text import MIMEText
 from TRWorkflow import emailme
-from glob import glob
+#from glob import glob
 
 # ==========================================
 # ===============  Utils ===================
@@ -83,7 +83,7 @@ msgtext = "New torrent downloaded: %s \n\n" %(TR_TORRENT_NAME)
 	# Read and add contents to msg 
 if itemcheck (TR_item) == 'folder':
 	msgtextmp = "Contents: of %s \n================================================\n" %(TR_TORRENT_NAME)
-	mycontents = glob (TR_item + '/*.*' )
+	mycontents = os.listdir (TR_item)
 	mycontents.sort()
 	for a in mycontents:
 		msgtextmp += str(a) + "\n"

@@ -270,9 +270,9 @@ def procfolder(origin):
 	nnotwant= len (items[5]) # number of not wanted files 
 	ncompres= len (items[6]) # number of compressed files 
 	nother  = len (items[7]) # number of other files
-	print ("Executing desicions")
+	print ("Executing decisions")
 	# Decisions:
-	# ==========
+	# =========
 	#1# only one movie without folders nor other useful files.
 	if nmovies == 1 and (nfolder+naudio+nother+ncompres)==0 :
 		logging.info ("===========\n#1# Thereis only one videofile.")
@@ -619,7 +619,7 @@ def addcover(film,Torrentinbox):
 	# If destination cover is found, we will re-write it, so covers can be update with new ones.
 	if itemcheck (dest) != "":
 		logging.warning("file already exists, deleting old cover")
-		shutil.remove(dest)
+		os.remove(dest)
 	# Finally we move cover.
 	logging.debug("moving cover to:"+dest)
 	shutil.move(cover,dest)
