@@ -13,7 +13,6 @@
 import os, sys
 from email.mime.text import MIMEText
 from TRWorkflow import emailme
-#from glob import glob
 
 # ==========================================
 # ===============  Utils ===================

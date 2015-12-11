@@ -21,7 +21,6 @@
 
 # module import
 import os, sys, shutil, logging, datetime, time, smtplib
-from glob import glob
 from email.mime.text import MIMEText
 
 
@@ -445,8 +444,8 @@ def scanfolder(d):
 			list of video-files,
 			list of audio-files,
 			list of notwanted-files,
-			list of other files,
 			list of compressed files,
+			list of other files,
 			)
 		'''
 	global TRWorkflowconfig
@@ -454,7 +453,7 @@ def scanfolder(d):
 	__version__ = 1.2
 	__date__="20/11/2014"
 	if d[-1]!="/": d = d+"/"
-	listitems = glob(d+"*")
+	listitems = [d + "/" + i for i in os.listdir (d)]
 	# Starting counters and vars
 	ND, NF = 0, 0
 	lFL, lVF, lAF, lNW, lCF, lOF = [], [], [], [], [], []
@@ -648,7 +647,7 @@ def extfilemove(origin,dest,extensions=[]):
 	# We want an ending slash.... 
 	if origin[-1]!="/": origin += "/"
 	items = []
-	newitems = glob(origin+"*")
+	newitems = [origin + i for i in os.listdir (origin)]
 	for i in newitems:
 		if itemcheck(i) == 'file':
 			for a in extensions:
