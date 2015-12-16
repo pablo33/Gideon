@@ -24,14 +24,18 @@ OK - Prohibited words must not be case sensitive.
 - Modified namefilcleaner, so it deletes entire words and not partial words.  
 - Auto Store config file at user config path ("$HOME/.TRWorkflow/TRworkflowconfig.py")  
 - 2015/08/15 Use an idependent e-mail client. smtp.lib in python.
+- 2015/12/15 Included Component diagram.
+
 
 
 Improvements:
 
 TO DO:
 ------------------------
+draw the Main service activity diagram. (TRWorkflow.py)
 
-La forma de dar de alta las líneas en al torrent-spool es muy patatera. Tiene el path de la descarga de torrents fija.
+
+La forma de dar de alta las líneas en al torrent-spool es muy patatera. Tiene el path de la descarga de torrents fija.  
 
 
 Send a storage status by e-mail on each downloaded torrent. using Python code.
@@ -41,4 +45,8 @@ Process a folder that have one picture, and fetch it as a cover.
 Send information about delivery process.
 
 Develop case of various folders.
+
+Procesar una cuenta de e-mail a modo de hot-folder. Tomar los torrents adjuntos o los magnets del contenido del mensaje.  
+
+
 

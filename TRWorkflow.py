@@ -1,22 +1,22 @@
 #!/usr/bin/python3
-''' This program is intended to process downloaded torrents.
+''' This program is intended to process torrents.
 	
-	This program has three main functions:
+	Program main functions:
 
-	Check contents of Torrnt.spoolfile
-	Check contents of downloaded torrent,
+	Checks contents of Torrent.spoolfile
+	Checks contents of downloaded torrents,
 	Stores downloaded files due to its nature and contents at pre configured folder/s.
-	Rename files by cleaning filenames.
+	Renames files by cleans filenames.
 	It can find and select the most suitable cover from a folder and match to its videofile, so Freevo can read it as its cover.
 	It can detect chapter-numbers at the end of the file/s, rename then as nxnn so Freevo can group videofiles as chapters.
 	Scans videofiles properties and stores their information into a log file. (You'l need to install mplayer).
-	As videofiles can be scanned, they can be stored at a tmp-folder, stored into a queue and send a warning e-mail. (Useful if your Hardware freezes playing videos and you need to recompress them, usually into a xVid codec)
-	It can process this queue of videofiles and recompress automatically to a given codec without loosing its deliver path. Youl'l need avidemux to do that.
+	As videofiles can be scanned, they can be stored at a tmp-folder, placed this entry into a queue and send a warning e-mail. (Useful if your Hardware freezes playing videos and you need to recompress them, usually into a xVid codec)
+	It can process this queue of videofiles and recompress automatically to a given codec without loosing its final deliver path. Youl'l need avidemux to do that.
 	It can send e-mails to notify some processes. You'l need to config your mail account.
 
-	Logs are stored in TRworkflow.log file.
+	Logs are stored in a single TRworkflow.log file.
 
-	You need to set up TRWorkflowconfig.py first.
+	You need to set up TRWorkflowconfig.py first. o run this program for the first time.
 	'''
 
 # module import
@@ -79,18 +79,18 @@ def copyfile(origin,dest,mode="c"):
 
 
 # ===================================
-# 				Setting up		
+# 			== Setting up ==
 # ===================================
 
 # (1) LOG MODULE ........ (Configurying the logging module)
 # ---------------------------------------------------------
 
-# Getting current date and time
+# (1.1) Getting current date and time
 now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
 
-# Getting user folder to place log files....
+# (1.2) Getting user folder to place log files....
 userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
 userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
 logpath =  os.path.join(userpath,"logs")
@@ -98,14 +98,14 @@ if itemcheck (logpath) != "folder":
 	os.makedirs(logpath)
 logging_file = os.path.join(logpath,"TRworkflow.log")
 
-# loading user preferences
+# (1.3) loading user preferences
 if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
 	import TRWorkflowconfig
 	import namefilmcleaner, readini, filmcovermatch, programstarter
 else:
-	# Crear archivo genérico.
+	# initilizing user's default config file.
 	print ("There isn't an user config file: " + userconfig)
 	if itemcheck ("TRWorkflowconfig(generic).py") != "file":
 		print ("Please, run TRWorkflow.py for the first time from its own intalled dir. ")
@@ -127,20 +127,19 @@ logging.basicConfig(
 )
 print ("logging to:", logging_file)
 
-# Starting log file
+# (1.4) Starting log file
 logging.debug("======================================================")
 logging.debug("================ Starting a new sesion ===============")
 logging.debug("======================================================")
 
-# exit()
 
-# Setting main variables
+# (1.5) Setting main variables
 Fmovie_Folder = TRWorkflowconfig.Fmovie_Folder # Default place to store movies
 Faudio_Folder = TRWorkflowconfig.Faudio_Folder # Default place to store music
 Fother_Folder = TRWorkflowconfig.Fother_Folder # Default place to store other downloads
 Dropboxfolder = TRWorkflowconfig.Dropboxfolder # Default place to store automatic inbox .torrents, .covers and Videodest.ini file 
 
-# Prequisites:
+# (1.6) Prequisites:
 #=============
 #1 directory paths must end in slash "/"
 Fmovie_Folder = addslash (Fmovie_Folder,"Fmovie_Folder")
@@ -409,7 +408,6 @@ def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
 	s.send_message(msg)
 	s.quit( )
 	return
-
 
 def TRprocfolder(origin):
 	global Fother_Folder
@@ -889,17 +887,17 @@ def dtsp(spoolfile):
 	pass
 
 # ========================================
-# ===  MAIN PROCESS                  ==========================
+# 			== MAIN PROCESS  ==
 # ========================================
 
 if __name__ == '__main__':
 	launchstate = 0 # At first run we assume that launch state is 0 (Transmission is not launched)
 	s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 	cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
-	lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new torrents
-	lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one.
+	lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
+	lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one. 
 
-	spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file for incoming torrents
+	spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
 	
 	# Main loop
 	while True:
@@ -912,15 +910,3 @@ if __name__ == '__main__':
 				launchstate = 1
 		logging.debug("# Done!, waiting for "+str(s)+" seconds....")
 		time.sleep(s)
-
-
-'''
-# def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
-	Send a mail notification.
-		parameters:
-			msgfrom = e-mail from
-			msgsubjet = Subject (string in one line)
-			msgto = mail_recipients (could be more than one parsed into a string colon (:) separated)
-			textfile = path to textfile, this is the body of the message. You can pass a string anyway,
-'''		
-#emailme ( TRWorkflowconfig.mailsender, 'Testing mail %s' %('XXXX-1-Ññ'), 'pcasas33@gmail.com', '/home/pablo/.TRWorkflow/TRWorkflowconfig.py', 'pablolabora@gmx.es')
