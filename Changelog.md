@@ -25,6 +25,8 @@ OK - Prohibited words must not be case sensitive.
 - Auto Store config file at user config path ("$HOME/.TRWorkflow/TRworkflowconfig.py")  
 - 2015/08/15 Use an idependent e-mail client. smtp.lib in python.
 - 2015/12/15 Included Component diagram.
+- 2015/12/16 draw the Main service activity diagram. (TRWorkflow.py)
+- 2015/12/16 draw TRWorkflow - dtsp_function - Activity Diagram (process of torrent spool-file)
 
 
 
@@ -32,13 +34,11 @@ Improvements:
 
 TO DO:
 ------------------------
-draw the Main service activity diagram. (TRWorkflow.py)
 
+Send a free-storage status by e-mail on each downloaded torrent. using Python code.
 
 La forma de dar de alta las líneas en al torrent-spool es muy patatera. Tiene el path de la descarga de torrents fija.  
 
-
-Send a storage status by e-mail on each downloaded torrent. using Python code.
 
 Process a folder that have one picture, and fetch it as a cover.
 

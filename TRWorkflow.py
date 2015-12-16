@@ -835,9 +835,8 @@ def dtsp(spoolfile):
 		Output: none
 	"""
 
-	logging.debug ("-------  Searching for a new Downloaded Torrent queue  -------")
-	# DEVELOP SPOOL PROCESING
-
+	logging.debug ("-------  Checking for a new Downloaded Torrent queue  -------")
+	
 	# (1) Checking Spool File
 	if itemcheck (spoolfile) == "":
 		logging.debug("Thereis nothing to do, TorrentSpool file does not exist....")
@@ -855,8 +854,9 @@ def dtsp(spoolfile):
 			os.remove(spoolfile)
 			break
 
-		logging.info("Starting to process pull, %s entry(-ies) have been registered."%(len(mypull)))
-		# Running
+		logging.info("Starting to process spool, %s entry(-ies) have been registered."%(len(mypull)))
+		# (3) process entry-list.
+		
 		for entry in mypull:
 			a,b = readini.split(entry,"\t")	
 			skipp = 0
