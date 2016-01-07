@@ -34,19 +34,19 @@ Improvements:
 
 TO DO:
 ------------------------
+Migrate log and pull files in txt to an SQLite3 database:
+	Downloaded torrents and status.
+	Store the Avidemux pull to recompress videos.
+	
+Use transmissionrpc to query transmission service
 
-Send a free-storage status by e-mail on each downloaded torrent. using Python code.
 
-La forma de dar de alta las líneas en al torrent-spool es muy patatera. Tiene el path de la descarga de torrents fija.  
 
+Controlls free space on torrent download folder in order to delete older torrents. (transmissionrpc must be operative)
 
 Process a folder that have one picture, and fetch it as a cover.
-
-Send information about delivery process.
-
-Develop case of various folders.
-
-Procesar una cuenta de e-mail a modo de hot-folder. Tomar los torrents adjuntos o los magnets del contenido del mensaje.  
+Send information about the estatus and delivery process.
+Process an e-mail box to retrieve .torrents files and magnets automatically. 
 
 
 
