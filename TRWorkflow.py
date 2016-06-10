@@ -428,7 +428,8 @@ def TRprocfolder(origin):
 		return dest
 	else:
 		logging.warning("Destination folder already exists, folder %s has not been procesed" %(origin))
-		sys.exit("\nDestination Folder ("+dest+") already exists. Exiting.\n")
+		# sys.exit("\nDestination Folder ("+dest+") already exists. Exiting.\n")
+		return None
 
 def scanfolder(d):
 	''' scans the contents of a folder.
@@ -799,6 +800,8 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 	elif os.path.isdir (origin):
 		logging.info (origin+" is a folder:")
 		dest = TRprocfolder(origin)
+		if dest == None:
+			return
 		state = procfolder (dest) # >> process the folder contents
 		if state == "3": print ("Case of sub-folder.... nothing was programmed\n")
 	else:
