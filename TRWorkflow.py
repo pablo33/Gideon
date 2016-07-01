@@ -1,4 +1,6 @@
 #!/usr/bin/python3
+# -*- encoding: utf-8 -*-
+
 ''' This program is intended to process torrents.
 	
 	Program main functions:
@@ -22,10 +24,11 @@
 # module import
 import os, sys, shutil, logging, datetime, time, smtplib
 from email.mime.text import MIMEText
+from subprocess import check_output
 
 
-__version__ = "2.0"
-__date__ = "12/04/2015"
+
+__version__ = "3.0beta"
 __author__ = "pablo33"
 
 
@@ -34,21 +37,46 @@ __author__ = "pablo33"
 # ===================================
 # 				(General util functions)
 
-def addslash(d,text="variable"):
-	""" Add a slash at the end if not any
-		"""
-	if d[-1]!= "/" :
-		d += "/"
-		logging.warning("..Adding a slash to "+text+":"+d)
-	return d
+# errors
+class OutOfRangeError(ValueError):
+	pass
+class NotIntegerError(ValueError):
+	pass
+class NotStringError(ValueError):
+	pass
+class MalformedPathError(ValueError):
+	pass
+class EmptyStringError(ValueError):
+	pass
 
-def itemcheck(a):
-	if os.path.isfile(a):
-	    return 'file'
-	if os.path.isdir(a):
-	    return 'folder'
-	if os.path.islink(a):
-	    return 'link'
+
+def addslash (text):
+	''' Returns an ending slash in a path if it doesn't have one '''
+	if type(text) is not str:
+		raise NotStringError ('Bad input, it must be a string')
+
+	if text == "":
+		return text
+
+	if text [-1] != '/':
+		text += '/'
+	return text
+
+
+
+def itemcheck(pointer):
+	''' returns what kind of a pointer is '''
+	if type(pointer) is not str:
+		raise NotStringError ('Bad input, it must be a string')
+	if pointer.find("//") != -1 :
+		raise MalformedPathError ('Malformed Path, it has double slashes')
+	
+	if os.path.isfile(pointer):
+		return 'file'
+	if os.path.isdir(pointer):
+		return 'folder'
+	if os.path.islink(pointer):
+		return 'link'
 	return ""
 
 def copyfile(origin,dest,mode="c"):
@@ -139,14 +167,26 @@ Faudio_Folder = TRWorkflowconfig.Faudio_Folder # Default place to store music
 Fother_Folder = TRWorkflowconfig.Fother_Folder # Default place to store other downloads
 Dropboxfolder = TRWorkflowconfig.Dropboxfolder # Default place to store automatic inbox .torrents, .covers and Videodest.ini file 
 
+s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
+cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
+lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
+lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one. 
+
+spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
+
 # (1.6) Prequisites:
 #=============
 #1 directory paths must end in slash "/"
+'''
 Fmovie_Folder = addslash (Fmovie_Folder,"Fmovie_Folder")
 Faudio_Folder = addslash (Faudio_Folder,"Faudio_Folder")
 Fother_Folder = addslash (Fother_Folder,"Fother_Folder")
 Dropboxfolder = addslash (Dropboxfolder,"Dropboxfolder")
+'''
 
+if itemcheck (Dropboxfolder) != 'folder' :
+	print ('Dropboxfolder does not exist. Please edit your user configuration file at: \n',  userconfig)
+	exit()
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)
@@ -181,6 +221,8 @@ dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
 
 # .. Fvideodest var is global, that provides a dynamic read of videodest.ini on each processed torrent.
 Fvideodest = "" # Later it'll be a dictionary that it is read from Videodest.ini on each torrent process
+
+
 
 # ===================================
 # 				Input process		
@@ -886,21 +928,37 @@ def dtsp(spoolfile):
 	logging.debug ("-------  End of Downloaded Torrent queue  -------")
 	pass
 
+def get_pid (app):
+	''' returns None if the aplication is not running, or
+		returns application PID if the aplication is running 
+		'''
+	try:
+		pids = check_output(["pidof", app ])
+	except:
+		#print (type(pids))
+		logging.debug('no %s app is currently running'%(app))
+		return None
+	pidlist = pids.split()
+	la = lambda x : int(x)
+	pidlist = list (map (la , pidlist))
+	print (pidlist)
+	return pidlist
+
+def getappstatus (app):
+	if get_pid (app) == None:
+		return 0
+	return 1
+
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
 
 if __name__ == '__main__':
-	launchstate = 0 # At first run we assume that launch state is 0 (Transmission is not launched)
-	s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
-	cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
-	lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
-	lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one. 
-
-	spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
 	
 	# Main loop
 	while True:
+		launchstate = getappstatus ('transmission') 
 		Dropfd() # Checks Dropbox folder for .torrents and .images
 		dtsp (spoolfile) # Checks Torrent.spool file
 		if launchstate == 0 :
@@ -908,5 +966,5 @@ if __name__ == '__main__':
 			if launch == 1:
 				logging.info("'"+cmd + "' has been executed, turning launchstate to 1")
 				launchstate = 1
-		logging.debug("# Done!, waiting for "+str(s)+" seconds....")
+		logging.debug("# Done!, next check at "+ str ( now + datetime.timedelta(seconds=s)))
 		time.sleep(s)
