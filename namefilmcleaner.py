@@ -6,7 +6,7 @@
 	or add more configurations '''
 
 # module import, normal mode
-import os, logging, TRWorkflowconfig
+import os, logging, re, TRWorkflowconfig
 
 
 # sys.path.append ('/home/pablo/python3')
@@ -30,14 +30,11 @@ def trimbetween(a, lim):
 	'''
 	cc = 0
 	while True :
-		logging.debug(a)
 		st = a.find(lim[0])
 		end = a.find(lim[1])
 		if st > end and end != -1:
 			a = a[0:end]+"\t"+a[end+1:] # We add a tab to mark this place and restart
-			print (a)
 			continue
-		
 		if st == -1 or end == -1 or st == end :
 			break
 		else:
@@ -99,7 +96,6 @@ def prohibitedwords(a,lista):
 		if len (pw)+1 < len (a):
 			if a.upper().startswith(pw.upper()+" "):
 				a = a[len(pw)+1:]
-	logging.debug(a)
 	return a
 
 def sigcapfinder(filename):
@@ -121,41 +117,45 @@ def sigcapfinder(filename):
 	# chapter = 0 # for now, we assume there isn't any chapter in filename.
 	# we trim not wanted characters at the end:
 	count = 0
+	print (base)
 	for a in base[::-1]:
-		if a in "[]-:,*+_":
+		print ('considering char',a)
+		if a in '[]-:,*+_.':
 			count +=1
+			print (a,">>",count)
 			continue
 		break
 	if count != 0:
 		base = base [0:-count]		
 		logging.debug("namebase has changed to "+base)
+		print (base)
 	if base == "" or len(base) < 5:
 			logging.warning("filename made of simbols or very short, returning same filename")
 			return filename
-
-	numbers = "0123456789"
-	# We check for an already end counter and we put into lower case if any "X" >> "x"
-	if base [-1] in numbers and base[-2] in numbers and base[-3] == "X" and base[-4] in numbers and base[-5] not in numbers:
-		logging.debug("there is a final counter >> we set it in lowerCase")
-		base = base[:-3]+"x"+base[-2:]
-		#placing a space before chapter counter.
-		if base [-5] != " ":
-			base = base[:-4]+" "+base[-4:]
-		logging.info("found end chapter counter in: "+filename+">>"+base)
-		return base
 	
-	# Now we scan last 3 chars and do the transformation
-	if not (base [-1] in numbers and base[-2] in numbers and base[-3] in numbers and base[-4] not in numbers):
-		logging.debug("there isn't final counter")
-		return filename
+	# finding a final identifier, cleaning odd chars before capter
+	expr = '[-. ]\d[xX]\d{2}'
+	mo = re.search (expr, base[-5:])
+	try:
+		grupo = mo.group()
+	except:
+		pass
 	else:
-		base = base [:-2]+"x"+base[-2:]
-		c = 1
-		#placing a space before chapter counter.
-		if base [-5] != " ":
-			base = base[:-4]+" "+base[-4:]
-		logging.info("found end chapter counter in: "+filename+">>"+base)
+		base = base[:-5]+' '+base[-4:]
 		return base
+
+
+	# finding 3 final numbers
+	expr = '[-. ]\d{3}'
+	mo = re.search (expr, base[-4:])
+	try:
+		grupo = mo.group()
+	except:
+		print ("No final counter expression was found in %s." % base)
+		pass
+	else:
+		base = base[:-4]+' '+base[-3:-2]+'x'+base[-2:]
+	return base
 
 def chapid(item):
 	''' Checks four last char$ of filename.
@@ -188,7 +188,7 @@ def littlewords(filename):
 	return filename
 
 def clearfilename(filename):
-	""" Process several filters for clean a filename
+	""" Process several filters for filename cleaning
 		input: filename without extension, please
 		output: filename without extension, of course
 		"""

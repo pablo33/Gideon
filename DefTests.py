@@ -4,11 +4,12 @@ import unittest, os, shutil
 from glob import glob
 import TRWorkflowV2
 import datetime
+import namefilmcleaner
 
 dyntestfolder = 'TESTS'
 
 
-# Tools
+# Tools for test file movements
 def addchilddirectory(directorio):
 	""" Returns a list of child directories
 
@@ -43,7 +44,6 @@ def lsdirectorytree(directory):
 		dirlist += moredirectories
 	return dirlist
 
-
 def SetTestPack (namepack):
 	namepack = os.path.join(dyntestfolder, namepack)
 	# delete old contents in test(n) folder
@@ -52,7 +52,6 @@ def SetTestPack (namepack):
 
 	# decompress pack
 	os.system ('unzip %s.zip -d %s'%(namepack, dyntestfolder))
-
 
 def FetchFileSet (path):
 	''' Fetchs a file set of files and folders'''
@@ -138,6 +137,98 @@ class TestPack1 (unittest.TestCase):
 		self.assertEqual(known_movedfiles, fnresult)
 		self.assertEqual(known_filevalues,filestructureresult)
 
+
+#####TESTS########
+MD2 = namefilmcleaner
+modulename = 'namefilmcleaner.py'
+
+class namefilmcleaner (unittest.TestCase):
+	'''testing namefilmcleaner library'''
+	def test_trimbetween (self):
+		''' Trims a string between a pair of defined characters.
+		input: "string"
+		input: two characters (in order) pe. "[]"
+		outputt: processed string
+		'''
+		wanted_values = ([
+			('my testo to save [deleteme]', '[]','my testo to save '),
+			('my testo to save [deleteme]', '()','my testo to save [deleteme]'),
+			('my testo to save (deleteme)', '()','my testo to save '),
+			('my testo to save [] me [me]', '[]','my testo to save  me '),
+			('my testo to save [deleteme]', 'm]',''),
+			('my testo to save [deleteme]', 'te','my s [deleme]'),
+			('my testo to save [Cap 1x10][deleteme]', '[]','my testo to save -Cap 1x10-'),		
+			('my testo to save [capitulo 1x10][deleteme]', '[]','my testo to save -capitulo 1x10-'),		
+			])
+
+		for i1,i2,string in wanted_values:
+			result = MD2.trimbetween(i1,i2)
+			self.assertEqual(result,string)
+
+	def test_dotreplacement (self):
+		'''replaces character between leters
+		
+		usage: dotreplacement ("string.with.some.dots.", ". ")
+			input: "String.to.process"
+			input: "lim" String, must contain two characters: caracter to search and character to replace with.
+			output: "String to process" (procesed string)
+		'''
+		wanted_values = ([
+			('my.testo.to.delete.dots.[deleteme]', '. ','my testo to delete dots [deleteme]'),
+			('my.testoXtoXdelete.exs.[deleteme]', 'X ','my.testo to delete.exs.[deleteme]'),
+			('my.testo.to.delete.exs.[deleteme]', '.-','my-testo-to-delete-exs-[deleteme]'),
+			('my.', '. ','my'),
+			('my..', '. ','my'),
+			('my.abc.[defg].another text', '. ','my abc [defg] another text'),
+			('lots of points......6 points', '. ','lots of points......6 points'),
+			('lots of points.......7 points', '. ','lots of points.......7 points'),
+			('lots of points...ax.....points.hey.', '. ','lots of points...ax.....points.hey'),
+			])
+
+		for i1,i2,expectedstring in wanted_values:
+			result = MD2.dotreplacement(i1,i2)
+			self.assertEqual(result,expectedstring)
+
+
+	def test_prohibitedwords (self):
+		'''  Eliminates words in text entries
+			those words matches if they are between spaces.
+			input: "string with some words."
+			input: ['List','of','words']
+			outputt: "string without this words".
+		'''
+		wanted_values = ([
+			('my test to delete some words', ['test','words'],'my to delete some'),
+			('my.test.to delete some words', ['test','words'],'my.test.to delete some'),
+			('my', ['test','my'],'my'),
+			(' my ', ['test','my'],' '),
+			('', ['test','my'],''),
+			])
+
+		for i1,i2,expectedstring in wanted_values:
+			result = MD2.prohibitedwords(i1,i2)
+			self.assertEqual(result,expectedstring)
+
+
+	def test_sigcapfinder (self):
+		""" This little Function, scans for a chapter-counter at the end of the 
+			filename, it will delete any punctuation character at the end and 
+			it will also try to find numbers at the end of the filename. 
+			If filename ends in three numbers, it'll change 'nnn' to 'nxnn'.
+			This not affects if filename ends in four or more numbers. 'nnnn' so they are treated as a 'year'
+			"""
+		wanted_values = ([
+			('my title 0x23','my title 0x23'),
+			('my title 123','my title 1x23'),
+			('my title 234-[[[','my title 2x34'),
+			('my title ending in a year 1985','my title ending in a year 1985'),
+			('my title 3x45-.','my title 3x45'),
+			('my title Cap456-.','my title Cap456'),
+			])
+
+		for i1,expectedstring in wanted_values:
+			result = MD2.sigcapfinder(i1)
+			self.assertEqual(result,expectedstring)
 
 if __name__ == '__main__':
 	unittest.main()
