@@ -12,8 +12,7 @@ __author__ = "pablo33"
 Fmovie_Folder = "/home/user/movies/" # Place to store processed movies
 Faudio_Folder = "/home/user/audio/" # Place to store processed music
 Fother_Folder = "/home/user/Downloads/" # Place to store other processed downloads (This folder is also used as tmp folder to store avidemux pull files)
-Torrentinbox = "/home/user/Torrentinbox/" # Place to get covers from. It is a repository of covers from wich the videofile finds and gets a cover. (Usually The same folther that transmission puts torrents in)
-Dropboxfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+Hotfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
 
 # Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
 chapteridentifier = ('Cap', 'cap', 'episodio') 

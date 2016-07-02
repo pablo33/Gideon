@@ -21,10 +21,14 @@
 	You need to set up TRWorkflowconfig.py first. o run this program for the first time.
 	'''
 
-# module import
+# Standard library module import
 import os, sys, shutil, logging, datetime, time, smtplib
-from email.mime.text import MIMEText
-from subprocess import check_output
+from email.mime.text import MIMEText  # for e-mail compose support
+from subprocess import check_output  # Checks if transmission is active or not
+import sqlite3  # for sqlite3 Database management
+
+# Custom module iport
+# import namefilmcleaner, readini, filmcovermatch, programstarter
 
 
 
@@ -79,11 +83,24 @@ def itemcheck(pointer):
 		return 'link'
 	return ""
 
+def makepaths (fdlist):
+	for fditem in fdlist:
+		itemisa = itemcheck (fditem)
+		if itemisa == 'file':
+			os.remove(fditem)
+			os.makedirs(fditem)
+		if itemisa == '':
+			os.makedirs(fditem)
+
+
 def copyfile(origin,dest,mode="c"):
 	""" Copy or moves file to another place
-		input: file origin (fullpatn and name)
-		input: file destination (fullpath an name)
+		input: file origin (full/relative patn and name)
+		input: file destination (full/relative path an name)
 		input: mode: "c" for copy, "m" for move (default "c")
+
+		if a file already exists, nothing is done.
+		return True if success, or False if it didn't success
 		"""
 	if itemcheck(dest) == "":
 		destdir=os.path.dirname(dest)
@@ -93,17 +110,14 @@ def copyfile(origin,dest,mode="c"):
 		if mode == "c":
 			shutil.copy(origin,dest)
 			logging.info("\nFile:               "+origin+"\nhas been copied to: "+ dest)
-			print ("File:               "+origin+"\nhas been copied to: "+ dest)
-			return 1
+			return True
 		if mode == "m":
 			shutil.move(origin,dest)
 			logging.info("\nFile:               "+origin+"\nhas been moved to:  "+ dest)
-			print ("File:               "+origin+"\nhas been moved to:  "+ dest)
-			return 1
+			return True
 	else:
 		logging.warning("Destination file already exists, file %s has not been procesed" %(origin))
-		print ("Destination file already exists, file %s has not been procesed" %(origin))
-		return "0"
+		return False
 
 
 # ===================================
@@ -118,13 +132,18 @@ now = datetime.datetime.now()
 today = "/".join([str(now.day),str(now.month),str(now.year)])
 tohour = ":".join([str(now.hour),str(now.minute)])
 
-# (1.2) Getting user folder to place log files....
+# (1.2) Getting user folder to place log files, generating paths....
+
 userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
 userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
+dbpath = os.path.join(userpath,"DB.sqlite3")
+Torrentinbox = os.path.join(userpath,"Torrentinbox") # Place to get covers from. It is a repository of covers from wich the videofile finds and gets a cover. (Usually The same folther that transmission puts torrents in)
+
 logpath =  os.path.join(userpath,"logs")
-if itemcheck (logpath) != "folder":
-	os.makedirs(logpath)
 logging_file = os.path.join(logpath,"TRworkflow.log")
+
+makepaths ([userpath, logpath, Torrentinbox])
+
 
 # (1.3) loading user preferences
 if itemcheck (userconfig) == "file":
@@ -162,10 +181,10 @@ logging.debug("======================================================")
 
 
 # (1.5) Setting main variables
-Fmovie_Folder = TRWorkflowconfig.Fmovie_Folder # Default place to store movies
-Faudio_Folder = TRWorkflowconfig.Faudio_Folder # Default place to store music
-Fother_Folder = TRWorkflowconfig.Fother_Folder # Default place to store other downloads
-Dropboxfolder = TRWorkflowconfig.Dropboxfolder # Default place to store automatic inbox .torrents, .covers and Videodest.ini file 
+Fmovie_Folder = TRWorkflowconfig.Fmovie_Folder  # Default place to store movies
+Faudio_Folder = TRWorkflowconfig.Faudio_Folder  # Default place to store music
+Fother_Folder = TRWorkflowconfig.Fother_Folder  # Default place to store other downloads
+Hotfolder = TRWorkflowconfig.Hotfolder  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
 
 s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
@@ -177,16 +196,36 @@ spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-locati
 # (1.6) Prequisites:
 #=============
 #1 directory paths must end in slash "/"
-'''
-Fmovie_Folder = addslash (Fmovie_Folder,"Fmovie_Folder")
-Faudio_Folder = addslash (Faudio_Folder,"Faudio_Folder")
-Fother_Folder = addslash (Fother_Folder,"Fother_Folder")
-Dropboxfolder = addslash (Dropboxfolder,"Dropboxfolder")
-'''
 
-if itemcheck (Dropboxfolder) != 'folder' :
-	print ('Dropboxfolder does not exist. Please edit your user configuration file at: \n',  userconfig)
+Fmovie_Folder = addslash (Fmovie_Folder)
+Faudio_Folder = addslash (Faudio_Folder)
+Fother_Folder = addslash (Fother_Folder)
+Hotfolder = addslash (Hotfolder)
+
+if itemcheck (Hotfolder) != 'folder' :
+	print ('Hotfolder does not exist. Please edit your user configuration file at: \n',  userconfig)
 	exit()
+
+# (1.7) Checking DB or creating it:
+#=============
+
+if itemcheck (dbpath) == "file":
+	logging.info ('Database found at %s'%(dbpath))
+else:
+	logging.info ('Database not found, creating an empty one')
+	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
+	cursor = con.cursor() # object to manage queries
+
+	# 0.1) Setup DB
+	cursor.execute ('CREATE TABLE inputfiles (\
+		Fullfilepath char NOT NULL ,\
+		Fileext char,\
+		Sincedate date NOT NULL,\
+		Sincedate date NOT NULL,\
+		State char NOT NULL,\
+		)')
+	con.commit()
+	con.close()
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)
@@ -664,47 +703,6 @@ def addcover(film,Torrentinbox):
 	shutil.move(cover,dest)
 	return match
 
-def extfilemove(origin,dest,extensions=[]):
-	''' This function scans files that matches desired extensions and
-		moves them to another place (destination).
-
-		this function is not case sensitive, son you can especify "jpg" for 
-		"JPG" or "jpg" extensions. Names on filenames are not changed.
-		As a result, this function returns a list of moved files.
-		
-		input:
-			origin: ./path/to/look/for/
-			dest: ./path/to/move/files/to/
-			extensions: ("list","of","extensions","to","move")
-		output:
-			("list","of","files","that","have","been","moved")
-		'''
-	# Checking folders:
-	if itemcheck (origin) in (["","file"]):
-		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Dropboxfolder to a valid path")
-	if itemcheck (dest) in (["","file"]):
-		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Torrentinbox to a valid path")
-	# We want an ending slash.... 
-	if origin[-1]!="/": origin += "/"
-	items = []
-	newitems = [origin + i for i in os.listdir (origin)]
-	for i in newitems:
-		if itemcheck(i) == 'file':
-			for a in extensions:
-				if os.path.splitext(i)[1].upper() == "."+a.upper():
-					items.append(i)
-	# We want an ending slash.... 
-	if dest[-1]!="/": dest += "/"
-	for i in items:
-		name = os.path.basename(i)
-		basename, extension = os.path.splitext(name)[0], os.path.splitext(name)[1].lower()
-		# We freevo does not like jpeg extensions
-		if extension == ".jpeg":
-			extension = ".jpg"
-		# new cover's name will be cleaned for better procesing
-		cleanedname = namefilmcleaner.clearfilename (basename)
-		copyfile(i,dest+cleanedname+extension,mode="m")
-	return items
 
 def Extractcmovieinfo(filename):
 	""" Extracts video information, stores it into a Name_of_the_movie.ext.info in logging folder.
@@ -771,7 +769,7 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 	logging.debug("Default Fmovie_Folder:"+Fmovie_Folder)
 	logging.debug("Default Faudio_Folder:"+Faudio_Folder)
 	logging.debug("Default Fother_Folder:"+Fother_Folder)
-	logging.debug("        Dropboxfolder:"+Dropboxfolder)
+	logging.debug("        Hotfolder:"+Hotfolder)
 
 
 	# Prequisites:
@@ -782,21 +780,21 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 
 	#2 Reading Videodestinations in ini file
 	# Ini file is converted into a keyword dictionary to redirec series & movies by title. 
-	# Setup your own user "Videodest.ini". you must store this .ini file at "Dropboxfolder" defined folder
+	# Setup your own user "Videodest.ini". you must store this .ini file at "Hotfolder" defined folder
 
 	# Checking and setting up Fvideodest file:
-	if itemcheck(Dropboxfolder+"Videodest.ini") == "":
+	if itemcheck(Hotfolder+"Videodest.ini") == "":
 		logging.warning("Videodest.ini file does not exist, setting up for the first time")
-		f = open(Dropboxfolder+"Videodest.ini","a")
+		f = open(Hotfolder+"Videodest.ini","a")
 		f.write(startVideodestINIfile)
 		f.close()
 		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
 
-	logging.debug("Extracting alias definition from "+Dropboxfolder+"Videodest.ini")
-	alias = readini.readdict (Dropboxfolder+"Videodest.ini","alias",",")
+	logging.debug("Extracting alias definition from "+Hotfolder+"Videodest.ini")
+	alias = readini.readdict (Hotfolder+"Videodest.ini","alias",",")
 
 	logging.debug("Extracting dest definition")
-	dest = readini.readdict (Dropboxfolder+"Videodest.ini","dest",",")
+	dest = readini.readdict (Hotfolder+"Videodest.ini","dest",",")
 
 	logging.debug("Substituting dest alias")
 	for a in alias:
@@ -852,22 +850,6 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 	# TO DO: Identify numbers of cap.   three numbers is a cap + the same starting number, Then rename cap- as nXnn.
 	return
 
-def Dropfd():
-	''' move torrents and covers from one destination to another.
-		Pej. You can setup origin folder at /$home/Dropbox/TRinbox and 
-		set a destination folder to $home/Downloads (A hot folder for Transmission)
-
-		Destination folder is also used as a repository of covers function.
-		'''
-	global TRWorkflowconfig
-	movelist = extfilemove (TRWorkflowconfig.Dropboxfolder, TRWorkflowconfig.Torrentinbox, ["torrent","jpg","png","jpeg"])
-	if movelist == []:
-		logging.debug("Nothing was in the Dropbox-hot-folder.")
-	else:
-		logging.info("Those files were processed: from Dropbox-hot-folder:")
-		for a in movelist:
-			logging.info(a)
-	return movelist
 
 def dtsp(spoolfile):
 	"""
@@ -928,6 +910,8 @@ def dtsp(spoolfile):
 	logging.debug ("-------  End of Downloaded Torrent queue  -------")
 	pass
 
+# < used / reviewed > ----------------------------------------------------------------------------
+
 def get_pid (app):
 	''' returns None if the aplication is not running, or
 		returns application PID if the aplication is running 
@@ -946,8 +930,77 @@ def get_pid (app):
 
 def getappstatus (app):
 	if get_pid (app) == None:
-		return 0
-	return 1
+		return False
+	return True
+
+
+
+def extfilemove(origin,dest,extensions=[]):
+	''' This function scans files that matches desired extensions and
+		moves them to another place (destination).
+
+		this function is not case sensitive, son you can especify "jpg" for 
+		"JPG" or "jpg" extensions. Names on filenames are not changed.
+		As a result, this function returns a list of moved files.
+		
+		input:
+			origin: ./path/to/look/for/
+			dest: ./path/to/move/files/to/
+			extensions: ("list","of","extensions","to","move")
+		output:
+			("list of files", "that have been moved", "on its destination")
+		'''
+	# Checking folders:
+	if itemcheck (origin) in (["","file"]):
+		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Hotfolder to a valid path")
+	if itemcheck (dest) in (["","file"]):
+		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Torrentinbox to a valid path")
+	origin, dest = addslash (origin), addslash (dest)
+	items = []
+	newitems = [origin + i for i in os.listdir (origin)]
+	for i in newitems:
+		if itemcheck(i) == 'file':
+			for a in extensions:
+				if os.path.splitext(i)[1].upper() == "."+a.upper():
+					items.append(i)
+	moveditems = []
+	for i in items:
+		name = os.path.basename(i)
+		basename, extension = os.path.splitext(name)[0], os.path.splitext(name)[1].lower()
+		# Freevo does not like jpeg extensions, replacing them
+		if extension == ".jpeg":
+			extension = ".jpg"
+		# new cover's name will be cleaned for better procesing
+		cleanedname = namefilmcleaner.clearfilename (basename)
+		itemdest = dest+cleanedname+extension
+		copyfile(i,itemdest,mode="m")
+		moveditems.append (itemdest)
+	return moveditems
+
+
+def Dropfd():
+	''' move .torrents and covers from one destination to another.
+		Pej. after setup your hotfolder, you can place there .torrent files or covers to 
+		Start processing downloads or covers to have in mind.
+		.torrent files and covers goes to $HOME/.TRWorkflow/Torrentinbox folder
+		'''
+	movelist = extfilemove (Hotfolder, Torrentinbox, ["torrent","jpg","png","jpeg"])
+	if movelist == []:
+		logging.debug("Nothing was in the Dropbox-hot-folder.")
+	else:
+		logging.info("Those files were processed: from Hotfolder:")
+		for a in movelist:
+			logging.info('\t'+ a)
+	return movelist
+
+
+def addinputs ():
+	''' Add new torrent entries into a DB queue,
+	This queue is at the software database SQLite. > Table inputs
+		'''
+	Hotfolderinputs = Dropfd()
+
+	return
 
 
 # ========================================
@@ -959,12 +1012,14 @@ if __name__ == '__main__':
 	# Main loop
 	while True:
 		launchstate = getappstatus ('transmission') 
-		Dropfd() # Checks Dropbox folder for .torrents and .images
+		addtorrentinputs()
+		'''
 		dtsp (spoolfile) # Checks Torrent.spool file
 		if launchstate == 0 :
 			launch = programstarter.launcher (cmd, lsdy, lsext) # Finding new .Torrents & pending torrents to start Transmission
 			if launch == 1:
 				logging.info("'"+cmd + "' has been executed, turning launchstate to 1")
 				launchstate = 1
+		'''
 		logging.debug("# Done!, next check at "+ str ( now + datetime.timedelta(seconds=s)))
 		time.sleep(s)
