@@ -118,7 +118,7 @@ class TestPack1 (unittest.TestCase):
 		known_movedfiles = set ([
 					'TESTS/Test1/TRinboxfolder/Invalid Torrent For Testing Purposes.torrent',
 					'TESTS/Test1/TRinboxfolder/Screenshot From 2016 07 02 11 48 40.png',
-					'TESTS/Test1/TRinboxfolder/Name In Uppercase.jpg',
+					'TESTS/Test1/TRinboxfolder/Name in Uppercase.jpg',
 					'TESTS/Test1/TRinboxfolder/This Is a Jpeg File.jpg',
 					])
 		known_filevalues = set ([
@@ -127,7 +127,7 @@ class TestPack1 (unittest.TestCase):
 			'TESTS/Test1/Hotfolder/this is a folder-it should remain',
 			'TESTS/Test1/TRinboxfolder',
 			'TESTS/Test1/TRinboxfolder/Invalid Torrent For Testing Purposes.torrent',
-			'TESTS/Test1/TRinboxfolder/Name In Uppercase.jpg',
+			'TESTS/Test1/TRinboxfolder/Name in Uppercase.jpg',
 			'TESTS/Test1/TRinboxfolder/Screenshot From 2016 07 02 11 48 40.png',
 			'TESTS/Test1/TRinboxfolder/This Is a Jpeg File.jpg',
 			])
@@ -241,7 +241,7 @@ class namefilmcleaner (unittest.TestCase):
 			('my title 0x23','23'),
 			('my title 0X24','24'),
 			('my title 0x25','25'),
-			('my title capx26','26'),
+			('my title capx26',''),
 			('my title',''),
 			('1X34','34'),
 			('x34',''),
@@ -250,6 +250,22 @@ class namefilmcleaner (unittest.TestCase):
 		for i1,expectedstring in wanted_values:
 			result = MD2.chapid(i1)
 			self.assertEqual(result,expectedstring)
+
+
+	def test_littlewords (self):
+		''' Change little words starting uppercase to lowercase. This words must be defined.
+		words = ["in","to","my", the","and","on","at","en","a","y","de","o","el","la","los","las","del", "lo", "es"]
+			'''
+		wanted_values = ([
+			('My Title To Change And Put Little Words In Lowercase','My Title to Change and Put Little Words in Lowercase'),
+			('ONCE UPON A TIME','ONCE UPON a TIME'),
+			('El MONSTRUO DEL LAGO NESS','El MONSTRUO DEL LAGO NESS'),
+			])
+
+		for i1,expectedstring in wanted_values:
+			result = MD2.littlewords(i1)
+			self.assertEqual(result,expectedstring)
+
 
 
 if __name__ == '__main__':

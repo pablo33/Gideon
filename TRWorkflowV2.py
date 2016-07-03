@@ -925,7 +925,6 @@ def get_pid (app):
 	pidlist = pids.split()
 	la = lambda x : int(x)
 	pidlist = list (map (la , pidlist))
-	print (pidlist)
 	return pidlist
 
 def getappstatus (app):
