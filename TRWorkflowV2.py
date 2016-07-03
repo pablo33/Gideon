@@ -217,13 +217,16 @@ else:
 	cursor = con.cursor() # object to manage queries
 
 	# 0.1) Setup DB
-	cursor.execute ('CREATE TABLE inputfiles (\
+	#  For Incoming torrents and pictures, it registers the date of inclusion and state of referenced file:
+	#	ready: file is ready to be used.
+	#	deleted: file has been deleted.
+	cursor.execute ("CREATE TABLE TW_Inputs (\
+		ID INTEGER PRIMARY KEY AUTOINCREMENT,\
 		Fullfilepath char NOT NULL ,\
-		Fileext char,\
-		Sincedate date NOT NULL,\
-		Sincedate date NOT NULL,\
-		State char NOT NULL,\
-		)')
+		Type char,\
+		Added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
+		State char NOT NULL DEFAULT('Ready')\
+		)")
 	con.commit()
 	con.close()
 
@@ -995,7 +998,7 @@ def Dropfd():
 
 def addinputs ():
 	''' Add new torrent entries into a DB queue,
-	This queue is at the software database SQLite. > Table inputs
+	This queue is stored into the software database SQLite. > Table "TW_Inputs"
 		'''
 	Hotfolderinputs = Dropfd()
 
