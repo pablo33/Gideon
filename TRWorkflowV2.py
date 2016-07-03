@@ -26,6 +26,8 @@ import os, sys, shutil, logging, datetime, time, smtplib, re
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
 import sqlite3  # for sqlite3 Database management
+import transmissionrpc
+
 
 # Custom module iport
 # import namefilmcleaner, readini, filmcovermatch, programstarter
@@ -217,6 +219,10 @@ s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmi
 cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
 lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
 lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one. 
+TRmachine = TRWorkflowconfig.TRmachine
+TRuser = TRWorkflowconfig.TRuser
+TRpassword = TRWorkflowconfig.TRpassword
+
 
 spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
 
@@ -252,7 +258,9 @@ else:
 		fullfilepath char NOT NULL ,\
 		type char,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
-		state char NOT NULL DEFAULT('Ready')\
+		state char NOT NULL DEFAULT('Ready'),\
+		TRname char, \
+		TRdest char \
 		)")
 	con.commit()
 	con.close()
@@ -1038,10 +1046,39 @@ def addinputs ():
 			logging.info ('added incoming torrent to process: %s' %entry)
 		con.commit()
 		con.close()
+	return
 
 
+def launchTR (cmdline, seconds=0):
+	os.system(cmdline)
+	logging.info ('Transmission have been launched.')
+	time.sleep(seconds)
+	return
 
+def connectTR():
+	if not getappstatus('transmission-gtk'):
+		launchTR (cmd, 5)
+	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
+	logging.info('A Transmission rpc session has started')
+	print ('Satarted rpc session')
+	print (tc.session_id)
+	return tc
 
+def SendtoTransmission():
+	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
+	cursor = con.cursor() # object to manage queries
+	nfound = (cursor.execute ("select count(id) from tw_inputs where state = 'Ready'").fetchone())[0]
+	if nfound > 0:
+		logging.info (str(nfound) + 'new torrent entries have been found.')
+		tc = connectTR ()
+		cursor.execute ("SELECT id, fullfilepath, type FROM tw_inputs WHERE state = 'Ready'")
+		for Id, Fullfilepath, Type in cursor:
+			if Type == '.torrent':
+				trobject = tc.add_torrent (Fullfilepath)
+				TRname = trobject.name
+				con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
+	con.commit()
+	con.close()
 	return
 
 
@@ -1049,13 +1086,14 @@ def addinputs ():
 # 			== MAIN PROCESS  ==
 # ========================================
 
+
 if __name__ == '__main__':
-	
 	# Main loop
 	while True:
-		launchstate = getappstatus ('transmission-gtk')
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
+		SendtoTransmission ()
+
 		'''
 		dtsp (spoolfile) # Checks Torrent.spool file
 		if launchstate == 0 :
