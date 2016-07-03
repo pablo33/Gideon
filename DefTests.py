@@ -230,6 +230,28 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.sigcapfinder(i1)
 			self.assertEqual(result,expectedstring)
 
+
+	def test_chapid (self):
+		""" Checks four last char$ of filename.
+			Returns chapter number if a chapter is found.
+
+			Chapters are idenfied with this mask :  nxnn
+			"""
+		wanted_values = ([
+			('my title 0x23','23'),
+			('my title 0X24','24'),
+			('my title 0x25','25'),
+			('my title capx26','26'),
+			('my title',''),
+			('1X34','34'),
+			('x34',''),
+			])
+
+		for i1,expectedstring in wanted_values:
+			result = MD2.chapid(i1)
+			self.assertEqual(result,expectedstring)
+
+
 if __name__ == '__main__':
 	unittest.main()
 

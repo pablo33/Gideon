@@ -117,18 +117,14 @@ def sigcapfinder(filename):
 	# chapter = 0 # for now, we assume there isn't any chapter in filename.
 	# we trim not wanted characters at the end:
 	count = 0
-	print (base)
 	for a in base[::-1]:
-		print ('considering char',a)
 		if a in '[]-:,*+_.':
 			count +=1
-			print (a,">>",count)
 			continue
 		break
 	if count != 0:
 		base = base [0:-count]		
 		logging.debug("namebase has changed to "+base)
-		print (base)
 	if base == "" or len(base) < 5:
 			logging.warning("filename made of simbols or very short, returning same filename")
 			return filename
@@ -151,7 +147,6 @@ def sigcapfinder(filename):
 	try:
 		grupo = mo.group()
 	except:
-		print ("No final counter expression was found in %s." % base)
 		pass
 	else:
 		base = base[:-4]+' '+base[-3:-2]+'x'+base[-2:]
@@ -166,16 +161,15 @@ def chapid(item):
 		output: number of chapter (string) _or_
 		output: ""  if no chapter is found.
 		'''
-	name = os.path.splitext(os.path.basename(item))[0]
-	if len (name) < 4:
-		logging.debug("Filename ("+name+")has less than 4 char$, there isn't a chapter identifier:")
-		return ""
-	tf = name[-4:]
-	numbers = "1234567890"
-	if not (tf[0] in numbers and tf[1].upper() == "X" and tf[2] in numbers and tf[3] in numbers):
-		logging.debug("Name "+name+" has no Chapter identifier.")
-		return ""
-	return tf[-2:]
+	expr = '\d[xX]\d{2}'
+	mo = re.search (expr, item[-4:])
+	try:
+		grupo = mo.group()
+	except:
+		return ''
+	else:
+		return item[-2:]
+	
 
 def littlewords(filename):
 	''' Change little words starting uppercase to lowercase. This words must be defined.
