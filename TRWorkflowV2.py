@@ -22,7 +22,7 @@
 	'''
 
 # Standard library module import
-import os, sys, shutil, logging, datetime, time, smtplib
+import os, sys, shutil, logging, datetime, time, smtplib, re
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
 import sqlite3  # for sqlite3 Database management
@@ -93,6 +93,36 @@ def makepaths (fdlist):
 			os.makedirs(fditem)
 
 
+def Nextfilenumber (dest):
+	''' Returns the next filename counter as filename(nnn).ext
+	input: /path/to/filename.ext
+	output: /path/to/filename(n).ext
+		'''
+	if dest == "":
+		raise EmptyStringError ('empty strings as input are not allowed')
+	filename = os.path.basename (dest)
+	extension = os.path.splitext (dest)[1]
+	# extract secuence
+	expr = '\(\d{1,}\)'+extension
+	mo = re.search (expr, filename)
+	try:
+		grupo = mo.group()
+	except:
+		#  print ("No final counter expression was found in %s. Counter is set to 0" % dest)
+		counter = 0
+		cut = len (extension)
+	else:
+		#  print ("Filename has a final counter expression.  (n).extension ")
+		cut = len (mo.group())
+		countergroup = (re.search ('\d{1,}', grupo))
+		counter = int (countergroup.group()) + 1
+	if cut == 0 :
+		newfilename = os.path.join( os.path.dirname(dest), filename + "(" + str(counter) + ")" + extension)
+	else:
+		newfilename = os.path.join( os.path.dirname(dest), filename [0:-cut] + "(" + str(counter) + ")" + extension)
+	return newfilename
+
+
 def copyfile(origin,dest,mode="c"):
 	""" Copy or moves file to another place
 		input: file origin (full/relative patn and name)
@@ -102,21 +132,17 @@ def copyfile(origin,dest,mode="c"):
 		if a file already exists, nothing is done.
 		return True if success, or False if it didn't success
 		"""
+
 	if itemcheck(dest) == "":
-		destdir=os.path.dirname(dest)
-		if itemcheck(destdir) == "":
-			logging.debug("Creating destination dir:"+destdir)
-			os.makedirs(destdir)
+		makepaths ([os.path.dirname(dest),])
 		if mode == "c":
 			shutil.copy(origin,dest)
-			logging.info("\nFile:               "+origin+"\nhas been copied to: "+ dest)
 			return True
 		if mode == "m":
 			shutil.move(origin,dest)
-			logging.info("\nFile:               "+origin+"\nhas been moved to:  "+ dest)
 			return True
 	else:
-		logging.warning("Destination file already exists, file %s has not been procesed" %(origin))
+		logging.debug("\tDestination file already exists")
 		return False
 
 
@@ -137,12 +163,13 @@ tohour = ":".join([str(now.hour),str(now.minute)])
 userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
 userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
 dbpath = os.path.join(userpath,"DB.sqlite3")
-Torrentinbox = os.path.join(userpath,"Torrentinbox") # Place to get covers from. It is a repository of covers from wich the videofile finds and gets a cover. (Usually The same folther that transmission puts torrents in)
+Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
+Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
 
 logpath =  os.path.join(userpath,"logs")
 logging_file = os.path.join(logpath,"TRworkflow.log")
 
-makepaths ([userpath, logpath, Torrentinbox])
+makepaths ([userpath, logpath, Torrentinbox, Availablecoversfd])
 
 
 # (1.3) loading user preferences
@@ -220,12 +247,12 @@ else:
 	#  For Incoming torrents and pictures, it registers the date of inclusion and state of referenced file:
 	#	ready: file is ready to be used.
 	#	deleted: file has been deleted.
-	cursor.execute ("CREATE TABLE TW_Inputs (\
-		ID INTEGER PRIMARY KEY AUTOINCREMENT,\
-		Fullfilepath char NOT NULL ,\
-		Type char,\
-		Added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
-		State char NOT NULL DEFAULT('Ready')\
+	cursor.execute ("CREATE TABLE tw_inputs (\
+		id INTEGER PRIMARY KEY AUTOINCREMENT,\
+		fullfilepath char NOT NULL ,\
+		type char,\
+		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
+		state char NOT NULL DEFAULT('Ready')\
 		)")
 	con.commit()
 	con.close()
@@ -974,19 +1001,20 @@ def extfilemove(origin,dest,extensions=[]):
 			extension = ".jpg"
 		# new cover's name will be cleaned for better procesing
 		cleanedname = namefilmcleaner.clearfilename (basename)
-		itemdest = dest+cleanedname+extension
-		copyfile(i,itemdest,mode="m")
+		itemdest =  dest+cleanedname+extension
+		while not copyfile (i,itemdest,mode="m"):
+			itemdest = Nextfilenumber (itemdest)
 		moveditems.append (itemdest)
 	return moveditems
 
 
-def Dropfd():
+def Dropfd(destfolder, lsextensions):
 	''' move .torrents and covers from one destination to another.
 		Pej. after setup your hotfolder, you can place there .torrent files or covers to 
 		Start processing downloads or covers to have in mind.
 		.torrent files and covers goes to $HOME/.TRWorkflow/Torrentinbox folder
 		'''
-	movelist = extfilemove (Hotfolder, Torrentinbox, ["torrent","jpg","png","jpeg"])
+	movelist = extfilemove (Hotfolder, destfolder, lsextensions)
 	if movelist == []:
 		logging.debug("Nothing was in the Dropbox-hot-folder.")
 	else:
@@ -1000,7 +1028,19 @@ def addinputs ():
 	''' Add new torrent entries into a DB queue,
 	This queue is stored into the software database SQLite. > Table "TW_Inputs"
 		'''
-	Hotfolderinputs = Dropfd()
+	Hotfolderinputs = Dropfd (Torrentinbox, ["torrent",])
+	if len (Hotfolderinputs) > 0:
+		con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
+		cursor = con.cursor() # object to manage queries
+		for entry in Hotfolderinputs:
+			params = (entry,'.torrent')
+			cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type) VALUES (?,?)", params)
+			logging.info ('added incoming torrent to process: %s' %entry)
+		con.commit()
+		con.close()
+
+
+
 
 	return
 
@@ -1013,8 +1053,9 @@ if __name__ == '__main__':
 	
 	# Main loop
 	while True:
-		launchstate = getappstatus ('transmission') 
-		addtorrentinputs()
+		launchstate = getappstatus ('transmission-gtk')
+		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
+		addinputs()  # add .torrents files to DB. queue
 		'''
 		dtsp (spoolfile) # Checks Torrent.spool file
 		if launchstate == 0 :
@@ -1023,5 +1064,6 @@ if __name__ == '__main__':
 				logging.info("'"+cmd + "' has been executed, turning launchstate to 1")
 				launchstate = 1
 		'''
-		logging.debug("# Done!, next check at "+ str ( now + datetime.timedelta(seconds=s)))
+		#logging.debug("# Done!, next check at "+ str (now + datetime.timedelta(seconds=s)))
+		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
 		time.sleep(s)

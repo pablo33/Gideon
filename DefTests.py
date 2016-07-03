@@ -90,7 +90,7 @@ class getappstatus (unittest.TestCase):
 	""" tests is an application is running
 	and gets a list of PIDs """
 	known_values = (
-		("transmission", False),
+		("transmission-gtkX", False),
 		("python3", True),
 		)
 
