@@ -1060,8 +1060,7 @@ def connectTR():
 		launchTR (cmd, 5)
 	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
 	logging.info('A Transmission rpc session has started')
-	print ('Satarted rpc session')
-	print (tc.session_id)
+	print ('Started rpc session')
 	return tc
 
 def SendtoTransmission():
@@ -1073,19 +1072,34 @@ def SendtoTransmission():
 		tc = connectTR ()
 		cursor.execute ("SELECT id, fullfilepath, type FROM tw_inputs WHERE state = 'Ready'")
 		for Id, Fullfilepath, Type in cursor:
-			TRname = ''
-			if Type == '.torrent':
-				trobject = tc.add_torrent (Fullfilepath)
-			elif Type == '.magnet':	
-				# trobject = tc.add_torrent (Fullfilepath)
-				pass
-			else:
-				loggin.critical('Bad specification in torrent type at Database: %s'%Type)
-				continue
+			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
 			con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
 	con.commit()
 	con.close()
+	return
+
+
+def AddManualTorrents():
+	''' Scans for list of torrents currently in transmission,
+		add to DB those which are unknown.
+		Those torrents are 'untracked torrents', and usually has been added
+		directly to transmission by the user.
+		With this function, TRWorkflow will track them.
+		'''
+	tc = connectTR ()
+	trobjlst = tc.get_torrents()
+	if len (trobjlst) > 0:
+		con = sqlite3.connect (dbpath)
+		cursor = con.cursor()
+		for trobject in tc.get_torrents():
+			DBid = cursor.execute ("SELECT id from tw_inputs WHERE TRname = ? and (state = 'Ready' or state = 'Added') ", (trobject.name,)).fetchone()
+			if DBid == None and ( trobject.status in ['check pending', 'checking', 'downloading', 'seeding']):
+				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name)
+				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type, state, TRname) VALUES (?,?,?,?)", params)
+				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
+		con.commit()
+		con.close()
 	return
 
 
@@ -1100,6 +1114,8 @@ if __name__ == '__main__':
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
 		SendtoTransmission ()
+		if getappstatus('transmission-gtk'):
+			AddManualTorrents ()
 
 		'''
 		dtsp (spoolfile) # Checks Torrent.spool file
