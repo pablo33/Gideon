@@ -1080,14 +1080,13 @@ def SendtoTransmission():
 	return
 
 
-def AddManualTorrents():
+def TrackManualTorrents(tc):
 	''' Scans for list of torrents currently in transmission,
 		add to DB those which are unknown.
 		Those torrents are 'untracked torrents', and usually has been added
 		directly to transmission by the user.
 		With this function, TRWorkflow will track them.
 		'''
-	tc = connectTR ()
 	trobjlst = tc.get_torrents()
 	if len (trobjlst) > 0:
 		con = sqlite3.connect (dbpath)
@@ -1103,6 +1102,24 @@ def AddManualTorrents():
 	return
 
 
+def TrackdeletedTorrents(tc):
+	''' Check if 'Added' torrents in DB are still in Transmission.
+		If an entry is not present, it will be mark as 'Deleted'
+		'''
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, TRname from tw_inputs WHERE state = 'Added'")
+	TRRset = set()
+	for trr in tc.get_torrents():
+		TRRset.add (trr.name)
+	for Id, TRname in cursor:
+		if TRname not in TRRset:
+			con.execute ("UPDATE tw_inputs SET state='Deleted' WHERE id = ?", (Id,))
+	con.commit()
+	con.close()
+	return
+
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
@@ -1115,7 +1132,9 @@ if __name__ == '__main__':
 		addinputs()  # add .torrents files to DB. queue
 		SendtoTransmission ()
 		if getappstatus('transmission-gtk'):
-			AddManualTorrents ()
+			tc = connectTR ()
+			TrackManualTorrents (tc)
+			TrackdeletedTorrents(tc)
 
 		'''
 		dtsp (spoolfile) # Checks Torrent.spool file
