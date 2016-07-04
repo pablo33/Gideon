@@ -1073,10 +1073,17 @@ def SendtoTransmission():
 		tc = connectTR ()
 		cursor.execute ("SELECT id, fullfilepath, type FROM tw_inputs WHERE state = 'Ready'")
 		for Id, Fullfilepath, Type in cursor:
+			TRname = ''
 			if Type == '.torrent':
 				trobject = tc.add_torrent (Fullfilepath)
-				TRname = trobject.name
-				con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
+			elif Type == '.magnet':	
+				# trobject = tc.add_torrent (Fullfilepath)
+				pass
+			else:
+				loggin.critical('Bad specification in torrent type at Database: %s'%Type)
+				continue
+			TRname = trobject.name
+			con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
 	con.commit()
 	con.close()
 	return
