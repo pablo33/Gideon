@@ -210,10 +210,16 @@ logging.debug("======================================================")
 
 
 # (1.5) Setting main variables
-Fmovie_Folder = TRWorkflowconfig.Fmovie_Folder  # Default place to store movies
-Faudio_Folder = TRWorkflowconfig.Faudio_Folder  # Default place to store music
-Fother_Folder = TRWorkflowconfig.Fother_Folder  # Default place to store other downloads
-Hotfolder = TRWorkflowconfig.Hotfolder  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
+Fmovie_Folder = addslash(TRWorkflowconfig.Fmovie_Folder)  # Default place to store movies
+Faudio_Folder = addslash(TRWorkflowconfig.Faudio_Folder)  # Default place to store music
+Fother_Folder = addslash(TRWorkflowconfig.Fother_Folder)  # Default place to store other downloads
+Hotfolder = addslash (TRWorkflowconfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
+Msgtimming = {
+	'low': datetime.timedelta(seconds=3600),
+	'med':datetime.timedelta(seconds=600),
+	'high':datetime.timedelta(seconds=0)
+	}
+
 
 s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
@@ -224,16 +230,10 @@ TRuser = TRWorkflowconfig.TRuser
 TRpassword = TRWorkflowconfig.TRpassword
 
 
-spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
+## Deprecated ## spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
 
 # (1.6) Prequisites:
 #=============
-#1 directory paths must end in slash "/"
-
-Fmovie_Folder = addslash (Fmovie_Folder)
-Faudio_Folder = addslash (Faudio_Folder)
-Fother_Folder = addslash (Fother_Folder)
-Hotfolder = addslash (Hotfolder)
 
 if itemcheck (Hotfolder) != 'folder' :
 	print ('Hotfolder does not exist. Please edit your user configuration file at: \n',  userconfig)
@@ -262,6 +262,16 @@ else:
 		TRname char, \
 		TRdest char \
 		)")
+	cursor.execute ("CREATE TABLE msg_inputs (\
+		id INTEGER PRIMARY KEY AUTOINCREMENT,\
+		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
+		state char NOT NULL DEFAULT('Ready'),\
+		trelease date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now')),\
+		topic char,\
+		body char,\
+		trid int \
+		)")
+
 	con.commit()
 	con.close()
 
@@ -297,7 +307,7 @@ dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
 """
 
 # .. Fvideodest var is global, that provides a dynamic read of videodest.ini on each processed torrent.
-Fvideodest = "" # Later it'll be a dictionary that it is read from Videodest.ini on each torrent process
+## Deprecated: destination are an the DataBase >> Fvideodest = "" # Later it'll be a dictionary that it is read from Videodest.ini on each torrent process
 
 
 
@@ -1044,6 +1054,7 @@ def addinputs ():
 			params = (entry,'.torrent')
 			cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type) VALUES (?,?)", params)
 			logging.info ('added incoming torrent to process: %s' %entry)
+			SpoolUserMessages(con, 'Added incoming torrent to process', entry, TRid=0, Trelease='low',)
 		con.commit()
 		con.close()
 	return
@@ -1065,6 +1076,7 @@ def connectTR():
 
 def SendtoTransmission():
 	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
+	global con
 	cursor = con.cursor() # object to manage queries
 	nfound = (cursor.execute ("select count(id) from tw_inputs where state = 'Ready'").fetchone())[0]
 	if nfound > 0:
@@ -1075,6 +1087,7 @@ def SendtoTransmission():
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
 			con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
+			SpoolUserMessages(con, 'Torrent has been added to Transmission for downloading', TRname, TRid = Id, Trelease='low')
 	con.commit()
 	con.close()
 	return
@@ -1097,6 +1110,7 @@ def TrackManualTorrents(tc):
 				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name)
 				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type, state, TRname) VALUES (?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
+				SpoolUserMessages(con, 'Torrent has been manually added', trobject.name)
 		con.commit()
 		con.close()
 	return
@@ -1115,8 +1129,25 @@ def TrackdeletedTorrents(tc):
 	for Id, TRname in cursor:
 		if TRname not in TRRset:
 			con.execute ("UPDATE tw_inputs SET state='Deleted' WHERE id = ?", (Id,))
+			SpoolUserMessages(con, 'Torrent has been manually deleted.', TRname, TRid = Id, Trelease='low')
 	con.commit()
 	con.close()
+	return
+
+
+def SpoolUserMessages(con, Topic, Body, TRid=0, Trelease='high',):
+	''' Insert an outgoing message into Data base,
+		it assign a date of message release, so many messages can be send a time into one e-mail
+		'''
+	Trelease = datetime.datetime.now() + Msgtimming[Trelease]
+	params = (
+		'Ready',
+		Trelease.strftime("%Y-%m-%d %H:%M:%S"),
+		Topic,
+		Body,
+		TRid
+		)
+	con.execute ("INSERT INTO msg_inputs (state, trelease, topic, body, trid) VALUES (?,?,?,?,?)", params)
 	return
 
 
@@ -1124,13 +1155,13 @@ def TrackdeletedTorrents(tc):
 # 			== MAIN PROCESS  ==
 # ========================================
 
-
 if __name__ == '__main__':
 	# Main loop
 	while True:
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
 		SendtoTransmission ()
+		con = sqlite3.connect (dbpath)
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
