@@ -1054,7 +1054,9 @@ def addinputs ():
 			params = (entry,'.torrent')
 			cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type) VALUES (?,?)", params)
 			logging.info ('added incoming torrent to process: %s' %entry)
-			SpoolUserMessages(con, 'Added incoming torrent to process', entry, TRid=0, Trelease='low',)
+			Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
+			SpoolUserMessages(con, 'Added incoming torrent to process', entry, TRid = Id, Trelease='low',)
+
 		con.commit()
 		con.close()
 	return
@@ -1076,7 +1078,6 @@ def connectTR():
 
 def SendtoTransmission():
 	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
-	global con
 	cursor = con.cursor() # object to manage queries
 	nfound = (cursor.execute ("select count(id) from tw_inputs where state = 'Ready'").fetchone())[0]
 	if nfound > 0:
@@ -1110,7 +1111,8 @@ def TrackManualTorrents(tc):
 				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name)
 				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type, state, TRname) VALUES (?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
-				SpoolUserMessages(con, 'Torrent has been manually added', trobject.name)
+				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
+				SpoolUserMessages(con, 'Torrent has been manually added', trobject.name, TRid = Id)
 		con.commit()
 		con.close()
 	return
