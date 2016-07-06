@@ -216,10 +216,11 @@ Msgtimming = {
 	'high':datetime.timedelta(seconds=0)
 	}
 Msgtopics = {
-	1 : 'Torrent has been added to Transmission for downloading',
-	2 : 'Added incoming torrent to process',
+	1 : 'Added incoming torrent to process',
+	2 : 'Torrent has been added to Transmission for downloading',
 	3 : 'Torrent has been manually added',
-	4 : 'Torrent has been manually deleted'
+	4 : 'Torrent has been manually deleted',
+	5 : 'Torrent is completed'
 }
 
 s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
@@ -257,14 +258,14 @@ else:
 	cursor.execute ("CREATE TABLE tw_inputs (\
 		id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		fullfilepath char NOT NULL ,\
-		type char,\
+		filetype char,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
 		state char NOT NULL DEFAULT('Ready'),\
-		TRname char, \
-		TRdest char \
+		trname char, \
+		dwfolder char \
 		)")
 	cursor.execute ("CREATE TABLE msg_inputs (\
-		id INTEGER PRIMARY KEY AUTOINCREMENT,\
+		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
 		state char NOT NULL DEFAULT('Ready'),\
 		topic int NOT NULL,\
@@ -1045,10 +1046,10 @@ def addinputs ():
 		cursor = con.cursor() # object to manage queries
 		for entry in Hotfolderinputs:
 			params = (entry,'.torrent')
-			cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type) VALUES (?,?)", params)
+			cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", params)
 			logging.info ('added incoming torrent to process: %s' %entry)
 			Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
-			SpoolUserMessages(con, 2, entry, TRid = Id)
+			SpoolUserMessages(con, 1, entry, TRid = Id)
 		con.commit()
 		con.close()
 	return
@@ -1074,12 +1075,12 @@ def SendtoTransmission():
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
 		tc = connectTR ()
-		cursor.execute ("SELECT id, fullfilepath, type FROM tw_inputs WHERE state = 'Ready'")
-		for Id, Fullfilepath, Type in cursor:
+		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE state = 'Ready'")
+		for Id, Fullfilepath in cursor:
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
-			con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
-			SpoolUserMessages(con, 1, TRname, TRid = Id)
+			con.execute ("UPDATE tw_inputs SET state='Added', trname=? WHERE id=?", (TRname,str(Id)))
+			SpoolUserMessages(con, 2, TRname, TRid = Id)
 	con.commit()
 	con.close()
 	return
@@ -1096,10 +1097,10 @@ def TrackManualTorrents(tc):
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for trobject in tc.get_torrents():
-			DBid = cursor.execute ("SELECT id from tw_inputs WHERE TRname = ? and (state = 'Ready' or state = 'Added') ", (trobject.name,)).fetchone()
+			DBid = cursor.execute ("SELECT id from tw_inputs WHERE TRname = ? and (state = 'Ready' or state = 'Added' or state = 'Completed') ", (trobject.name,)).fetchone()
 			if DBid == None and ( trobject.status in ['check pending', 'checking', 'downloading', 'seeding']):
 				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name)
-				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type, state, TRname) VALUES (?,?,?,?)", params)
+				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, filetype, state, TRname) VALUES (?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
 				SpoolUserMessages(con, 3, trobject.name, TRid = Id)
@@ -1107,13 +1108,13 @@ def TrackManualTorrents(tc):
 		con.close()
 	return
 
-def TrackdeletedTorrents(tc):
+def TrackDeletedTorrents(tc):
 	''' Check if 'Added' torrents in DB are still in Transmission.
 		If an entry is not present, it will be mark as 'Deleted'
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, TRname from tw_inputs WHERE state = 'Added'")
+	cursor.execute ("SELECT id, trname from tw_inputs WHERE state = 'Added' or state = 'Completed'")
 	TRRset = set()
 	for trr in tc.get_torrents():
 		TRRset.add (trr.name)
@@ -1124,6 +1125,22 @@ def TrackdeletedTorrents(tc):
 	con.commit()
 	con.close()
 	return
+
+def TrackFinishedTorrents (tc):
+	''' Check if 'Added' torrents in DB are commpleted in Transmission.
+		If an entry is not present, it will be mark as 'Deleted'
+		'''
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	for trr in tc.get_torrents():
+		if trr.status in ['seeding','stopped'] and trr.progress >= 100:
+			cursor.execute ("SELECT id from tw_inputs WHERE state = 'Added' and trname = ?", (trr.name,))
+			for entry in cursor:
+				Id = entry[0]
+				con.execute ("UPDATE tw_inputs SET state='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,Id))
+				SpoolUserMessages(con, 5, trr.name, TRid = Id)
+	con.commit()
+	con.close()
 
 def SpoolUserMessages(con, Topic, Body, TRid=0):
 	''' Insert an outgoing message into Data base,
@@ -1148,18 +1165,17 @@ def STmail (topic, msg):
 
 def mailaddedtorrents(con):
 	cursor = con.cursor ()
-	cursor.execute ("SELECT id, body, trid from msg_inputs WHERE state = 'Ready' and topic = 1")
-	for Id, Body, Trid in cursor:
+	cursor.execute ("SELECT nreg, body, trid from msg_inputs WHERE state = 'Ready' and topic = 1")
+	for Nreg, Body, Trid in cursor:
 		msg = """A new torrent has been sent to Transmission Service for Downloading:
 	Torrent Name:
 	%s
 	
 	It will be tracked as nº:%s in Database.""" %(Body,Trid)
 		STmail ('Added to Transmission ' + Body, msg)
-		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE id = ?", (Id,))
+		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
-
 
 def MsgService():
 	con = sqlite3.connect (dbpath)
@@ -1180,7 +1196,8 @@ if __name__ == '__main__':
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
-			TrackdeletedTorrents(tc)
+			TrackDeletedTorrents(tc)
+			TrackFinishedTorrents (tc)
 
 		'''
 		dtsp (spoolfile) # Checks Torrent.spool file
