@@ -68,8 +68,6 @@ def addslash (text):
 		text += '/'
 	return text
 
-
-
 def itemcheck(pointer):
 	''' returns what kind of a pointer is '''
 	if type(pointer) is not str:
@@ -93,7 +91,6 @@ def makepaths (fdlist):
 			os.makedirs(fditem)
 		if itemisa == '':
 			os.makedirs(fditem)
-
 
 def Nextfilenumber (dest):
 	''' Returns the next filename counter as filename(nnn).ext
@@ -123,7 +120,6 @@ def Nextfilenumber (dest):
 	else:
 		newfilename = os.path.join( os.path.dirname(dest), filename [0:-cut] + "(" + str(counter) + ")" + extension)
 	return newfilename
-
 
 def copyfile(origin,dest,mode="c"):
 	""" Copy or moves file to another place
@@ -219,7 +215,12 @@ Msgtimming = {
 	'med':datetime.timedelta(seconds=600),
 	'high':datetime.timedelta(seconds=0)
 	}
-
+Msgtopics = {
+	1 : 'Torrent has been added to Transmission for downloading',
+	2 : 'Added incoming torrent to process',
+	3 : 'Torrent has been manually added',
+	4 : 'Torrent has been manually deleted'
+}
 
 s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
@@ -266,8 +267,7 @@ else:
 		id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
 		state char NOT NULL DEFAULT('Ready'),\
-		trelease date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now')),\
-		topic char,\
+		topic int NOT NULL,\
 		body char,\
 		trid int \
 		)")
@@ -505,39 +505,6 @@ def MailMovieInfo(moviefile,mail):
 		emailme ( TRWorkflowconfig.mailsender, 'Alert notification in %s' %(os.path.basename(moviefile)), mail, info_file)
 	return send
 
-def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
-	'''Send a mail notification.
-		parameters:
-			msgfrom = e-mail from
-			msgsubjet = Subject (string in one line)
-			msgto = mail_recipients (could be more than one parsed into a string colon (:) separated)
-			textfile = path to textfile, this is the body of the message. You can pass a string anyway,
-		'''
-	
-	global TRWorkflowconfig
-	
-	# Open a plain text file for reading.
-	if itemcheck (textfile) == "file":
-		# the text file must contain only ASCII characters.
-		with open(textfile) as fp:
-			# Create a text/plain message
-			msg = MIMEText(fp.read())
-	else:
-		msg = MIMEText(textfile)
-
-	msg['Subject'] = msgsubject
-	msg['From'] = msgfrom
-	msg['To'] = msgto
-	msg['Cc'] = msgcc
-
-	# Send the message via our own SMTP server.
-	s = smtplib.SMTP(TRWorkflowconfig.mailmachine)
-	s.starttls()
-	s.login( TRWorkflowconfig.mailsender, TRWorkflowconfig.mailpassw) # your user account and password
-	s.send_message(msg)
-	s.quit( )
-	return
-
 def TRprocfolder(origin):
 	global Fother_Folder
 	# Cleaning folder name
@@ -751,7 +718,6 @@ def addcover(film,Torrentinbox):
 	shutil.move(cover,dest)
 	return match
 
-
 def Extractcmovieinfo(filename):
 	""" Extracts video information, stores it into a Name_of_the_movie.ext.info in logging folder.
 		read parameters, returns it.
@@ -898,7 +864,6 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 	# TO DO: Identify numbers of cap.   three numbers is a cap + the same starting number, Then rename cap- as nXnn.
 	return
 
-
 def dtsp(spoolfile):
 	"""
 		Process torrent spool-file.
@@ -959,6 +924,38 @@ def dtsp(spoolfile):
 	pass
 
 # < used / reviewed > ----------------------------------------------------------------------------
+def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
+	'''Send a mail notification.
+		parameters:
+			msgfrom = e-mail from
+			msgsubjet = Subject (string in one line)
+			msgto = mail_recipients (could be more than one parsed into a string colon (:) separated)
+			textfile = path to textfile, this is the body of the message. You can pass a string anyway,
+		'''
+	
+	global TRWorkflowconfig
+	
+	# Open a plain text file for reading.
+	if itemcheck (textfile) == "file":
+		# the text file must contain only ASCII characters.
+		with open(textfile) as fp:
+			# Create a text/plain message
+			msg = MIMEText(fp.read())
+	else:
+		msg = MIMEText(textfile)
+
+	msg['Subject'] = msgsubject
+	msg['From'] = msgfrom
+	msg['To'] = msgto
+	msg['Cc'] = msgcc
+
+	# Send the message via our own SMTP server.
+	s = smtplib.SMTP(TRWorkflowconfig.mailmachine)
+	s.starttls()
+	s.login( TRWorkflowconfig.mailsender, TRWorkflowconfig.mailpassw) # your user account and password
+	s.send_message(msg)
+	s.quit( )
+	return
 
 def get_pid (app):
 	''' returns None if the aplication is not running, or
@@ -979,8 +976,6 @@ def getappstatus (app):
 	if get_pid (app) == None:
 		return False
 	return True
-
-
 
 def extfilemove(origin,dest,extensions=[]):
 	''' This function scans files that matches desired extensions and
@@ -1025,7 +1020,6 @@ def extfilemove(origin,dest,extensions=[]):
 		moveditems.append (itemdest)
 	return moveditems
 
-
 def Dropfd(destfolder, lsextensions):
 	''' move .torrents and covers from one destination to another.
 		Pej. after setup your hotfolder, you can place there .torrent files or covers to 
@@ -1041,7 +1035,6 @@ def Dropfd(destfolder, lsextensions):
 			logging.info('\t'+ a)
 	return movelist
 
-
 def addinputs ():
 	''' Add new torrent entries into a DB queue,
 	This queue is stored into the software database SQLite. > Table "TW_Inputs"
@@ -1055,12 +1048,10 @@ def addinputs ():
 			cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type) VALUES (?,?)", params)
 			logging.info ('added incoming torrent to process: %s' %entry)
 			Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
-			SpoolUserMessages(con, 'Added incoming torrent to process', entry, TRid = Id, Trelease='low',)
-
+			SpoolUserMessages(con, 2, entry, TRid = Id)
 		con.commit()
 		con.close()
 	return
-
 
 def launchTR (cmdline, seconds=0):
 	os.system(cmdline)
@@ -1088,11 +1079,10 @@ def SendtoTransmission():
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
 			con.execute ("UPDATE tw_inputs SET state='Added', TRname=? WHERE id=?", (TRname,str(Id)))
-			SpoolUserMessages(con, 'Torrent has been added to Transmission for downloading', TRname, TRid = Id, Trelease='low')
+			SpoolUserMessages(con, 1, TRname, TRid = Id)
 	con.commit()
 	con.close()
 	return
-
 
 def TrackManualTorrents(tc):
 	''' Scans for list of torrents currently in transmission,
@@ -1112,11 +1102,10 @@ def TrackManualTorrents(tc):
 				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, Type, state, TRname) VALUES (?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
-				SpoolUserMessages(con, 'Torrent has been manually added', trobject.name, TRid = Id)
+				SpoolUserMessages(con, 3, trobject.name, TRid = Id)
 		con.commit()
 		con.close()
 	return
-
 
 def TrackdeletedTorrents(tc):
 	''' Check if 'Added' torrents in DB are still in Transmission.
@@ -1131,39 +1120,63 @@ def TrackdeletedTorrents(tc):
 	for Id, TRname in cursor:
 		if TRname not in TRRset:
 			con.execute ("UPDATE tw_inputs SET state='Deleted' WHERE id = ?", (Id,))
-			SpoolUserMessages(con, 'Torrent has been manually deleted.', TRname, TRid = Id, Trelease='low')
+			SpoolUserMessages(con, 4, TRname, TRid = Id)
 	con.commit()
 	con.close()
 	return
 
-
-def SpoolUserMessages(con, Topic, Body, TRid=0, Trelease='high',):
+def SpoolUserMessages(con, Topic, Body, TRid=0):
 	''' Insert an outgoing message into Data base,
 		it assign a date of message release, so many messages can be send a time into one e-mail
 		'''
-	Trelease = datetime.datetime.now() + Msgtimming[Trelease]
 	params = (
 		'Ready',
-		Trelease.strftime("%Y-%m-%d %H:%M:%S"),
 		Topic,
 		Body,
 		TRid
 		)
-	con.execute ("INSERT INTO msg_inputs (state, trelease, topic, body, trid) VALUES (?,?,?,?,?)", params)
+	con.execute ("INSERT INTO msg_inputs (state, topic, body, trid) VALUES (?,?,?,?)", params)
 	return
 
+def STmail (topic, msg):
+	msgfrom = TRWorkflowconfig.mailsender
+	msgto = TRWorkflowconfig.mail_recipients
+	msgsubject = topic
+	textfile = msg
+	emailme(msgfrom, msgsubject, msgto, textfile, msgcc="")
+	return
+
+def mailaddedtorrents(con):
+	cursor = con.cursor ()
+	cursor.execute ("SELECT id, body, trid from msg_inputs WHERE state = 'Ready' and topic = 1")
+	for Id, Body, Trid in cursor:
+		msg = """A new torrent has been sent to Transmission Service for Downloading:
+	Torrent Name:
+	%s
+	
+	It will be tracked as nº:%s in Database.""" %(Body,Trid)
+		STmail ('Added to Transmission ' + Body, msg)
+		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE id = ?", (Id,))
+	con.commit()
+	return
+
+
+def MsgService():
+	con = sqlite3.connect (dbpath)
+	mailaddedtorrents (con)
+	con.close()
+	return
 
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
-
 if __name__ == '__main__':
 	# Main loop
 	while True:
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
-		SendtoTransmission ()
-		con = sqlite3.connect (dbpath)
+		SendtoTransmission ()  # Send DB files/magnets registry to Transmission
+		MsgService ()
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
