@@ -261,6 +261,8 @@ else:
 		filetype char,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
 		state char NOT NULL DEFAULT('Ready'),\
+		deliverstatus char,\
+		filesretrieved integer DEFAULT (0),\
 		trname char, \
 		dwfolder char \
 		)")
@@ -271,6 +273,17 @@ else:
 		topic int NOT NULL,\
 		body char,\
 		trid int \
+		)")
+	cursor.execute ("CREATE TABLE files (\
+		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
+		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
+		trid int NOT NULL,\
+		state char NOT NULL DEFAULT('Added'),\
+		wanted boolean DEFAULT (1),\
+		size number ,\
+		mime char ,\
+		originalfile char,\
+		destfile char \
 		)")
 
 	con.commit()
@@ -527,86 +540,6 @@ def TRprocfolder(origin):
 		logging.warning("Destination folder already exists, folder %s has not been procesed" %(origin))
 		sys.exit("\nDestination Folder ("+dest+") already exists. Exiting.\n")
 
-def scanfolder(d):
-	''' scans the contents of a folder.
-		input: "folderpath to scan"
-
-		output:
-		(
-			number of folders at first level,
-			number of files at first level,
-			list of folders,
-			list of video-files,
-			list of audio-files,
-			list of notwanted-files,
-			list of compressed files,
-			list of other files,
-			)
-		'''
-	global TRWorkflowconfig
-
-	__version__ = 1.2
-	__date__="20/11/2014"
-	if d[-1]!="/": d = d+"/"
-	listitems = [d + "/" + i for i in os.listdir (d)]
-	# Starting counters and vars
-	ND, NF = 0, 0
-	lFL, lVF, lAF, lNW, lCF, lOF = [], [], [], [], [], []
-	# Iterating elements
-	for a in (listitems):
-		logging.info ("Item: '"+a)
-		if os.path.isdir(a):
-			logging.info (">>> isdir")
-			ND += 1
-			lFL.append(a)
-			continue
-		elif os.path.isfile(a):
-			NF += 1
-			ext = os.path.splitext(a)[1]
-			if ext[1:] in TRWorkflowconfig.ext["movie"]:
-				logging.info  (">>> is a movie")
-				lVF.append(a)
-				continue
-			if ext[1:] in TRWorkflowconfig.ext["audio"]:
-				logging.info  (">>> is audio")
-				lAF.append(a)
-				continue
-			if ext[1:] in TRWorkflowconfig.ext["compressed"]:
-				logging.info  ("is a compressed file")
-				lCF.append(a)
-				continue
-			if ext[1:] in TRWorkflowconfig.ext["notwanted"]:
-				logging.info  ("is a non wanted file")
-				lNW.append(a)
-				continue
-			logging.info  ("is other file-type")
-			lOF.append(a)
-	return (ND,NF,lFL,lVF,lAF,lNW,lCF,lOF)
-
-def fileclasify(f):
-	""" Classify a file
-		input: file
-		output: "other" (default), "audio", "video", "movie", "compressed" 
-		"""
-	global TRWorkflowconfig
-	ext = os.path.splitext(f)
-	if str(ext[1]) in ["","."]:
-		logging.warning("File has no extension")
-		return "other"
-	extwd = str (ext [1])
-	extwd = extwd [1:]
-	logging.debug("File extension is:"+extwd)
-	if extwd in TRWorkflowconfig.ext["movie"]:
-		logging.info  (">>> is a movie")
-		return "movie"
-	if extwd in TRWorkflowconfig.ext["audio"]:
-		logging.info  (">>> is audio")
-		return "audio"
-	if extwd in TRWorkflowconfig.ext["compressed"]:
-		logging.info  ("is a compressed file")
-		return "compressed"
-	logging.info  ("is other file-type")
-	return "other"
 
 def moveup (item):
 	''' This function:
@@ -755,6 +688,90 @@ def add_to_pull(origin,dest):
 # ===  PROCESING A TRANSMISSION ITEM ==========================
 # ========================================
 
+"""
+def scanfolder(d):
+	''' scans the contents of a folder.
+		input: "folderpath to scan"
+
+		output:
+		(
+			number of folders at first level,
+			number of files at first level,
+			list of folders,
+			list of video-files,
+			list of audio-files,
+			list of notwanted-files,
+			list of compressed files,
+			list of other files,
+			)
+		'''
+	global TRWorkflowconfig
+
+	__version__ = 1.2
+	__date__="20/11/2014"
+	if d[-1]!="/": d = d+"/"
+	listitems = [d + "/" + i for i in os.listdir (d)]
+	# Starting counters and vars
+	ND, NF = 0, 0
+	lFL, lVF, lAF, lNW, lCF, lOF = [], [], [], [], [], []
+	# Iterating elements
+	for a in (listitems):
+		logging.info ("Item: '"+a)
+		if os.path.isdir(a):
+			logging.info (">>> isdir")
+			ND += 1
+			lFL.append(a)
+			continue
+		elif os.path.isfile(a):
+			NF += 1
+			ext = os.path.splitext(a)[1]
+			if ext[1:] in TRWorkflowconfig.ext["movie"]:
+				logging.info  (">>> is a movie")
+				lVF.append(a)
+				continue
+			if ext[1:] in TRWorkflowconfig.ext["audio"]:
+				logging.info  (">>> is audio")
+				lAF.append(a)
+				continue
+			if ext[1:] in TRWorkflowconfig.ext["compressed"]:
+				logging.info  ("is a compressed file")
+				lCF.append(a)
+				continue
+			if ext[1:] in TRWorkflowconfig.ext["notwanted"]:
+				logging.info  ("is a non wanted file")
+				lNW.append(a)
+				continue
+			logging.info  ("is other file-type")
+			lOF.append(a)
+	return (ND,NF,lFL,lVF,lAF,lNW,lCF,lOF)
+"""
+
+def fileclasify(filename):
+	""" Classify a file
+		input: file
+		output: "other" (default), "audio", "video", "movie", "compressed" 
+		"""
+	global TRWorkflowconfig
+	ext = os.path.splitext(filename)
+	if str(ext[1]) in ["","."]:
+		logging.warning("File has no extension")
+		return "other"
+	extwd = str (ext [1])
+	extwd = extwd [1:]
+	logging.debug("File extension is:"+extwd)
+	if extwd in TRWorkflowconfig.ext["movie"]:
+		logging.info  (">>> is a movie")
+		return "movie"
+	if extwd in TRWorkflowconfig.ext["audio"]:
+		logging.info  (">>> is audio")
+		return "audio"
+	if extwd in TRWorkflowconfig.ext["compressed"]:
+		logging.info  ("is a compressed file")
+		return "compressed"
+	logging.info  ("is other file-type")
+	return "other"
+
+
 def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 	""" This function process an entry from Transmission-Downloaded-items Spool
 	inputs:
@@ -767,30 +784,11 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 
 	global Fvideodest
 
-	# Dumping info to log list: we want to know wath log is for what downloaded item in case of inspection
-	logging_list = os.path.dirname(logging_file)+"/Torrent Log List.log"
-	if itemcheck(logging_list) != "file":
-		logging.info("Initializing Logging file at:"+logging_list)
-		f = open(logging_list,"w")
-		f.write(";".join(["Date","Time","DW_DIRECTORY","TR_TORRENT_NAME","\n"]))
-		f.close()
-
-	f = open(logging_list,"a")
-	f.write(";".join([today,tohour,DW_DIRECTORY,TR_TORRENT_NAME,"\n"]))
-	f.close()
-
-	logging.info("Start item is at:"+DW_DIRECTORY)
-	logging.info("Item is:"+TR_TORRENT_NAME)
-	logging.debug("Default Fmovie_Folder:"+Fmovie_Folder)
-	logging.debug("Default Faudio_Folder:"+Faudio_Folder)
-	logging.debug("Default Fother_Folder:"+Fother_Folder)
-	logging.debug("        Hotfolder:"+Hotfolder)
-
 
 	# Prequisites:
 	#=============
 	#1 directory paths must end in slash "/"
-	DW_DIRECTORY  = addslash (DW_DIRECTORY ,"DW_DIRECTORY" )
+	DW_DIRECTORY  = addslash (DW_DIRECTORY)
 
 
 	#2 Reading Videodestinations in ini file
@@ -805,7 +803,7 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 		f.close()
 		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
 
-	logging.debug("Extracting alias definition from "+Hotfolder+"Videodest.ini")
+	logging.debug("Extracting alias definition from "+ Hotfolder +"Videodest.ini")
 	alias = readini.readdict (Hotfolder+"Videodest.ini","alias",",")
 
 	logging.debug("Extracting dest definition")
@@ -829,11 +827,8 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 
 	Fvideodest = dest
 
-	#3 Itemname must not end in slash "/"
-	if TR_TORRENT_NAME[-1] == "/" :
-		TR_TORRENT_NAME = TR_TORRENT_NAME [:-1]
-		logging.warning("..Torrent names must not end in slash:"+TR_TORRENT_NAME)
 
+	"""
 	#4 Item check:
 	for a in (os.path.join(DW_DIRECTORY,TR_TORRENT_NAME), Fmovie_Folder, Faudio_Folder, Fother_Folder):
 		if itemcheck(a) not in ("file","folder"):
@@ -842,12 +837,14 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 			exit()		
 		else:
 			logging.debug(a + " >> exists. OK!")
+	"""
 
 	# File Vs Folder
 	#===============
 	#1 Check if torrent is dir vs file
 	logging.debug("Checking if downloaded item is file or directory...")
 	origin = DW_DIRECTORY+TR_TORRENT_NAME
+
 	if os.path.isfile(origin):
 		logging.info (origin+" is a file.")
 		procfile(origin,"c") # >> process the file.
@@ -865,64 +862,8 @@ def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
 	# TO DO: Identify numbers of cap.   three numbers is a cap + the same starting number, Then rename cap- as nXnn.
 	return
 
-def dtsp(spoolfile):
-	"""
-		Process torrent spool-file.
-		Input: path/to/spoolfile/spoolfilename.spool
 
-		Output: none
-	"""
 
-	logging.debug ("-------  Checking for a new Downloaded Torrent queue  -------")
-	
-	# (1) Checking Spool File
-	if itemcheck (spoolfile) == "":
-		logging.debug("Thereis nothing to do, TorrentSpool file does not exist....")
-		return
-
-	# (2) Read pull file and putting it into a list.
-
-	mylist = []
-	while True:
-		# Getting list of entries
-		mypull = readini.listtags (spoolfile,"Torrent","=")
-		if (mypull) == [""] :
-			logging.info("There are not more files to process for now.")
-			logging.info("Removing Torrent-spool-file")
-			os.remove(spoolfile)
-			break
-
-		logging.info("Starting to process spool, %s entry(-ies) have been registered."%(len(mypull)))
-		# (3) process entry-list.
-		
-		for entry in mypull:
-			a,b = readini.split(entry,"\t")	
-			skipp = 0
-			if itemcheck (a) != "folder":
-				logging.warning("Folderpath in entry does not exist ("+a+"). Skipping (entry will be deleted)")
-				skipp=1
-			if itemcheck (os.path.join(a,b)) in ("","link") and skipp == 0:
-				logging.warning("file: does not exist or is a link ("+b+"). Skipping (entry will be deleted)")
-				skipp=1
-			if skipp == 0:
-				# Procesing Torrent
-				print ("Procesing Torrent")
-				TRProcess(a,b)
-			# updating pull file:
-			newpull = readini.listtags (spoolfile,"Torrent","=")
-			newpull.remove (entry)
-			# re-write spool-file
-			os.remove(spoolfile)
-			f = open (spoolfile,"a")
-			for x in newpull:
-				f.write ("Torrent="+x+"\n")
-			f.close()
-			
-		logging.debug("An iteration on Torrent Spool file List has been procesed")
-		logging.debug("Cleaning pull file & looking for more files to process.....")
-
-	logging.debug ("-------  End of Downloaded Torrent queue  -------")
-	pass
 
 # < used / reviewed > ----------------------------------------------------------------------------
 def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
@@ -1183,6 +1124,56 @@ def MsgService():
 	con.close()
 	return
 
+def gettrrobj (tc, name):
+	""" Giving a Torrent's name, returns active Transmission's torrent object. 
+		 Returns None if noone is Fetched
+		"""
+	trr = tc.get_torrents()
+	for trobject in trr:
+		if trobject.name == name:
+			return trobject
+	return None
+
+def Retrievefiles (tc):
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
+	for Id, Trname in cursor:
+		print (Id, Trname)
+		trobject = gettrrobj (tc, Trname)
+		filesdict = trobject.files()
+		for key in filesdict:
+			Size = filesdict.get(key)['size']
+			Originalfile = filesdict.get(key)['name']
+			params = Id, Size, Originalfile
+			con.execute ("INSERT INTO files (trid, size, originalfile) VALUES (?,?,?)",params)
+			params = len(filesdict), Id
+			con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
+	con.commit()
+	con.close()
+
+def Predeliver ():
+	""" Assign a destination to torrents's files. It decides which files are going to be moved,
+		copied. The results are stored into the DB table files.
+		This function do not moves any file, but pre-assign a place where a file is going to be sent.
+		"""
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	Trcursor= cursor.execute ("SELECT id, trname FROM tw_inputs WHERE deliverstatus = 'Added' ")
+	for Id, Trname in Trcursor:
+		logging.info ("Processing pre-delivering for torrent Id:%s '%s'" %(Id,Trname))
+		# Tipifying contents
+		itemslist = con.execute ("SELECT nreg, originalfile FROM files WHERE trid = %s"%Id)
+		for nReg, originalfile in itemslist:
+			con.execute ("UPDATE files SET mime = ? WHERE nreg = ?",(fileclasify(originalfile), nReg))
+		con.commit()
+		# 
+
+
+
+	con.close()
+	return
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
@@ -1193,20 +1184,13 @@ if __name__ == '__main__':
 		addinputs()  # add .torrents files to DB. queue
 		SendtoTransmission ()  # Send DB files/magnets registry to Transmission
 		MsgService ()
+		Predeliver ()
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
 			TrackDeletedTorrents(tc)
 			TrackFinishedTorrents (tc)
+			Retrievefiles(tc)
 
-		'''
-		dtsp (spoolfile) # Checks Torrent.spool file
-		if launchstate == 0 :
-			launch = programstarter.launcher (cmd, lsdy, lsext) # Finding new .Torrents & pending torrents to start Transmission
-			if launch == 1:
-				logging.info("'"+cmd + "' has been executed, turning launchstate to 1")
-				launchstate = 1
-		'''
-		#logging.debug("# Done!, next check at "+ str (now + datetime.timedelta(seconds=s)))
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
 		time.sleep(s)
