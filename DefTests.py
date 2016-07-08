@@ -101,7 +101,9 @@ class getappstatus (unittest.TestCase):
 
 
 class addmatrix (unittest.TestCase):
-	""" Tests adding numbers to a list.
+	""" Adds +1 on matrix [0]
+		Adds +1 on matrix by mime type dict.
+		each type has a position into the matrix
 		"""
 	known_values = (
 		(([0,0,0,0,0,0,0],'audio'), [1,0,1,0,0,0,0] ),
@@ -115,6 +117,28 @@ class addmatrix (unittest.TestCase):
 		for example, pattern in self.known_values:
 			result = MD.addmatrix (example[0],example[1])
 			self.assertEqual (pattern, result)
+
+class addfoldersmatrix (unittest.TestCase):
+	known_values = (
+		(([0,0,0,0,0,0,0,0,0],set(['only one path'])), [0,0,0,0,0,0,0,1,1] ),
+		(([0,0,0,45,0,0,0,0,0],set(['two levels/of path'])), [0,0,0,45,0,0,0,1,2] ),
+		(([0,0,0,0,0,0,0,0,0],set([
+										'two levels/of path',
+										'one level'])), [0,0,0,0,0,0,0,2,2] ),
+		(([0,0,0,0,0,0,0,0,0],set([
+										'two levels/of path',
+										'two levels/another level',
+										'one level'])), [0,0,0,0,0,0,0,3,2] ),
+		(([33,0,0,0,0,0,0,0,0],set([
+										'three levels/of/path',
+										'two levels/another level',
+										'one level'])), [33,0,0,0,0,0,0,3,3] ),
+		)
+	def test_addmatrix (self):
+		for example, pattern in self.known_values:
+			result = MD.addfoldersmatrix (example[0],example[1],7,8)
+			self.assertEqual (pattern, result)
+
 
 
 class fileclasify (unittest.TestCase):

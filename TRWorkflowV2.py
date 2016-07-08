@@ -305,7 +305,9 @@ else:
 		nnotwanted int ,\
 		ncompressed int ,\
 		nimagefiles int ,\
-		nother int \
+		nother int ,\
+		nfolders int ,\
+		folderlevels int \
 		)")
 
 	con.commit()
@@ -1152,7 +1154,8 @@ def Retrievefiles (tc):
 		print (Id, Trname)
 		trobject = gettrrobj (tc, Trname)
 		filesdict = trobject.files()
-		matrix = [0,0,0,0,0,0,0]
+		matrix = [0,0,0,0,0,0,0,0,0]
+		folders = set()
 		for key in filesdict:
 			Size = filesdict.get(key)['size']
 			Originalfile = filesdict.get(key)['name']
@@ -1160,21 +1163,38 @@ def Retrievefiles (tc):
 			params = Id, Size, Originalfile, Mime
 			con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
 			matrix = addmatrix (matrix, Mime)
+			folders.add (os.path.dirname(Originalfile))
 		params = len(filesdict), Id
 		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
-		# add pattern maxtrix to DB
-		print (matrix)
+		matrix = addfoldersmatrix (matrix,folders,7,8)
+		params = Id, 'Added',matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
+		con.execute ("INSERT INTO pattern (trid,state,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?)",params)
 	con.commit()
 	con.close()
 
 def addmatrix(matrix, mime):
 	""" Adds +1 on matrix [0]
 		Adds +1 on matrix by mime type dict.
-		"""
+		Deftest OK"""
 	matrix [0] += 1
 	matrix [Codemimes[mime]] += 1
 	return matrix
 
+def addfoldersmatrix (matrix, folders, posnfolders, posfolderlevels):
+	""" Given a info matrix and a set of relative folders,
+		it returns in the given positions:
+			number of diferent folders (counts the elements that are into the set())
+			depth of level path.
+		returns the matrix.
+		Deftest OK"""
+	matrix [posnfolders] = len(folders)
+	levels = 0
+	for a in folders:
+		nlev = 1 + a.count('/')
+		if nlev > levels:
+			levels = nlev
+	matrix [posfolderlevels] = levels
+	return matrix
 
 # ========================================
 # 			== MAIN PROCESS  ==
