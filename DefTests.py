@@ -100,6 +100,41 @@ class getappstatus (unittest.TestCase):
 			self.assertEqual (PIDs, result)
 
 
+class addmatrix (unittest.TestCase):
+	""" Tests adding numbers to a list.
+		"""
+	known_values = (
+		(([0,0,0,0,0,0,0],'audio'), [1,0,1,0,0,0,0] ),
+		(([32,1,2,3,4,5,6],'video'), [33,2,2,3,4,5,6] ),
+		(([100,0,0,0,0,0,8],'audio'), [101,0,1,0,0,0,8] ),
+		(([6,0,0,0,0,0,0],'compressed'), [7,0,0,0,1,0,0] ),
+		(([88,0,1,0,0,9,0],'image'), [89,0,1,0,0,10,0] ),
+		(([154,0,1,0,0,0,55],'other'), [155,0,1,0,0,0,56] ),
+		)
+	def test_addmatrix (self):
+		for example, pattern in self.known_values:
+			result = MD.addmatrix (example[0],example[1])
+			self.assertEqual (pattern, result)
+
+
+class fileclasify (unittest.TestCase):
+	""" Tipify a file by its extension
+		"""
+	known_values = (
+		("filename.avi", 'video' ),
+		("filename.mp3", 'audio' ),
+		("filename.txt", 'notwanted' ),
+		("filename.jpg", 'image' ),
+		("filename.rar", 'compressed' ),
+		("filename.xxx", 'other' ),
+		)
+	def test_addmatrix (self):
+		for example, target in self.known_values:
+			result = MD.fileclasify (example)
+			self.assertEqual (target, result)
+
+
+
 class TestPack1 (unittest.TestCase):
 	''' processing TestPack1'''
 

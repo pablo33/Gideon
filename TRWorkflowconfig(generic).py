@@ -19,10 +19,11 @@ chapteridentifier = ('Cap', 'cap', 'episodio')
 
 # How to tipify items
 ext = {
-	"movie":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
+	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
 	"audio":['mp3', 'ogg', 'wav', 'm4a', 'wma', 'aac', 'flac', 'mka', 'ac3'],
 	"compressed":['rar','zip', '7z'],
 	"notwanted":['txt','url','lnk','DS_Store'],
+	"image":['jpg','png','gif'],
 }
 # List of prohibited words. This words will be deleted from files and folder-names
 prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www','MP3','HDTV','XviD','DVDRip','LeoParis',
