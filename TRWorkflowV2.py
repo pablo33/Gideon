@@ -69,7 +69,8 @@ def addslash (text):
 	return text
 
 def itemcheck(pointer):
-	''' returns what kind of a pointer is '''
+	''' returns what kind of a pointer is 
+		DefTest >> OK'''
 	if type(pointer) is not str:
 		raise NotStringError ('Bad input, it must be a string')
 	if pointer.find("//") != -1 :
@@ -92,11 +93,11 @@ def makepaths (fdlist):
 		if itemisa == '':
 			os.makedirs(fditem)
 
-def Nextfilenumber (dest):
+def nextfilenumber (dest):
 	''' Returns the next filename counter as filename(nnn).ext
 	input: /path/to/filename.ext
 	output: /path/to/filename(n).ext
-		'''
+		DefTest >> OK '''
 	if dest == "":
 		raise EmptyStringError ('empty strings as input are not allowed')
 	filename = os.path.basename (dest)
@@ -299,6 +300,8 @@ else:
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		trid int NOT NULL,\
 		state char NOT NULL DEFAULT('Added'),\
+		caso char ,\
+		psecuence char,\
 		nfiles int ,\
 		nvideos int ,\
 		naudios int ,\
@@ -355,7 +358,7 @@ dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
 
 def defaultpath(origin):
 	""" Selects destination due on filetype
-		"""
+		DefTest >> OK """
 	global Fmovie_Folder
 	global Fother_Folder
 	global Faudio_Folder
@@ -861,24 +864,24 @@ def scanTorrent(con, Id):
 def fileclasify (filename):
 	""" Classify a file
 		input: file
-		output: "other" (default), "audio", "video", "movie", "compressed" 
+		output: 'other' (default), 'audio', 'video', 'movie', 'compressed', 'image'
 		
 		DefTest OK"""
 	global TRWorkflowconfig
 	ext = os.path.splitext(filename)
-	if str(ext[1]) in ["","."]:
-		logging.warning("File has no extension")
-		return "other"
+	if str(ext[1]) in ['','.']:
+		logging.warning('File has no extension')
+		return 'other'
 	extwd = str (ext [1])
 	extwd = extwd [1:]
-	if extwd in TRWorkflowconfig.ext["video"]: return "video"
-	elif extwd in TRWorkflowconfig.ext["audio"]: return "audio"
-	elif extwd in TRWorkflowconfig.ext["compressed"]: return "compressed"
-	elif extwd in TRWorkflowconfig.ext["notwanted"]: return "notwanted"
-	elif extwd in TRWorkflowconfig.ext["image"]: return "image"
-	return "other"
+	if extwd in TRWorkflowconfig.ext['video']: return 'video'
+	elif extwd in TRWorkflowconfig.ext['audio']: return 'audio'
+	elif extwd in TRWorkflowconfig.ext['compressed']: return 'compressed'
+	elif extwd in TRWorkflowconfig.ext['notwanted']: return 'notwanted'
+	elif extwd in TRWorkflowconfig.ext['image']: return 'image'
+	return 'other'
 
-def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=""):
+def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=''):
 	'''Send a mail notification.
 		parameters:
 			msgfrom = e-mail from
@@ -927,6 +930,7 @@ def get_pid (app):
 	return pidlist
 
 def getappstatus (app):
+	''' DefTest >> OK'''
 	if get_pid (app) == None:
 		return False
 	return True
@@ -945,7 +949,7 @@ def extfilemove(origin,dest,extensions=[]):
 			extensions: ("list","of","extensions","to","move")
 		output:
 			("list of files", "that have been moved", "on its destination")
-		'''
+		DefTest >> OK '''
 	# Checking folders:
 	if itemcheck (origin) in (["","file"]):
 		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Hotfolder to a valid path")
@@ -970,7 +974,7 @@ def extfilemove(origin,dest,extensions=[]):
 		cleanedname = namefilmcleaner.clearfilename (basename)
 		itemdest =  dest+cleanedname+extension
 		while not copyfile (i,itemdest,mode="m"):
-			itemdest = Nextfilenumber (itemdest)
+			itemdest = nextfilenumber (itemdest)
 		moveditems.append (itemdest)
 	return moveditems
 
@@ -1169,8 +1173,43 @@ def Retrievefiles (tc):
 		matrix = addfoldersmatrix (matrix,folders,7,8)
 		params = Id, 'Added',matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
 		con.execute ("INSERT INTO pattern (trid,state,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?)",params)
+		Caso, Psecuence = Selectcase (matrix)
 	con.commit()
 	con.close()
+def Selectcase (matrix):
+	""" Selects a case to deliver the torrent files and an operational behaviour for files.
+		operational behaviour is returned a a list of number of codes that operates on all the files of
+		the torrent.
+		If no case is matched, it returns None.
+		Actual Matrix represents:
+		[0] nfiles
+		[1] nvideos
+		[2] naudios
+		[3] nnotwanted
+		[4] ncompressed
+		[5] nimagefiles
+		[6] nother
+		[7] nfolders
+		[8] folderlevels
+
+		DefTest OK"""
+	# Selectig case of only one video file:
+	if matrix[0] == 1 and matrix[1] == 1:
+		logging.info ("Selected case 1: Torrent is just one file and it is a video file.")
+		Caso, Psecuence = 1, Psecuensedict[1]
+	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[8]==1:
+		logging.info ("Selected case 2: Contains 1 video file and at least a image file, at the same level.")
+		Caso, Psecuence = 2, Psecuensedict[2]
+	else:
+		Caso, Psecuence = None, None
+	return Caso, Psecuence
+
+Psecuensedict = {
+	1 : [1,2,3],
+	2 : [2,3,4],
+	3 : [3,4,5],
+	4 : [4,5,6],
+}
 
 def addmatrix(matrix, mime):
 	""" Adds +1 on matrix [0]
@@ -1181,7 +1220,7 @@ def addmatrix(matrix, mime):
 	return matrix
 
 def addfoldersmatrix (matrix, folders, posnfolders, posfolderlevels):
-	""" Given a info matrix and a set of relative folders,
+	""" Given a info matrix and a set of relative _folders_,
 		it returns in the given positions:
 			number of diferent folders (counts the elements that are into the set())
 			depth of level path.

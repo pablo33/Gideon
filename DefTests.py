@@ -68,6 +68,30 @@ def FetchFileSet (path):
 MD = TRWorkflowV2
 modulename = 'TRWorkflowV2.py'
 
+
+class Selectcase (unittest.TestCase):
+	""" Selects a case to deliver the torrent files and an operational behaviour for files.
+		Actual Matrix represents:
+		[0] nfiles
+		[1] nvideos
+		[2] naudios
+		[3] nnotwanted
+		[4] ncompressed
+		[5] nimagefiles
+		[6] nother
+		[7] nfolders
+		[8] folderlevels
+		"""
+	known_values = (
+		([0,0,0,0,0,0,0,  0,0], None),
+		([1,1,0,0,0,0,0,  1,1], 1),
+		([60,1,0,55,0,4,0,  1,1], 2),
+		)
+	def test_addmatrix (self):
+		for example, pattern in self.known_values:
+			result = MD.Selectcase (example)
+			self.assertEqual (pattern, result[0])
+
 class itemcheck_text_values (unittest.TestCase):
 	'''testing itemcheck function'''
 	def test_emptystring (self):
@@ -99,7 +123,6 @@ class getappstatus (unittest.TestCase):
 			result = MD.getappstatus (process)
 			self.assertEqual (PIDs, result)
 
-
 class addmatrix (unittest.TestCase):
 	""" Adds +1 on matrix [0]
 		Adds +1 on matrix by mime type dict.
@@ -119,6 +142,7 @@ class addmatrix (unittest.TestCase):
 			self.assertEqual (pattern, result)
 
 class addfoldersmatrix (unittest.TestCase):
+
 	known_values = (
 		(([0,0,0,0,0,0,0,0,0],set(['only one path'])), [0,0,0,0,0,0,0,1,1] ),
 		(([0,0,0,45,0,0,0,0,0],set(['two levels/of path'])), [0,0,0,45,0,0,0,1,2] ),
@@ -139,8 +163,6 @@ class addfoldersmatrix (unittest.TestCase):
 			result = MD.addfoldersmatrix (example[0],example[1],7,8)
 			self.assertEqual (pattern, result)
 
-
-
 class fileclasify (unittest.TestCase):
 	""" Tipify a file by its extension
 		"""
@@ -156,8 +178,6 @@ class fileclasify (unittest.TestCase):
 		for example, target in self.known_values:
 			result = MD.fileclasify (example)
 			self.assertEqual (target, result)
-
-
 
 class TestPack1 (unittest.TestCase):
 	''' processing TestPack1'''
@@ -196,9 +216,8 @@ class TestPack1 (unittest.TestCase):
 		self.assertEqual(known_movedfiles, fnresult)
 		self.assertEqual(known_filevalues,filestructureresult)
 
-
-class test_Nextfilenumber (unittest.TestCase):
-	""" test for Nextfilenumber function """
+class test_nextfilenumber (unittest.TestCase):
+	""" test for nextfilenumber function """
 	known_values = (
 		("file.jpg", 		"file(0).jpg"),
 		("file1.jpg", 		"file1(0).jpg"),
@@ -213,10 +232,10 @@ class test_Nextfilenumber (unittest.TestCase):
 		)
 	def test_known_input (self):
 		for inputfile, outputfile in self.known_values:
-			result = MD.Nextfilenumber (inputfile)
+			result = MD.nextfilenumber (inputfile)
 			self.assertEqual (outputfile, result)
 	def test_mad_values (self):
-		self.assertRaises (MD.EmptyStringError, MD.Nextfilenumber, "")
+		self.assertRaises (MD.EmptyStringError, MD.nextfilenumber, "")
 		pass	
 
 
@@ -271,7 +290,6 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.dotreplacement(i1,i2)
 			self.assertEqual(result,expectedstring)
 
-
 	def test_prohibitedwords (self):
 		'''  Eliminates words in text entries
 			those words matches if they are between spaces.
@@ -290,7 +308,6 @@ class namefilmcleaner (unittest.TestCase):
 		for i1,i2,expectedstring in wanted_values:
 			result = MD2.prohibitedwords(i1,i2)
 			self.assertEqual(result,expectedstring)
-
 
 	def test_sigcapfinder (self):
 		""" This little Function, scans for a chapter-counter at the end of the 
@@ -312,7 +329,6 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.sigcapfinder(i1)
 			self.assertEqual(result,expectedstring)
 
-
 	def test_chapid (self):
 		""" Checks four last char$ of filename.
 			Returns chapter number if a chapter is found.
@@ -333,11 +349,10 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.chapid(i1)
 			self.assertEqual(result,expectedstring)
 
-
 	def test_littlewords (self):
 		''' Change little words starting uppercase to lowercase. This words must be defined.
 		words = ["in","to","my", the","and","on","at","en","a","y","de","o","el","la","los","las","del", "lo", "es"]
-			'''
+		DefTest >> OK	'''
 		wanted_values = ([
 			('My Title To Change And Put Little Words In Lowercase','My Title to Change and Put Little Words in Lowercase'),
 			('ONCE UPON A TIME','ONCE UPON a TIME'),

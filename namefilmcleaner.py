@@ -27,7 +27,7 @@ def trimbetween(a, lim):
 	p.e.  source: "La.Espada.Magica.DVDRip.[www.DivxTotal.com].LeoParis", "[]"
 	results in : "La.Espada.Magica.DVDRip..LeoParis"
 
-	'''
+	DefTest >> OK'''
 	cc = 0
 	while True :
 		st = a.find(lim[0])
@@ -50,7 +50,6 @@ def trimbetween(a, lim):
 	a = a.replace("\t",lim[1]) # we substitute tabs with end limit.
 	return a
 
-
 def dotreplacement(a,lim):
 	'''replaces character between leters
 	
@@ -58,7 +57,7 @@ def dotreplacement(a,lim):
 		input: "String.to.process"
 		input: "lim" String, must contain two characters: caracter to search and character to replace with.
 		output: "String to process" (procesed string)
-	'''
+	DefTest >> OK'''
 	leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
 	while True :
 		logging.debug(a)
@@ -81,7 +80,7 @@ def prohibitedwords(a,lista):
 		input: "string with some words."
 		input: ['List','of','words']
 		outputt: "string without this words".
-	'''
+	DefTest >> OK'''
 
 	for pw in lista:
 		# words in the middle
@@ -109,7 +108,7 @@ def sigcapfinder(filename):
 		sigcapfinder("my title 123") returns>> "my title 1x23"
 		sigcapfinder("my title 123-[[[") returns>> "my title 1x23"
 		sigcapfinder("my title ending in a year 1985") returns "my title ending in a year 1985"
-		"""
+	DefTest >> OK	"""
 	if filename == "":
 		logging.warning("Empty filename to find chapter!")
 		return filename
@@ -160,7 +159,7 @@ def chapid(item):
 		input: fullpath (or not) of filename
 		output: number of chapter (string) _or_
 		output: ""  if no chapter is found.
-		'''
+	DefTest >> OK'''
 	expr = '\d[xX]\d{2}'
 	mo = re.search (expr, item[-4:])
 	try:
@@ -170,7 +169,6 @@ def chapid(item):
 	else:
 		return item[-2:]
 	
-
 def littlewords(filename):
 	''' Change little words starting uppercase to lowercase. This words must be defined.
 		'''
