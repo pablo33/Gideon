@@ -209,7 +209,6 @@ logging.debug("======================================================")
 # (1.5) Setting main variables
 Fmovie_Folder = addslash(TRWorkflowconfig.Fmovie_Folder)  # Default place to store movies
 Faudio_Folder = addslash(TRWorkflowconfig.Faudio_Folder)  # Default place to store music
-Fother_Folder = addslash(TRWorkflowconfig.Fother_Folder)  # Default place to store other downloads
 Hotfolder = addslash (TRWorkflowconfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
 Msgtimming = {
 	'low': datetime.timedelta(seconds=3600),
@@ -300,7 +299,7 @@ else:
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		trid int NOT NULL,\
 		state char NOT NULL DEFAULT('Added'),\
-		caso char ,\
+		caso int ,\
 		psecuence char,\
 		nfiles int ,\
 		nvideos int ,\
@@ -1171,11 +1170,62 @@ def Retrievefiles (tc):
 		params = len(filesdict), Id
 		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
 		matrix = addfoldersmatrix (matrix,folders,7,8)
-		params = Id, 'Added',matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
-		con.execute ("INSERT INTO pattern (trid,state,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?)",params)
+		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
+		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
+		print ('\n\n\n\n',params)
+		con.execute ("INSERT INTO pattern (trid,state,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
+		con.commit()
+		ProcessSecuence (con, Id, Psecuence)
 	con.commit()
 	con.close()
+
+def ProcessSecuence(con, Id, Psecuence):
+	global TRWorkflowconfig
+	for process in Psecuence:
+		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = ?", (Id,))
+		print (process,'...........')
+		if process == 'assign video destination':
+			for entry in cursor2:
+				params = (TRWorkflowconfig.movie_Folder+entry[3],
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+		elif process == 'assign audio destination':
+			for entry in cursor2:
+				params = (TRWorkflowconfig.Faudio_Folder+entry[3],
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+		elif process == 'cleanfilenames':
+			for entry in cursor2:
+				folder= os.path.dirname(entry[3])
+				filename, ext = os.path.splitext(os.path.basename(entry[3]))
+				cleanedfilename = namefilmcleaner.clearfilename(filename)
+				newdest = os.path.join(folder,(cleanedfilename+ext))
+				params = (newdest,
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+		elif process == '(origin)cleanDWfolderfilename':
+			"""
+			for entry in cursor2:
+				folder= os.path.dirname(entry[2])
+				filename, ext = os.path.splitext(os.path.basename(entry[3]))
+				cleanedfilename = namefilmcleaner.clearfilename(filename)
+				newdest = os.path.join(folder,(cleanedfilename+ext))
+				params = (newdest,
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			"""
+			continue
+	return
+
+
 def Selectcase (matrix):
 	""" Selects a case to deliver the torrent files and an operational behaviour for files.
 		operational behaviour is returned a a list of number of codes that operates on all the files of
@@ -1200,15 +1250,18 @@ def Selectcase (matrix):
 	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[8]==1:
 		logging.info ("Selected case 2: Contains 1 video file and at least a image file, at the same level.")
 		Caso, Psecuence = 2, Psecuensedict[2]
+	elif matrix[0] >= 1 and matrix[2]>=0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
+		logging.info ("Selected case 3: Contains one or more audio files and at least a image file, at the same level.")
+		Caso, Psecuence = 3, Psecuensedict[3]
 	else:
-		Caso, Psecuence = None, None
+		Caso, Psecuence = None, list()
 	return Caso, Psecuence
 
 Psecuensedict = {
-	1 : [1,2,3],
-	2 : [2,3,4],
-	3 : [3,4,5],
-	4 : [4,5,6],
+	1 : ['(origin)cleanDWfolderfilename','moveupfileandrename','assign video destination',],
+	2 : list(),
+	3 : ['(origin)cleanDWfolderfilename','assign audio destination','cleanfilenames'],
+	4 : list(),
 }
 
 def addmatrix(matrix, mime):

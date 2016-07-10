@@ -86,6 +86,9 @@ class Selectcase (unittest.TestCase):
 		([0,0,0,0,0,0,0,  0,0], None),
 		([1,1,0,0,0,0,0,  1,1], 1),
 		([60,1,0,55,0,4,0,  1,1], 2),
+		([25,0,13,0,0,1,0,  1,1], 3),
+		([26,0,13,1,0,1,0,  1,1], 3),
+		([27,0,13,1,0,1,1,  1,1], None),
 		)
 	def test_addmatrix (self):
 		for example, pattern in self.known_values:
