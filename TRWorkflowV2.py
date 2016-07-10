@@ -242,6 +242,36 @@ TRuser = TRWorkflowconfig.TRuser
 TRpassword = TRWorkflowconfig.TRpassword
 
 
+# .. Default Videodest.ini file definition (in case there isn't one)
+startVideodestINIfile = """
+# Put this file into Dropbox/TRinbox
+#	
+#	define a destination with some words to automatically store file-movies to the right place.
+#	
+#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at TRWorkflowconfig.py))
+#	
+
+__version__ = 1.1
+__date__ = "11/04/2015"
+
+# You can define alias for common destinations, to substitute text 
+alias=Series        ,    /series/
+alias=Sinfantiles   ,    /Series infantiles/
+
+# Define destinations:
+#	guess a title to match the filemovie then,
+#   define a relative path to store it (starting at default "filemovie folder" defined in TRWorkflowconfig.py file) 
+#	(you can use alias enclosed in <....> to replace text, but remember that you must define them first)
+#  Those are examples, please replace them and follow the structure.
+#  Please, do not include comments at the end of alias or dest lines. This is not an python file.
+#  
+dest = star wars rebels, <Sinfantiles>
+dest = Sleepy Hollow temporada 2, <Series>Sleepy Hollow Temp 2
+dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
+
+# EOF
+"""
+
 ## Deprecated ## spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
 
 # (1.6) Prequisites:
@@ -250,6 +280,15 @@ TRpassword = TRWorkflowconfig.TRpassword
 if itemcheck (Hotfolder) != 'folder' :
 	print ('Hotfolder does not exist. Please edit your user configuration file at: \n',  userconfig)
 	exit()
+
+# Checking and setting up Fvideodest file:
+if itemcheck(Hotfolder+"Videodest.ini") == "":
+	logging.warning("Videodest.ini file does not exist, setting up for the first time")
+	f = open(Hotfolder+"Videodest.ini","a")
+	f.write(startVideodestINIfile)
+	f.close()
+	print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
+
 
 # (1.7) Checking DB or creating it:
 #=============
@@ -316,35 +355,6 @@ else:
 	con.close()
 
 
-# .. Default Videodest.ini file definition (in case there isn't one)
-startVideodestINIfile = """
-# Put this file into Dropbox/TRinbox
-#	
-#	define a destination with some words to automatically store file-movies to the right place.
-#	
-#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at TRWorkflowconfig.py))
-#	
-
-__version__ = 1.1
-__date__ = "11/04/2015"
-
-# You can define alias for common destinations, to substitute text 
-alias=Series        ,    /series/
-alias=Sinfantiles   ,    /Series infantiles/
-
-# Define destinations:
-#	guess a title to match the filemovie then,
-#   define a relative path to store it (starting at default "filemovie folder" defined in TRWorkflowconfig.py file) 
-#	(you can use alias enclosed in <....> to replace text, but remember that you must define them first)
-#  Those are examples, please replace them and follow the structure.
-#  Please, do not include comments at the end of alias or dest lines. This is not an python file.
-#  
-dest = star wars rebels, <Sinfantiles>
-dest = Sleepy Hollow temporada 2, <Series>Sleepy Hollow Temp 2
-dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
-
-# EOF
-"""
 
 # .. Fvideodest var is global, that provides a dynamic read of videodest.ini on each processed torrent.
 ## Deprecated: destination are an the DataBase >> Fvideodest = "" # Later it'll be a dictionary that it is read from Videodest.ini on each torrent process
@@ -713,152 +723,7 @@ def add_to_pull(origin,dest):
 # ===  PROCESING A TRANSMISSION ITEM ==========================
 # ========================================
 
-
-def TRProcess(DW_DIRECTORY, TR_TORRENT_NAME):
-	""" This function process an entry from Transmission-Downloaded-items Spool
-	inputs:
-	DW_DIRECTORY (string):		Main path of source directory to fetch files from (DW_DIRECTORY variable from Transmission)
-	TR_TORRENT_NAME (string):	Name of the item to process (file or directory) (TR_TORRENT_NAME variable from Transmission)
-
-	Output: "" > Everithing has gone OK.
-			"" > There were some problems.
-	"""
-
-	global Fvideodest
-
-
-	# Prequisites:
-	#=============
-	#1 directory paths must end in slash "/"
-	DW_DIRECTORY  = addslash (DW_DIRECTORY)
-
-
-	#2 Reading Videodestinations in ini file
-	# Ini file is converted into a keyword dictionary to redirec series & movies by title. 
-	# Setup your own user "Videodest.ini". you must store this .ini file at "Hotfolder" defined folder
-
-	# Checking and setting up Fvideodest file:
-	if itemcheck(Hotfolder+"Videodest.ini") == "":
-		logging.warning("Videodest.ini file does not exist, setting up for the first time")
-		f = open(Hotfolder+"Videodest.ini","a")
-		f.write(startVideodestINIfile)
-		f.close()
-		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
-
-	logging.debug("Extracting alias definition from "+ Hotfolder +"Videodest.ini")
-	alias = readini.readdict (Hotfolder+"Videodest.ini","alias",",")
-
-	logging.debug("Extracting dest definition")
-	dest = readini.readdict (Hotfolder+"Videodest.ini","dest",",")
-
-	logging.debug("Substituting dest alias")
-	for a in alias:
-		for b,c in dest.items():
-			if "<"+a+">" in c:
-				dest[b]=c.replace("<"+a+">",alias[a])
-
-	logging.debug("Checking path inconsistences:")
-	# paths in destinations must not start with "/" either end in "/"
-	for a,b in dest.items():
-		if len (b) > 0:
-			if b[0] == "/":
-				b = b [1:]
-			if b[-1] == "/":
-				b = b [:-1]
-			dest[a] = b
-
-	Fvideodest = dest
-
-
-	"""
-	#4 Item check:
-	for a in (os.path.join(DW_DIRECTORY,TR_TORRENT_NAME), Fmovie_Folder, Faudio_Folder, Fother_Folder):
-		if itemcheck(a) not in ("file","folder"):
-			logging.warning(a + " does not exists or is not a file nor a folder item, please check config file or input parameters, links items are not allowed.... Exitting")
-			print (a + " does not exists or is not a file nor a folder item, please check config file or input parameters, links items are not allowed\n Exitting....\n")
-			exit()		
-		else:
-			logging.debug(a + " >> exists. OK!")
-	"""
-
-	# File Vs Folder
-	#===============
-	#1 Check if torrent is dir vs file
-	logging.debug("Checking if downloaded item is file or directory...")
-	origin = DW_DIRECTORY+TR_TORRENT_NAME
-
-	if os.path.isfile(origin):
-		logging.info (origin+" is a file.")
-		procfile(origin,"c") # >> process the file.
-	elif os.path.isdir (origin):
-		logging.info (origin+" is a folder:")
-		dest = TRprocfolder(origin)
-		state = procfolder (dest) # >> process the folder contents
-		if state == "3": print ("Case of sub-folder.... nothing was programmed\n")
-	else:
-		logging.info("ERROR: Downloaded item does not exist or item is a link to a place, nothing to do")
-		print ("Item does not exist or item is a link to a place, nothing to do.\nPlease, check input parameters.")
-	logging.info("Done!")
-	print ("Done!\n")
-	#end of file
-	# TO DO: Identify numbers of cap.   three numbers is a cap + the same starting number, Then rename cap- as nXnn.
-	return
-
-
-
 # < used / reviewed > ----------------------------------------------------------------------------
-def scanTorrent(con, Id):
-	''' Counts the number of files of each type in order to giv the patternmatrix
-		input: DB conection, Torrent DB-id
-
-		output:
-		(
-			number of folders at first level,
-			number of files,
-			number of video-files,
-			number of audio-files,
-			number of notwanted-files,
-			number of compressed files,
-			number of other files,
-			)
-		'''
-	##############  voy por aquí ###############3
-	# hacer como outt
-	# Starting counters and vars
-	ND, NF = 0, 0
-	lFL, lVF, lAF, lNW, lCF, lOF = [], [], [], [], [], []
-	# Iterating elements
-	for a in (listitems):
-		logging.info ("Item: '"+a)
-		if os.path.isdir(a):
-			logging.info (">>> isdir")
-			ND += 1
-			lFL.append(a)
-			continue
-		elif os.path.isfile(a):
-			NF += 1
-			ext = os.path.splitext(a)[1]
-			if ext[1:] in TRWorkflowconfig.ext["movie"]:
-				logging.info  (">>> is a movie")
-				lVF.append(a)
-				continue
-			if ext[1:] in TRWorkflowconfig.ext["audio"]:
-				logging.info  (">>> is audio")
-				lAF.append(a)
-				continue
-			if ext[1:] in TRWorkflowconfig.ext["compressed"]:
-				logging.info  ("is a compressed file")
-				lCF.append(a)
-				continue
-			if ext[1:] in TRWorkflowconfig.ext["notwanted"]:
-				logging.info  ("is a non wanted file")
-				lNW.append(a)
-				continue
-			logging.info  ("is other file-type")
-			lOF.append(a)
-	return (ND,NF,lFL,lVF,lAF,lNW,lCF,lOF)
-
-
 
 def fileclasify (filename):
 	""" Classify a file
@@ -1157,6 +1022,8 @@ def Retrievefiles (tc):
 		print (Id, Trname)
 		trobject = gettrrobj (tc, Trname)
 		filesdict = trobject.files()
+		if len(filesdict) == 0:
+			continue
 		matrix = [0,0,0,0,0,0,0,0,0]
 		folders = set()
 		for key in filesdict:
@@ -1173,7 +1040,6 @@ def Retrievefiles (tc):
 		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
 		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
-		print ('\n\n\n\n',params)
 		con.execute ("INSERT INTO pattern (trid,state,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 		con.commit()
 		ProcessSecuence (con, Id, Psecuence)
@@ -1183,11 +1049,11 @@ def Retrievefiles (tc):
 def ProcessSecuence(con, Id, Psecuence):
 	global TRWorkflowconfig
 	for process in Psecuence:
-		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = ?", (Id,))
+		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = ? and wanted = 1", (Id,))
 		print (process,'...........')
 		if process == 'assign video destination':
 			for entry in cursor2:
-				params = (TRWorkflowconfig.movie_Folder+entry[3],
+				params = (TRWorkflowconfig.Fmovie_Folder+entry[3],
 					entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -1210,20 +1076,72 @@ def ProcessSecuence(con, Id, Psecuence):
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
-		elif process == '(origin)cleanDWfolderfilename':
-			"""
+		elif process == '(o)cleanDWfoldername':
 			for entry in cursor2:
 				folder= os.path.dirname(entry[2])
-				filename, ext = os.path.splitext(os.path.basename(entry[3]))
-				cleanedfilename = namefilmcleaner.clearfilename(filename)
-				newdest = os.path.join(folder,(cleanedfilename+ext))
-				params = (newdest,
-					entry[0])
+				filename = os.path.basename(entry[2])
+				cleanedfoldername = namefilmcleaner.clearfilename(folder)
+				newdest = os.path.join(cleanedfoldername,filename)
+				params = (newdest, entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
-			"""
+			continue
+		elif process == 'moveupfileandrename':
+			# (Valid when there is only one file to process)
+			entry = cursor2.fetchone()
+			folder= os.path.dirname(entry[3])
+			filename , ext  = (os.path.splitext(entry[3]))
+			params = (folder+ext, entry[0])
+			con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+		elif process == 'deletenonwantedfiles':
+			for entry in cursor2:
+				if entry[1] == 'notwanted':
+					con.execute("UPDATE files SET destfile = null, wanted = 0  WHERE nreg = ?", (entry[0],))
+			con.commit()
+			continue
+		elif process == 'assign local path from videodest.ini':
+
+			logging.debug("Extracting alias definition from "+ Hotfolder +"Videodest.ini")
+			alias = readini.readdict (Hotfolder+"Videodest.ini","alias",",")
+
+			logging.debug("Extracting dest definition")
+			dest = readini.readdict (Hotfolder+"Videodest.ini","dest",",")
+
+			logging.debug("Substituting dest alias")
+			for a in alias:
+				for b,c in dest.items():
+					if "<"+a+">" in c:
+						dest[b]=c.replace("<"+a+">",alias[a])
+
+			logging.debug("Checking path inconsistences:")
+			# paths in destinations must not start with "/" either end in "/"
+			for a,b in dest.items():
+				if len (b) > 0:
+					if b[0] == "/":
+						b = b [1:]
+					if b[-1] == "/":
+						b = b [:-1]
+					dest[a] = b
+
+			Fvideodest = dest
+
+			for a in Fvideodest:
+				print ('Available destination:',a)
+			subpath = delivermovie('star wars rebels',Fvideodest)
+			print ('Selected destination:', subpath)
+
+			#con.commit()
 			continue
 	return
+
+Psecuensedict = { # (worked on originfile >> outputt destination)
+	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','assign local path from videodest.ini','assign video destination',],
+	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','assign video destination',],
+	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
+	4 : list(),
+}
 
 
 def Selectcase (matrix):
@@ -1244,25 +1162,23 @@ def Selectcase (matrix):
 
 		DefTest OK"""
 	# Selectig case of only one video file:
-	if matrix[0] == 1 and matrix[1] == 1:
-		logging.info ("Selected case 1: Torrent is just one file and it is a video file.")
+	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[6])==0 and matrix[8]==1:
+		logging.info ("Selected case 1 (video): Torrent is just one file and it is a video file. plus NonWantedFiles")
 		Caso, Psecuence = 1, Psecuensedict[1]
+
 	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[8]==1:
-		logging.info ("Selected case 2: Contains 1 video file and at least a image file, at the same level.")
+		logging.info ("Selected case 2 (video): Contains 1 video file and at least a image file, at the same level.")
 		Caso, Psecuence = 2, Psecuensedict[2]
+
 	elif matrix[0] >= 1 and matrix[2]>=0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
-		logging.info ("Selected case 3: Contains one or more audio files and at least a image file, at the same level.")
+		logging.info ("Selected case 3 (audio): Contains one or more audio files and at least a image file, at the same level.")
 		Caso, Psecuence = 3, Psecuensedict[3]
+
 	else:
 		Caso, Psecuence = None, list()
+
 	return Caso, Psecuence
 
-Psecuensedict = {
-	1 : ['(origin)cleanDWfolderfilename','moveupfileandrename','assign video destination',],
-	2 : list(),
-	3 : ['(origin)cleanDWfolderfilename','assign audio destination','cleanfilenames'],
-	4 : list(),
-}
 
 def addmatrix(matrix, mime):
 	""" Adds +1 on matrix [0]
