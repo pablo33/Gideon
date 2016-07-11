@@ -266,11 +266,11 @@ class test_Getsubpath (unittest.TestCase):
 			}
 
 	known_values = (
-		("a name with no match",		 		""),
-		("Sleepy Hollow temp 1", 				"series/Sleepy Hollow Temp 1"),
-		("Sleepy Hollow temporada 2", 			"series/Sleepy Hollow Temp 2"),
-		("temporada 2", 						"series/Sleepy Hollow Temp 2"),
-		("Star   rebels   wars", 				"Series infantiles"),
+		("a name with no match",		 		("",0)),
+		("Sleepy Hollow temp 1", 				("series/Sleepy Hollow Temp 1",13)),
+		("Sleepy Hollow temporada 2", 			("series/Sleepy Hollow Temp 2",22)),
+		("temporada 2", 						("series/Sleepy Hollow Temp 2",10)),
+		("Star   rebels   wars", 				("Series infantiles",14)),
 		)
 	def test_known_input (self):
 		for filmname, matched in self.known_values:
@@ -289,7 +289,7 @@ class test_matchfilm (unittest.TestCase):
 		("a name with no match",		 		("",0)),
 		("Sleepy Hollow 1",		 				("a path/Sleepy Hollow temporada 1.jpg",13)),
 		("sLeePy 2 temporada",			 		("Sleepy Hollow temporada 2",16)),
-		("star",		 						("",0)),
+		("star",		 						("star wars rebels",4)),
 		("wars rebels",		 					("star wars rebels",10)),
 		)
 	def test_known_input (self):

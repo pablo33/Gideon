@@ -220,7 +220,8 @@ Msgtopics = {
 	2 : 'Torrent has been added to Transmission for downloading',
 	3 : 'Torrent has been manually added',
 	4 : 'Torrent has been manually deleted',
-	5 : 'Torrent is completed'
+	5 : 'Torrent is completed',
+	6 : 'List of files has been retrieved and preasigned',
 }
 
 Codemimes = {
@@ -318,10 +319,9 @@ else:
 	cursor.execute ("CREATE TABLE msg_inputs (\
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
+		trid int,\
 		state char NOT NULL DEFAULT('Ready'),\
-		topic int NOT NULL,\
-		body char,\
-		trid int \
+		topic int NOT NULL\
 		)")
 	cursor.execute ("CREATE TABLE files (\
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
@@ -751,9 +751,11 @@ def matchfilm(filmname,lista):
 				
 		if matchw > match:
 			matcheditem, match = a, matchw
+	"""
 	# We need at least a match of 4 points to return a reasonable match
 	if match < 5:
 		return "", 0
+	"""
 	return matcheditem, match
 
 def Getsubpath(filmname,Fvideodest):
@@ -770,8 +772,8 @@ def Getsubpath(filmname,Fvideodest):
 	r1, match = matchfilm (filmname,destinationlist)
 	if r1 == "":
 		logging.debug("\t\tNo mathches found to deliver, returning default path for the item")
-		return ""
-	return Fvideodest[r1]
+		return "", 0
+	return Fvideodest[r1], match
 
 def getaliaspaths (textfile):
 	""" Returns a dictionary contanining words and a relativa path to store filesdict
@@ -944,7 +946,7 @@ def addinputs ():
 			cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", params)
 			logging.info ('added incoming torrent to process: %s' %entry)
 			Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
-			SpoolUserMessages(con, 1, entry, TRid = Id)
+			SpoolUserMessages(con, 1, TRid = Id)
 		con.commit()
 		con.close()
 	return
@@ -975,7 +977,7 @@ def SendtoTransmission():
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
 			con.execute ("UPDATE tw_inputs SET state='Added', trname=? WHERE id=?", (TRname,str(Id)))
-			SpoolUserMessages(con, 2, TRname, TRid = Id)
+			SpoolUserMessages(con, 2, TRid = Id)
 	con.commit()
 	con.close()
 	return
@@ -998,7 +1000,7 @@ def TrackManualTorrents(tc):
 				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, filetype, state, TRname) VALUES (?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
-				SpoolUserMessages(con, 3, trobject.name, TRid = Id)
+				SpoolUserMessages(con, 3, TRid = Id)
 		con.commit()
 		con.close()
 	return
@@ -1016,7 +1018,7 @@ def TrackDeletedTorrents(tc):
 	for Id, TRname in cursor:
 		if TRname not in TRRset:
 			con.execute ("UPDATE tw_inputs SET state='Deleted' WHERE id = ?", (Id,))
-			SpoolUserMessages(con, 4, TRname, TRid = Id)
+			SpoolUserMessages(con, 4, TRid = Id)
 	con.commit()
 	con.close()
 	return
@@ -1033,21 +1035,20 @@ def TrackFinishedTorrents (tc):
 			for entry in cursor:
 				Id = entry[0]
 				con.execute ("UPDATE tw_inputs SET state='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,Id))
-				SpoolUserMessages(con, 5, trr.name, TRid = Id)
+				SpoolUserMessages(con, 5, TRid = Id)
 	con.commit()
 	con.close()
 
-def SpoolUserMessages(con, Topic, Body, TRid=0):
+def SpoolUserMessages(con, Topic, TRid=0):
 	''' Insert an outgoing message into Data base,
 		it assign a date of message release, so many messages can be send a time into one e-mail
 		'''
 	params = (
 		'Ready',
 		Topic,
-		Body,
 		TRid
 		)
-	con.execute ("INSERT INTO msg_inputs (state, topic, body, trid) VALUES (?,?,?,?)", params)
+	con.execute ("INSERT INTO msg_inputs (state, topic, trid) VALUES (?,?,?)", params)
 	return
 
 def STmail (topic, msg):
@@ -1060,14 +1061,14 @@ def STmail (topic, msg):
 
 def mailaddedtorrents(con):
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, body, trid from msg_inputs WHERE state = 'Ready' and topic = 1")
-	for Nreg, Body, Trid in cursor:
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 1")
+	for Nreg, Trid, Trname in cursor:
 		msg = """A new torrent has been sent to Transmission Service for Downloading:
 	Torrent Name:
 	%s
 	
-	It will be tracked as nº:%s in Database.""" %(Body,Trid)
-		STmail ('Added to Transmission ' + Body, msg)
+	It will be tracked as nº:%s in Database.""" %(Trname,Trid)
+		STmail ('Added to Transmission ' + Trname, msg)
 		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
@@ -1117,14 +1118,15 @@ def Retrievefiles (tc):
 		con.execute ("INSERT INTO pattern (trid,state,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 		con.commit()
 		ProcessSecuence (con, Id, Psecuence)
+		SpoolUserMessages(con, 6, Id)
 	con.commit()
 	con.close()
 
 def ProcessSecuence(con, Id, Psecuence):
 	global TRWorkflowconfig
 	for process in Psecuence:
-		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = ? and wanted = 1", (Id,))
 		print (process,'...........')
+		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id)
 		if process == 'assign video destination':
 			for entry in cursor2:
 				params = (TRWorkflowconfig.Fmovie_Folder+entry[3],
@@ -1175,26 +1177,33 @@ def ProcessSecuence(con, Id, Psecuence):
 					con.execute("UPDATE files SET destfile = null, wanted = 0  WHERE nreg = ?", (entry[0],))
 			con.commit()
 			continue
-		elif process == 'assign local path from videodest.ini':
-
+		elif process == '(o)assign local path from videodest.ini':
 			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
-			filmname = 'star wars rebels'
-			subpath = Getsubpath(filmname,Fvideodest)
-
-			#con.commit()
+			filmnamelist = set()
+			for entry in cursor2:
+				if entry[1] == 'video':
+					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[0])[0]))
+					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[-1])[0]))
+			Subpath, maxmatch = "", 5
+			for filmname in filmnamelist:
+				tmpSubpath, match = Getsubpath (filmname, Fvideodest)
+				if match > maxmatch:
+					Subpath , maxmatch = tmpSubpath, match
+			if maxmatch > 5:
+				logging.info ("\tFound alias for movie: " + Subpath + ".Aciertos:"+ str(maxmatch) )
+				cursor3 = con.execute("SELECT nreg, destfile FROM files WHERE trid = ? and wanted = 1", (Id,))
+				for Nreg, destfile in cursor3:
+					con.execute("UPDATE files SET destfile = ? WHERE nreg = ?", (os.path.join(Subpath,destfile) ,Nreg))		
+				con.commit()
 			continue
 	return
 
-
-
-
 Psecuensedict = { # (worked on originfile >> outputt destination)
-	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','assign local path from videodest.ini','assign video destination',],
-	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','assign video destination',],
+	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination',],
+	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
 	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
 	4 : list(),
 }
-
 
 def Selectcase (matrix):
 	""" Selects a case to deliver the torrent files and an operational behaviour for files.
@@ -1230,7 +1239,6 @@ def Selectcase (matrix):
 		Caso, Psecuence = None, list()
 
 	return Caso, Psecuence
-
 
 def addmatrix(matrix, mime):
 	""" Adds +1 on matrix [0]
