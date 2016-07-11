@@ -79,6 +79,7 @@ class Selectcase (unittest.TestCase):
 		[4] ncompressed
 		[5] nimagefiles
 		[6] nother
+
 		[7] nfolders
 		[8] folderlevels
 		"""
@@ -90,7 +91,7 @@ class Selectcase (unittest.TestCase):
 		([26,0,13,1,0,1,0,  1,1], 3),
 		([27,0,13,1,0,1,1,  1,1], None),
 		)
-	def test_addmatrix (self):
+	def test_Selectcase (self):
 		for example, pattern in self.known_values:
 			result = MD.Selectcase (example)
 			self.assertEqual (pattern, result[0])
@@ -240,6 +241,63 @@ class test_nextfilenumber (unittest.TestCase):
 	def test_mad_values (self):
 		self.assertRaises (MD.EmptyStringError, MD.nextfilenumber, "")
 		pass	
+
+class test_getaliaspaths (unittest.TestCase):
+	""" test for nextfilenumber function """
+	testfile = dyntestfolder+"/Videodest.ini_textfile.ini"
+
+	aliasdict = {
+		'Sleepy Hollow temporada 1': 'series/Sleepy Hollow Temp 1',
+		'Sleepy Hollow temporada 2': 'series/Sleepy Hollow Temp 2',
+		'star wars rebels': 'Series infantiles'
+			}
+
+
+	def test_known_input (self):
+		result = MD.getaliaspaths (self.testfile)
+		self.assertEqual (self.aliasdict, result)
+
+class test_Getsubpath (unittest.TestCase):
+	""" returns the besta matched sub-path by matching strings on a list"""
+	aliasdict = {
+		'Sleepy Hollow temporada 1': 'series/Sleepy Hollow Temp 1',
+		'Sleepy Hollow temporada 2': 'series/Sleepy Hollow Temp 2',
+		'star wars rebels': 'Series infantiles'
+			}
+
+	known_values = (
+		("a name with no match",		 		""),
+		("Sleepy Hollow temp 1", 				"series/Sleepy Hollow Temp 1"),
+		("Sleepy Hollow temporada 2", 			"series/Sleepy Hollow Temp 2"),
+		("temporada 2", 						"series/Sleepy Hollow Temp 2"),
+		("Star   rebels   wars", 				"Series infantiles"),
+		)
+	def test_known_input (self):
+		for filmname, matched in self.known_values:
+			result = MD.Getsubpath (filmname,self.aliasdict)
+			self.assertEqual (matched, result)
+
+class test_matchfilm (unittest.TestCase):
+	""" returns the besta matched sub-path by matching strings on a list"""
+	matchlist = [
+		'a path/Sleepy Hollow temporada 1.jpg',
+		'Sleepy Hollow temporada 2',
+		'star wars rebels',
+			]
+
+	known_values = (
+		("a name with no match",		 		("",0)),
+		("Sleepy Hollow 1",		 				("a path/Sleepy Hollow temporada 1.jpg",13)),
+		("sLeePy 2 temporada",			 		("Sleepy Hollow temporada 2",16)),
+		("star",		 						("",0)),
+		("wars rebels",		 					("star wars rebels",10)),
+		)
+	def test_known_input (self):
+		for filmname, matched in self.known_values:
+			result = MD.matchfilm (filmname,self.matchlist)
+			self.assertEqual (matched, result)
+
+
 
 
 #####TESTS########

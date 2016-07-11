@@ -176,7 +176,7 @@ if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
 	import TRWorkflowconfig
-	import namefilmcleaner, readini, filmcovermatch, programstarter
+	import namefilmcleaner, readini, programstarter
 else:
 	# initilizing user's default config file.
 	print ("There isn't an user config file: " + userconfig)
@@ -365,6 +365,7 @@ else:
 # 				Input process		
 # ===================================
 
+'''
 def defaultpath(origin):
 	""" Selects destination due on filetype
 		DefTest >> OK """
@@ -381,7 +382,7 @@ def defaultpath(origin):
 	if kindofitem == "audio" :
 		dest = Faudio_Folder
 	return dest
-
+'''
 def procfile (origin, mode="c"):
 	""" If item is a file, and you only have to clean and deliver, 
 		you can process it with this script. 
@@ -637,23 +638,6 @@ def printreport(items):
 	report += "".join(["========================================","\n"])
 	return report
 
-def delivermovie(origin,Fvideodest):
-	""" Delivers a fideofile in order a pertenency on a group
-		input: /path/to/file.ext
-		input: dictionary from TRWorkflowconfig (Fvideodest var)
-		
-		output: path included in Dict. It returs "" if not matches are found
-		"""
-	logging.debug("Delivering movie, checking:"+origin)
-	destinationlist = [""]
-	for a in Fvideodest:
-		destinationlist.append(a)
-	r1, match = filmcovermatch.matchfilm(origin,destinationlist)
-	if r1 == "":
-		logging.debug("No mathches found to deliver, returning default path for the item")
-		return ""
-	return Fvideodest[r1]
-
 def addcover(film,Torrentinbox):
 	''' This function evaluates a suitable cover for a filemovie based on its filename.
 		it scans into a folder most suitable cover based on cover filenames and returns this match.
@@ -723,7 +707,97 @@ def add_to_pull(origin,dest):
 # ===  PROCESING A TRANSMISSION ITEM ==========================
 # ========================================
 
+def listcovers(path):
+	''' Return a list of covers-files
+	input: relative path, or full-path
+	output: list of image-files with relative or full-path
+		'''
+	# We need a final slash to path
+	if path[-1] != "/":
+		path += "/"
+	# Initializing Lista
+	lista = []
+	# Listing
+	for a in ("jpg","png","jpeg"):
+		listb = glob(path+"*."+a)
+		listc = glob(path+"*."+a.upper())
+		for a in listb:
+			lista.append(a)
+		for a in listc:
+			lista.append(a)
+	lista.sort()
+	return lista
+
 # < used / reviewed > ----------------------------------------------------------------------------
+
+def matchfilm(filmname,lista):
+	''' Selects a item from a list with the best match.
+		it is intended to find a cover file within a list of possible covers.
+
+		input: filename.ext or full-path/filename.ext of a movie.
+		input: list of items to match (filenames.ext or full-path/filenames.ext) (of covers)
+		output: item of the list (of covers) that best matches as "cover", and punctuation of match
+		Deftest OK!!'''
+	# We want only the name of the file, without extension.
+	match = 0
+	matcheditem = ""
+	for a in lista:
+		# Get only the filename without extension
+		name = os.path.splitext(os.path.basename(a))[0]
+		matchw = 0
+		for b in name.split():
+			if b.upper() in filmname.upper():
+				matchw += len(b)
+				
+		if matchw > match:
+			matcheditem, match = a, matchw
+	# We need at least a match of 4 points to return a reasonable match
+	if match < 5:
+		return "", 0
+	return matcheditem, match
+
+def Getsubpath(filmname,Fvideodest):
+	""" Delivers a fideofile in order a pertenency on a group
+		input: filmname
+		input: dictionary with keys and subpaths to compare (Fvideodest var)
+		
+		output: Best Subpath matched . It returs "" if not matches were found
+		Deftest OK!!"""
+	logging.debug("\tAssigning a sub-path defined in alias")
+	destinationlist = [""]
+	for a in Fvideodest:
+		destinationlist.append(a)
+	r1, match = matchfilm (filmname,destinationlist)
+	if r1 == "":
+		logging.debug("\t\tNo mathches found to deliver, returning default path for the item")
+		return ""
+	return Fvideodest[r1]
+
+def getaliaspaths (textfile):
+	""" Returns a dictionary contanining words and a relativa path to store filesdict
+		The keys are fetched from a txt .ini like file.
+		Deftest OK!! """
+	logging.debug("\t\tExtracting alias definition from "+ textfile)
+	alias = readini.readdict (textfile,"alias",",")
+
+	logging.debug("\t\tExtracting dest definition")
+	subpahts = readini.readdict (textfile,"dest",",")
+
+	logging.debug("\t\tSubstituting dest alias")
+	for a in alias:
+		for b,c in subpahts.items():
+			if "<"+a+">" in c:
+				subpahts[b]=c.replace("<"+a+">",alias[a])
+
+	# paths in destinations must not start with "/" either end in "/"
+	for a,b in subpahts.items():
+		if len (b) > 0:
+			if b[0] == "/":
+				b = b [1:]
+			if b[-1] == "/":
+				b = b [:-1]
+			subpahts[a] = b
+	return subpahts
 
 def fileclasify (filename):
 	""" Classify a file
@@ -1103,38 +1177,16 @@ def ProcessSecuence(con, Id, Psecuence):
 			continue
 		elif process == 'assign local path from videodest.ini':
 
-			logging.debug("Extracting alias definition from "+ Hotfolder +"Videodest.ini")
-			alias = readini.readdict (Hotfolder+"Videodest.ini","alias",",")
-
-			logging.debug("Extracting dest definition")
-			dest = readini.readdict (Hotfolder+"Videodest.ini","dest",",")
-
-			logging.debug("Substituting dest alias")
-			for a in alias:
-				for b,c in dest.items():
-					if "<"+a+">" in c:
-						dest[b]=c.replace("<"+a+">",alias[a])
-
-			logging.debug("Checking path inconsistences:")
-			# paths in destinations must not start with "/" either end in "/"
-			for a,b in dest.items():
-				if len (b) > 0:
-					if b[0] == "/":
-						b = b [1:]
-					if b[-1] == "/":
-						b = b [:-1]
-					dest[a] = b
-
-			Fvideodest = dest
-
-			for a in Fvideodest:
-				print ('Available destination:',a)
-			subpath = delivermovie('star wars rebels',Fvideodest)
-			print ('Selected destination:', subpath)
+			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
+			filmname = 'star wars rebels'
+			subpath = Getsubpath(filmname,Fvideodest)
 
 			#con.commit()
 			continue
 	return
+
+
+
 
 Psecuensedict = { # (worked on originfile >> outputt destination)
 	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','assign local path from videodest.ini','assign video destination',],
@@ -1162,7 +1214,7 @@ def Selectcase (matrix):
 
 		DefTest OK"""
 	# Selectig case of only one video file:
-	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[6])==0 and matrix[8]==1:
+	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[5]+matrix[6])==0 and matrix[8]==1:
 		logging.info ("Selected case 1 (video): Torrent is just one file and it is a video file. plus NonWantedFiles")
 		Caso, Psecuence = 1, Psecuensedict[1]
 
