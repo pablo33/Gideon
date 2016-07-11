@@ -34,7 +34,7 @@ import transmissionrpc
 
 
 
-__version__ = "3.0beta"
+__version__ = "2.0alfa"
 __author__ = "pablo33"
 
 
@@ -365,24 +365,6 @@ else:
 # 				Input process		
 # ===================================
 
-'''
-def defaultpath(origin):
-	""" Selects destination due on filetype
-		DefTest >> OK """
-	global Fmovie_Folder
-	global Fother_Folder
-	global Faudio_Folder
-	# Estoring file by filetype.
-	kindofitem = fileclasify(origin)
-	dest = ""
-	if kindofitem == "movie" :
-		dest = Fmovie_Folder
-	if kindofitem == "other" :
-		dest = Fother_Folder
-	if kindofitem == "audio" :
-		dest = Faudio_Folder
-	return dest
-'''
 def procfile (origin, mode="c"):
 	""" If item is a file, and you only have to clean and deliver, 
 		you can process it with this script. 
@@ -576,22 +558,6 @@ def TRprocfolder(origin):
 	else:
 		logging.warning("Destination folder already exists, folder %s has not been procesed" %(origin))
 		sys.exit("\nDestination Folder ("+dest+") already exists. Exiting.\n")
-
-def moveup (item):
-	''' This function:
-		#1 moves the file to parent directory with the
-		#2 same name as his container folder (parent).
-		#3 preserves the extension.
-		#5 returns its new absolute path.
-		#BUT: Do not remove original folder !
-		input: string with absolute path (item must be a file)
-		output: string with absolute new path
-			And file is moved.
-		'''
-	ext=os.path.splitext(item)[1]
-	endbasename = os.path.dirname(item)+ext
-	shutil.move(item,endbasename)
-	return endbasename
 
 def removeitems(items):
 	""" Removes a list of items (files)
@@ -1073,9 +1039,42 @@ def mailaddedtorrents(con):
 	con.commit()
 	return
 
+def mailpreasignedtorrents (con):
+	''' e-mail preasigned torrents, this is to inform what is going to download and
+	How it is going to be process and delivered once it is completed.
+	It corresponds with topic nº6 in DB, "List of files has been retrieved and preasigned"
+	It should send one e-mail for each torrent file.
+	The boy should have "torrent ID in database for further information." >> Trid = ...
+	'''
+	cursor = con.cursor ()
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 6")
+	for Nreg, Trid, Trname in cursor:
+		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
+		cursor2 = con.execute ("SELECT wanted, size, originalfile, destfile FROM files WHERE trid = %s ORDER BY destfile"%Trid)
+		filelisttxt = "List of files: \n"
+		nonwantedfilestxt = "List of nonwanted files: \n"
+		for entry in cursor2:
+			if entry[0] == 1:
+				filelisttxt += "\t"+entry[3]+"\t("+str(entry[1])+")\n"
+			else:
+				nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
+		msgbody = "A new torrent has been preasigned: \n\
+			Torrent Name: %s \n\
+			trid = %s \n\
+			Case = %s \n\n \
+		Predeliver:\n"%(Trname, Trid, Casos[NCase])
+
+		msgbody += filelisttxt + "\n"
+		msgbody += nonwantedfilestxt + "\n"
+		STmail ('Predelivered state for: '+ Trname ,msgbody)
+		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = ?", (Nreg,))
+	con.commit()
+	return
+
 def MsgService():
 	con = sqlite3.connect (dbpath)
 	mailaddedtorrents (con)
+	mailpreasignedtorrents (con)
 	con.close()
 	return
 
@@ -1094,11 +1093,15 @@ def Retrievefiles (tc):
 	cursor = con.cursor()
 	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
 	for Id, Trname in cursor:
-		print (Id, Trname)
+		
+		print ("\n"*4,Id, Trname,"\n")
 		trobject = gettrrobj (tc, Trname)
 		filesdict = trobject.files()
+		print (filesdict)
+		"""
 		if len(filesdict) == 0:
 			continue
+		"""
 		matrix = [0,0,0,0,0,0,0,0,0]
 		folders = set()
 		for key in filesdict:
@@ -1110,17 +1113,18 @@ def Retrievefiles (tc):
 			matrix = addmatrix (matrix, Mime)
 			folders.add (os.path.dirname(Originalfile))
 		params = len(filesdict), Id
-		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
+		# con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
 		matrix = addfoldersmatrix (matrix,folders,7,8)
 		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
 		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
 		con.execute ("INSERT INTO pattern (trid,state,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
-		con.commit()
+		#con.commit()
 		ProcessSecuence (con, Id, Psecuence)
 		SpoolUserMessages(con, 6, Id)
 	con.commit()
 	con.close()
+
 
 def ProcessSecuence(con, Id, Psecuence):
 	global TRWorkflowconfig
@@ -1198,11 +1202,18 @@ def ProcessSecuence(con, Id, Psecuence):
 			continue
 	return
 
-Psecuensedict = { # (worked on originfile >> outputt destination)
+Psecuensedict = {
+	0 : list(),
 	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination',],
 	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
 	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
 	4 : list(),
+}
+
+Casos = {
+	1 : "(video) Torrent is just one file and it is a video file. plus NonWantedFiles.",
+	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
+	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
 }
 
 def Selectcase (matrix):
@@ -1224,21 +1235,21 @@ def Selectcase (matrix):
 		DefTest OK"""
 	# Selectig case of only one video file:
 	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[5]+matrix[6])==0 and matrix[8]==1:
-		logging.info ("Selected case 1 (video): Torrent is just one file and it is a video file. plus NonWantedFiles")
-		Caso, Psecuence = 1, Psecuensedict[1]
+		NCase = 1
 
 	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[8]==1:
-		logging.info ("Selected case 2 (video): Contains 1 video file and at least a image file, at the same level.")
-		Caso, Psecuence = 2, Psecuensedict[2]
+		NCase = 2
 
 	elif matrix[0] >= 1 and matrix[2]>=0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
-		logging.info ("Selected case 3 (audio): Contains one or more audio files and at least a image file, at the same level.")
-		Caso, Psecuence = 3, Psecuensedict[3]
+		NCase = 3
 
 	else:
-		Caso, Psecuence = None, list()
+		NCase = 0
 
-	return Caso, Psecuence
+	logging.info ("Selected case %s : "%NCase + Casos[NCase])
+	
+	return NCase, Psecuensedict[NCase]
+
 
 def addmatrix(matrix, mime):
 	""" Adds +1 on matrix [0]
@@ -1273,7 +1284,7 @@ if __name__ == '__main__':
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
 		SendtoTransmission ()  # Send DB files/magnets registry to Transmission
-		MsgService ()
+		# MsgService ()
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
