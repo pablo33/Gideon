@@ -58,20 +58,21 @@ def dotreplacement(a,lim):
 		input: "lim" String, must contain two characters: caracter to search and character to replace with.
 		output: "String to process" (procesed string)
 	DefTest >> OK'''
-	leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
-	while True :
-		logging.debug(a)
-		st = a.find(lim[0])
-		if a[0] == lim[0]:
-			a = lim[1]+a[1:]
-		elif a[-1] == lim[0]:
-			a = a[0:-1]
-		elif st == -1:
-			break
-		elif not (a[st-1] in leters and a[st+1] in leters):
-			break
-		else:
-			a = a[0:st]+lim[1]+a[st+1:]
+	if a != '':
+		leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
+		while True :
+			logging.debug(a)
+			st = a.find(lim[0])
+			if a[0] == lim[0]:
+				a = lim[1]+a[1:]
+			elif a[-1] == lim[0]:
+				a = a[0:-1]
+			elif st == -1:
+				break
+			elif not (a[st-1] in leters and a[st+1] in leters):
+				break
+			else:
+				a = a[0:st]+lim[1]+a[st+1:]
 	return a
 
 def prohibitedwords(a,lista):

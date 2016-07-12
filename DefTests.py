@@ -345,6 +345,9 @@ class namefilmcleaner (unittest.TestCase):
 			('lots of points......6 points', '. ','lots of points......6 points'),
 			('lots of points.......7 points', '. ','lots of points.......7 points'),
 			('lots of points...ax.....points.hey.', '. ','lots of points...ax.....points.hey'),
+			('No point is there', '. ','No point is there'),
+			('One final point is here.', '. ','One final point is here'),
+			('', '. ',''),
 			])
 
 		for i1,i2,expectedstring in wanted_values:

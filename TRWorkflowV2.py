@@ -202,6 +202,7 @@ Msgtopics = {
 	5 : 'Torrent is completed',
 	6 : 'List of files has been retrieved and preasigned',
 	7 : 'Files have been processed and copied into destination',
+	8 : 'No Case was found for this Torrent',
 }
 
 Codemimes = {
@@ -847,20 +848,33 @@ def mailcomplettedtorrents(con):
 	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 7")
 	for Nreg, Trid, Trname in cursor:
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
-		msgbody = "A torrent has been Delivered to its destination: \n\
-			Torrent Name: %s \n\
-			trid = %s \n\
-			Case = %s \n\n \
-		Files movements:\n"%(Trname, Trid, Casos[NCase])
+		if NCase > 0:
+			msgbody = "A torrent has been Delivered to its destination: \n\
+				Torrent Name: %s \n\
+				trid = %s \n\
+				Case = %s \n\n \
+			Files movements:\n"%(Trname, Trid, Casos[NCase])
 
-		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
-		msgbody += filelisttxt + "\n"
-		msgbody += nonwantedfilestxt + "\n"
-		# msgbody += gettorrentstatisticsTXT ()
-		STmail ('Torrent completado y entregado: '+ Trname ,msgbody)
+			filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
+			msgbody += filelisttxt + "\n"
+			msgbody += nonwantedfilestxt + "\n"
+			# msgbody += gettorrentstatisticsTXT ()
+			STmail ('Torrent completted and delivered: '+ Trname ,msgbody)
+		else:
+			msgbody = "A torrent has been Downloaded: \n\
+				Torrent Name: %s \n\
+				trid = %s \n\
+				Case = %s \n\n \
+			It remains in Transmission default Download folder:\n"%(Trname, Trid, Casos[NCase])
+
+			filelisttxt = getfileoriginlistTXT (con,Trid)
+			msgbody += filelisttxt + "\n"
+			# msgbody += gettorrentstatisticsTXT ()
+			STmail ('Torrent is completted: '+ Trname ,msgbody)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = %s"%Nreg)
 	con.commit()
 	return
+
 
 def mailpreasignedtorrents (con):
 	''' e-mail preasigned torrents, this is to inform what is going to download and
@@ -897,6 +911,16 @@ def getfiledeliverlistTXT (con,Trid):
 		else:
 			nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
 	return filelisttxt, nonwantedfilestxt
+
+
+def getfileoriginlistTXT (con,Trid):
+	Dwfolder = con.execute ("SELECT dwfolder from tw_inputs WHERE id = %s"%Trid).fetchone()[0]
+	Dwfolder = addslash(Dwfolder)
+	cursor2 = con.execute ("SELECT wanted, size, originalfile FROM files WHERE trid = %s ORDER BY originalfile "%Trid)
+	filelisttxt = "List of files: \n"
+	for entry in cursor2:
+		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+str(entry[1])+")\n"
+	return filelisttxt
 
 def MsgService():
 	con = sqlite3.connect (dbpath)
@@ -939,16 +963,19 @@ def Retrievefiles (tc):
 			con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
 			matrix = addmatrix (matrix, Mime)
 			folders.add (os.path.dirname(Originalfile))
-		params = len(filesdict), Id
-		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
 		matrix = addfoldersmatrix (matrix,folders,7,8)
 		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
+		Deliverstatus, Msgcode = 'Added', 6
+		if Caso == 0 :
+			Deliverstatus, Msgcode = None, 7
+		params = len(filesdict), Deliverstatus ,Id
+		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
 		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
 		con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 		con.commit()
 		ProcessSecuence (con, Id, Psecuence)
-		SpoolUserMessages(con, 6, Id)
+		SpoolUserMessages(con, Msgcode, Id)
 	con.commit()
 	con.close()
 
@@ -986,8 +1013,9 @@ def ProcessSecuence(con, Id, Psecuence):
 			for entry in cursor2:
 				folder= os.path.dirname(entry[2])
 				filename = os.path.basename(entry[2])
-				cleanedfoldername = namefilmcleaner.clearfilename(folder)
-				newdest = os.path.join(cleanedfoldername,filename)
+				if folder != '':
+					folder = namefilmcleaner.clearfilename(folder)
+				newdest = os.path.join(folder,filename)
 				params = (newdest, entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -997,6 +1025,8 @@ def ProcessSecuence(con, Id, Psecuence):
 			entry = cursor2.fetchone()
 			folder= os.path.dirname(entry[3])
 			filename , ext  = (os.path.splitext(entry[3]))
+			if folder == '':
+				folder = namefilmcleaner.clearfilename(filename)
 			params = (folder+ext, entry[0])
 			con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -1038,7 +1068,7 @@ Psecuensedict = {
 
 Casos = {
 	0 : "There is no available case for this matrix",
-	1 : "(video) Torrent is just one file and it is a video file. plus NonWantedFiles.",
+	1 : "(video) Torrent is just one file and it is a video file. and it may have some NonWantedFiles.",
 	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
 	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
 }
