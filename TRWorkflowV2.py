@@ -122,27 +122,6 @@ def nextfilenumber (dest):
 		newfilename = os.path.join( os.path.dirname(dest), filename [0:-cut] + "(" + str(counter) + ")" + extension)
 	return newfilename
 
-def copyfile(origin,dest,mode="c"):
-	""" Copy or moves file to another place
-		input: file origin (full/relative patn and name)
-		input: file destination (full/relative path an name)
-		input: mode: "c" for copy, "m" for move (default "c")
-
-		if a file already exists, nothing is done.
-		return True if success, or False if it didn't success
-		"""
-
-	if itemcheck(dest) == "":
-		makepaths ([os.path.dirname(dest),])
-		if mode == "c":
-			shutil.copy(origin,dest)
-			return True
-		if mode == "m":
-			shutil.move(origin,dest)
-			return True
-	else:
-		logging.debug("\tDestination file already exists")
-		return False
 
 
 # ===================================
@@ -311,7 +290,7 @@ else:
 		fullfilepath char NOT NULL ,\
 		filetype char,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
-		state char NOT NULL DEFAULT('Ready'),\
+		status char NOT NULL DEFAULT('Ready'),\
 		deliverstatus char,\
 		filesretrieved integer DEFAULT (0),\
 		trname char, \
@@ -321,14 +300,14 @@ else:
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
 		trid int,\
-		state char NOT NULL DEFAULT('Ready'),\
+		status char NOT NULL DEFAULT('Ready'),\
 		topic int NOT NULL\
 		)")
 	cursor.execute ("CREATE TABLE files (\
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now','localtime')),\
 		trid int NOT NULL,\
-		state char NOT NULL DEFAULT('Added'),\
+		status char NOT NULL DEFAULT('Added'),\
 		wanted boolean DEFAULT (1),\
 		size number ,\
 		mime char ,\
@@ -338,7 +317,7 @@ else:
 	cursor.execute ("CREATE TABLE pattern (\
 		nreg INTEGER PRIMARY KEY AUTOINCREMENT,\
 		trid int NOT NULL,\
-		state char NOT NULL DEFAULT('Added'),\
+		status char NOT NULL DEFAULT('Added'),\
 		caso int ,\
 		psecuence char,\
 		nfiles int ,\
@@ -366,143 +345,6 @@ else:
 # 				Input process		
 # ===================================
 
-def procfile (origin, mode="c"):
-	""" If item is a file, and you only have to clean and deliver, 
-		you can process it with this script. 
-		The file will not be renamed in place but later into destination.
-		inputs: full-path/to/input/filename
-		output: full-path/to/out-putt/filename
-		"""
-	global Fvideodest, TRWorkflowconfig
-
-	logging.debug ("Cleaning filename & delivering")
-	basename , ext = os.path.basename(os.path.splitext(origin)[0]), os.path.splitext(origin)[1]
-	basepath = os.path.dirname(origin)
-	NEW_filename = namefilmcleaner.clearfilename(basename) # Cleaning name.
-	NEW_basepath = defaultpath(origin) # We set a default path in order to a kind of item.
-	subpath =""
-	media = fileclasify (origin) # We set media a filetype
-
-	#1 Adding sub-paths to dest. Only for movies, you can define a sub-path to add
-	if media == "movie":
-		subpath = delivermovie(NEW_filename,Fvideodest)
-
-	#2 Stting destination string, preserving file-extension
-	dest = os.path.join((NEW_basepath+subpath),(NEW_filename+ext))
-
-	#3 Movies ====
-	if media == "movie":
-		# Wait!, before copy/move the file, we scan this file in place and check if it is a good file or need to re-process.
-		# Checking file for 
-		pull = MailMovieInfo (origin,TRWorkflowconfig.mail_recipients)
-		# We add this file to a pull of files to process with avidemux
-		if pull == 1:
-			# we stop process and store information on a pull file for later process with avidemux
-			add_to_pull(origin,dest)
-			return "1"
-	
-	#4 we process file to destination.
-	state = copyfile(origin,dest,mode)
-	if state == "0": # File already exists.
-		return "0"
-	logging.info("Filename has been processed and stored as:"+dest)
-	
-	#5 Covers from covers repository
-	if media == "movie":
-		# We always trying to find a cover and put it at the right place. 
-		addcover(dest,TRWorkflowconfig.Torrentinbox)
-
-	#6 If everything have been ok, we return dest
-	return dest
-
-def procfolder(origin):
-	global Fmovie_Folder
-	global Fother_Folder
-	global Faudio_Folder
-	# Grabbing information
-	#---------------------
-	print("..... Scaning folder contents:")
-	logging.info("Scaning folder contents:")
-	items = scanfolder(origin)
-	nfolder = int (items[0]) # number of folders (1 level)
-	nfiles  = int (items[1]) # number of files (1 level)
-	nmovies = len (items[3]) # number of movies (1 level)
-	naudio  = len (items[4]) # number of audiofiles (1 level)
-	nnotwant= len (items[5]) # number of not wanted files 
-	ncompres= len (items[6]) # number of compressed files 
-	nother  = len (items[7]) # number of other files
-	print ("Executing decisions")
-	# Decisions:
-	# =========
-	#1# only one movie without folders nor other useful files.
-	if nmovies == 1 and (nfolder+naudio+nother+ncompres)==0 :
-		logging.info ("===========\n#1# Thereis only one videofile.")
-		logging.debug ("moving up this file...:"+items[3][0]+" and giving its parent folder name:")
-		NEW_item = moveup(items[3][0])
-		
-		# Removing old-empty tree
-		shutil.rmtree(os.path.dirname(items[3][0]))
-		
-		# Processing file
-		logging.info("Moving file to movies place")
-		state = procfile (NEW_item,"m")
-		return state
-				
-	#2# more than one movie without other files.
-	elif nmovies > 1 and (nfolder+naudio+nother+ncompres)==0 :
-		logging.info ("===========\n#2# There are just some videos:")
-		
-		# Process files at upper dir
-		removetree = True
-		for a in items[3]:
-			# moving up
-			a2 = os.path.join( os.path.dirname(os.path.dirname(a)) , os.path.basename(a) )
-			a2is = itemcheck(a2)
-			if a2is == "file":
-				logging.info("file %s already exists, replacing it." %(a2))
-				os.remove(a2)
-			if a2is in ("folder","link"):
-				logging.warning("file %s can not replace a %s"%(a2,a2is))
-				logging.warning("parent folder won't be removed")
-				a2 = a
-				removetree = False
-			else:
-				shutil.move(a,a2)
-
-			state = procfile (a2,"m")
-			if state == "0":
-				logging.warning("Final destinaton file already exist, deleting original item: "+a2)
-				os.remove(a2)
-			elif state == "1":
-				logging.info("File has been put into avidemux queue: "+a2)
-			else:
-				logging.info("File %s has been processed and stored as %s."%(a2,state))
-
-		# Removing old tree
-		itemtree = os.path.dirname(items[3][0])
-
-		if removetree == True:
-			logging.debug("Removing processed items container folder: "+itemtree)
-			shutil.rmtree(itemtree) # Removing folder.
-			nnotwant = 0 # We don't want to delete this files again.
-		else:
-			logging.warning("There have been some errors processing videos, check "+ itemtree + " folder once you have processed pull file with avidemux.")
-	
-	elif nfolder > 0 or nfiles == 0 :
-		logging.warning("Case of sub-folder.... nothing was programmed")
-		return "3"
-	else:
-		logging.warning ("Nothing was programmed for this case: Reporting Folder Scaning Results")
-	
-	# Removing non wanted files if there aren't folders
-	if nfolder+ncompres+nother == 0 and nnotwant >= 1 :
-		logging.debug ("Deleting non wanted files:.........")
-		removeitems(items[5])
-	
-	# Exiting with the report.
-	report = printreport(items)
-	print (report)
-	logging.debug(report)
 
 def MailMovieInfo(moviefile,mail):
 	""" e-mails info movie to a mail.
@@ -539,27 +381,6 @@ def MailMovieInfo(moviefile,mail):
 		emailme ( TRWorkflowconfig.mailsender, 'Alert notification in %s' %(os.path.basename(moviefile)), mail, info_file)
 	return send
 
-def TRprocfolder(origin):
-	global Fother_Folder
-	# Cleaning folder name
-	basename = os.path.basename(origin)
-	logging.debug ("Cleaning foldername:"+basename+">>>")
-	NEW_filename = namefilmcleaner.clearfilename(basename)
-	logging.info ("Name cleaned:"+NEW_filename)
-	dest = Fother_Folder+NEW_filename
-	# Checking destination
-	logging.debug ("Checking destination...")
-	if itemcheck(dest) == "":
-		logging.debug("....copying tree to destination")
-		logging.debug("from:"+origin)
-		shutil.copytree(origin,dest)
-		logging.info("item has been copied to :"+dest)
-		print (origin+ " >> has been copied to :\n"+dest)
-		return dest
-	else:
-		logging.warning("Destination folder already exists, folder %s has not been procesed" %(origin))
-		sys.exit("\nDestination Folder ("+dest+") already exists. Exiting.\n")
-
 def removeitems(items):
 	""" Removes a list of items (files)
 		items can be absolute or relative path
@@ -571,39 +392,6 @@ def removeitems(items):
 		logging.debug("Deleting:"+a)
 		os.remove(a)
 		logging.info("Deleted:"+a)
-
-def printreport(items):
-	"""Prints a input report
-		input: list of items
-		output: String with 'printed' report
-		"""
-	nfolder = int (items[0]) # number of folders (1 level)
-	nfiles  = int (items[1]) # number of files (1 level)
-	nmovies = len (items[3]) # number of movies (1 level)
-	naudio  = len (items[4]) # number of audiofiles (1 level)
-	nnotwant= len (items[5]) # number of not wanted files 
-	ncompres= len (items[6]) # number of compressed files 
-	nother  = len (items[7]) # number of other files
-	report = "\n========== ORIGINAL ITEM REPORT ========\n"
-	report += "".join(["Number of sub-folder        :",str(nfolder),"\n"])
-	report += "".join(["Number of files             :",str(nfiles),"\n"])
-	report += "".join(["    Number of movies        :",str(nmovies),"\n"])
-	for a in items[3]:
-		report += "".join([os.path.basename(a),"\n"])
-	report += "".join(["    Number of audiof        :",str(naudio),"\n"])
-	for a in items[4]:
-		report += "".join([os.path.basename(a),"\n"])
-	report += "".join(["    Number of NonWantedFiles:",str(nnotwant),"\n"])
-	for a in items[5]:
-		report += "".join([os.path.basename(a),"\n"])
-	report += "".join(["    Number of compressed files   :",str(ncompres),"\n"])
-	for a in items[6]:
-		report += "".join([os.path.basename(a),"\n"])
-	report += "".join(["    Number of other files   :",str(nother),"\n"])
-	for a in items[7]:
-		report += "".join([os.path.basename(a),"\n"])
-	report += "".join(["========================================","\n"])
-	return report
 
 def addcover(film,Torrentinbox):
 	''' This function evaluates a suitable cover for a filemovie based on its filename.
@@ -654,26 +442,6 @@ def Extractcmovieinfo(filename):
 	mydict = readini.readparameters(info_file,"=")
 	return mydict, info_file
 
-def add_to_pull(origin,dest):
-	""" Opens pull file and write a new line
-	
-		"""
-	global logpath
-	pullfile = addslash(logpath,"logpath")+"Avidemux.pull"
-	if itemcheck (origin) == "":
-		logging.info("Initializing Avidemux Pull file at "+pullfile)
-	f = open(pullfile,"a+")
-	# origin must not have any commas in the title:
-	f.write("Avidemux="+origin+"\t"+dest+"\n")
-	logging.debug("writed %s >>> %s in pullfile"%(origin,dest))
-	f.close()
-	return
-
-
-# ========================================
-# ===  PROCESING A TRANSMISSION ITEM ==========================
-# ========================================
-
 def listcovers(path):
 	''' Return a list of covers-files
 	input: relative path, or full-path
@@ -695,7 +463,34 @@ def listcovers(path):
 	lista.sort()
 	return lista
 
+# ========================================
+# ===  PROCESING A TRANSMISSION ITEM ==========================
+# ========================================
+
 # < used / reviewed > ----------------------------------------------------------------------------
+def copyfile(origin,dest,mode="c"):
+	""" Copy or moves file to another place
+		input: file origin (full/relative patn and name)
+		input: file destination (full/relative path an name)
+		input: mode: "c" for copy, "m" for move (default "c")
+
+		if a file already exists, nothing is done.
+		return True if success, or False if it didn't success
+		"""
+	if itemcheck(origin) == "":
+		logging.debug("\tOrigin file does not exists. Nothing to do!")
+		return 'Missed'
+	if itemcheck(dest) == "":
+		makepaths ([os.path.dirname(dest),])
+		if mode == "c":
+			shutil.copy(origin,dest)
+			return 'Copied'
+		if mode == "m":
+			shutil.move(origin,dest)
+			return 'Moved'
+	else:
+		logging.debug("\tDestination file already exists")
+		return 'Exists'
 
 def matchfilm(filmname,lista):
 	''' Selects a item from a list with the best match.
@@ -935,15 +730,15 @@ def connectTR():
 def SendtoTransmission():
 	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
 	cursor = con.cursor() # object to manage queries
-	nfound = (cursor.execute ("select count(id) from tw_inputs where state = 'Ready'").fetchone())[0]
+	nfound = (cursor.execute ("select count(id) from tw_inputs where status = 'Ready'").fetchone())[0]
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
 		tc = connectTR ()
-		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE state = 'Ready'")
+		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE status = 'Ready'")
 		for Id, Fullfilepath in cursor:
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
-			con.execute ("UPDATE tw_inputs SET state='Added', trname=? WHERE id=?", (TRname,str(Id)))
+			con.execute ("UPDATE tw_inputs SET status='Added', trname=? WHERE id=?", (TRname,str(Id)))
 			SpoolUserMessages(con, 2, TRid = Id)
 	con.commit()
 	con.close()
@@ -961,10 +756,10 @@ def TrackManualTorrents(tc):
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for trobject in tc.get_torrents():
-			DBid = cursor.execute ("SELECT id from tw_inputs WHERE TRname = ? and (state = 'Ready' or state = 'Added' or state = 'Completed') ", (trobject.name,)).fetchone()
+			DBid = cursor.execute ("SELECT id from tw_inputs WHERE TRname = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trobject.name,)).fetchone()
 			if DBid == None and ( trobject.status in ['check pending', 'checking', 'downloading', 'seeding']):
 				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name)
-				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, filetype, state, TRname) VALUES (?,?,?,?)", params)
+				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, filetype, status, TRname) VALUES (?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
 				SpoolUserMessages(con, 3, TRid = Id)
@@ -978,13 +773,13 @@ def TrackDeletedTorrents(tc):
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, trname from tw_inputs WHERE state = 'Added' or state = 'Completed'")
+	cursor.execute ("SELECT id, trname from tw_inputs WHERE status = 'Added' or status = 'Completed'")
 	TRRset = set()
 	for trr in tc.get_torrents():
 		TRRset.add (trr.name)
 	for Id, TRname in cursor:
 		if TRname not in TRRset:
-			con.execute ("UPDATE tw_inputs SET state='Deleted' WHERE id = ?", (Id,))
+			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (Id,))
 			SpoolUserMessages(con, 4, TRid = Id)
 	con.commit()
 	con.close()
@@ -998,10 +793,10 @@ def TrackFinishedTorrents (tc):
 	cursor = con.cursor()
 	for trr in tc.get_torrents():
 		if trr.status in ['seeding','stopped'] and trr.progress >= 100:
-			cursor.execute ("SELECT id from tw_inputs WHERE state = 'Added' and trname = ?", (trr.name,))
+			cursor.execute ("SELECT id from tw_inputs WHERE status = 'Added' and trname = ?", (trr.name,))
 			for entry in cursor:
 				Id = entry[0]
-				con.execute ("UPDATE tw_inputs SET state='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,Id))
+				con.execute ("UPDATE tw_inputs SET status='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,Id))
 				SpoolUserMessages(con, 5, TRid = Id)
 	con.commit()
 	con.close()
@@ -1015,7 +810,7 @@ def SpoolUserMessages(con, Topic, TRid=0):
 		Topic,
 		TRid
 		)
-	con.execute ("INSERT INTO msg_inputs (state, topic, trid) VALUES (?,?,?)", params)
+	con.execute ("INSERT INTO msg_inputs (status, topic, trid) VALUES (?,?,?)", params)
 	return
 
 def STmail (topic, msg):
@@ -1028,7 +823,7 @@ def STmail (topic, msg):
 
 def mailaddedtorrents(con):
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 1")
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 1")
 	for Nreg, Trid, Trname in cursor:
 		msg = """A new torrent has been sent to Transmission Service for Downloading:
 	Torrent Name:
@@ -1036,7 +831,7 @@ def mailaddedtorrents(con):
 	
 	It will be tracked as nº:%s in Database.""" %(Trname,Trid)
 		STmail ('Added to Transmission ' + Trname, msg)
-		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = ?", (Nreg,))
+		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
 
@@ -1049,7 +844,7 @@ def mailcomplettedtorrents(con):
 	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 7")
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 7")
 	for Nreg, Trid, Trname in cursor:
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
 		msgbody = "A torrent has been Delivered to its destination: \n\
@@ -1063,7 +858,7 @@ def mailcomplettedtorrents(con):
 		msgbody += nonwantedfilestxt + "\n"
 		# msgbody += gettorrentstatisticsTXT ()
 		STmail ('Torrent completado y entregado: '+ Trname ,msgbody)
-		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = %s"%Nreg)
+		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = %s"%Nreg)
 	con.commit()
 	return
 
@@ -1075,7 +870,7 @@ def mailpreasignedtorrents (con):
 	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 6")
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 6")
 	for Nreg, Trid, Trname in cursor:
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
 		msgbody = "A new torrent has been preasigned: \n\
@@ -1087,8 +882,8 @@ def mailpreasignedtorrents (con):
 		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 		msgbody += filelisttxt + "\n"
 		msgbody += nonwantedfilestxt + "\n"
-		STmail ('Predelivered state for: '+ Trname ,msgbody)
-		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = ?", (Nreg,))
+		STmail ('Predelivered status for: '+ Trname ,msgbody)
+		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
 
@@ -1124,20 +919,16 @@ def gettrrobj (tc, name):
 def Retrievefiles (tc):
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
+	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (status = 'Added' or status = 'Completed') ")
 	cursorFreeze = list()
 	for entry in cursor:
 		cursorFreeze.append(entry)
 	for Id, Trname in cursorFreeze:
-		
-		#print ("\n"*4,Id, Trname,"\n")
 		trobject = gettrrobj (tc, Trname)
 		filesdict = trobject.files()
-		#print (filesdict)
 		if len(filesdict) == 0:
 			print ("Torrent may be waitting for files....")
 			continue
-		
 		matrix = [0,0,0,0,0,0,0,0,0]
 		folders = set()
 		for key in filesdict:
@@ -1154,7 +945,7 @@ def Retrievefiles (tc):
 		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
 		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
-		con.execute ("INSERT INTO pattern (trid,state,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
+		con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 		con.commit()
 		ProcessSecuence (con, Id, Psecuence)
 		SpoolUserMessages(con, 6, Id)
@@ -1164,18 +955,18 @@ def Retrievefiles (tc):
 def ProcessSecuence(con, Id, Psecuence):
 	global TRWorkflowconfig
 	for process in Psecuence:
-		print (process,'...........')
+		print ("\t",process,'...........')
 		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id)
 		if process == 'assign video destination':
 			for entry in cursor2:
-				params = (TRWorkflowconfig.Fmovie_Folder+entry[3],
+				params = (Fmovie_Folder+entry[3],
 					entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
 		elif process == 'assign audio destination':
 			for entry in cursor2:
-				params = (TRWorkflowconfig.Faudio_Folder+entry[3],
+				params = (Faudio_Folder+entry[3],
 					entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -1317,15 +1108,14 @@ def ProcessCompletedTorrents():
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor1 = con.cursor()
-	cursor1.execute ("SELECT id, trname from tw_inputs WHERE state = 'Completed' and deliverstatus = 'Added'")
-	for Id, Trname in cursor1:
+	cursor1.execute ("SELECT id, trname, dwfolder from tw_inputs WHERE status = 'Completed' and deliverstatus = 'Added'")
+	for Id, Trname, Dwfolder in cursor1:
 		cursor2 = con.cursor()
-		cursor2.execute ("SELECT nreg, originalfile, destfile from files WHERE trid = %s and wanted = 1 and state = 'Added' "%Id)
+		cursor2.execute ("SELECT nreg, originalfile, destfile from files WHERE trid = %s and wanted = 1 and status = 'Added' "%Id)
 		for Nreg, originalfile, destfile in cursor2:
-			# move file
-			print (originalfile, " >> " ,destfile)
-			con.execute ("UPDATE files SET state='Copied' WHERE nreg = %s"%Nreg)
-		print ("\n")
+			origin = addslash (Dwfolder) + originalfile
+			status = copyfile (origin, destfile)
+			con.execute ("UPDATE files SET status = ? WHERE nreg = ?",(status,Nreg))
 		con.execute ("UPDATE tw_inputs SET deliverstatus = 'Delivered' WHERE id = %s"%Id)
 		SpoolUserMessages(con, 7, TRid = Id)
 	con.commit()
