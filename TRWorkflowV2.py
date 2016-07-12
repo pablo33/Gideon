@@ -222,6 +222,7 @@ Msgtopics = {
 	4 : 'Torrent has been manually deleted',
 	5 : 'Torrent is completed',
 	6 : 'List of files has been retrieved and preasigned',
+	7 : 'Files have been processed and copied into destination',
 }
 
 Codemimes = {
@@ -1039,31 +1040,51 @@ def mailaddedtorrents(con):
 	con.commit()
 	return
 
+def mailcomplettedtorrents(con):
+	''' e-mail Completed torrents, this is to inform that a torrent have been processed
+	usually corresponds with the preasigned destinations.
+	It could contain other info of the torrent process.
+	It corresponds with topic nº7 in DB, "Files have been processed and copied into destination"
+	It should send one e-mail for each torrent file.
+	The body should have "torrent ID in database for further information." >> Trid = ...
+	'''
+	cursor = con.cursor ()
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 7")
+	for Nreg, Trid, Trname in cursor:
+		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
+		msgbody = "A torrent has been Delivered to its destination: \n\
+			Torrent Name: %s \n\
+			trid = %s \n\
+			Case = %s \n\n \
+		Files movements:\n"%(Trname, Trid, Casos[NCase])
+
+		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
+		msgbody += filelisttxt + "\n"
+		msgbody += nonwantedfilestxt + "\n"
+		# msgbody += gettorrentstatisticsTXT ()
+		STmail ('Torrent completado y entregado: '+ Trname ,msgbody)
+		con.execute ("UPDATE msg_inputs SET state='Sent' WHERE nreg = %s"%Nreg)
+	con.commit()
+	return
+
 def mailpreasignedtorrents (con):
 	''' e-mail preasigned torrents, this is to inform what is going to download and
 	How it is going to be process and delivered once it is completed.
 	It corresponds with topic nº6 in DB, "List of files has been retrieved and preasigned"
 	It should send one e-mail for each torrent file.
-	The boy should have "torrent ID in database for further information." >> Trid = ...
+	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
 	cursor = con.cursor ()
 	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.state = 'Ready' and msg_inputs.topic = 6")
 	for Nreg, Trid, Trname in cursor:
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
-		cursor2 = con.execute ("SELECT wanted, size, originalfile, destfile FROM files WHERE trid = %s ORDER BY destfile"%Trid)
-		filelisttxt = "List of files: \n"
-		nonwantedfilestxt = "List of nonwanted files: \n"
-		for entry in cursor2:
-			if entry[0] == 1:
-				filelisttxt += "\t"+entry[3]+"\t("+str(entry[1])+")\n"
-			else:
-				nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
 		msgbody = "A new torrent has been preasigned: \n\
 			Torrent Name: %s \n\
 			trid = %s \n\
 			Case = %s \n\n \
 		Predeliver:\n"%(Trname, Trid, Casos[NCase])
 
+		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 		msgbody += filelisttxt + "\n"
 		msgbody += nonwantedfilestxt + "\n"
 		STmail ('Predelivered state for: '+ Trname ,msgbody)
@@ -1071,10 +1092,22 @@ def mailpreasignedtorrents (con):
 	con.commit()
 	return
 
+def getfiledeliverlistTXT (con,Trid):
+	cursor2 = con.execute ("SELECT wanted, size, originalfile, destfile FROM files WHERE trid = %s ORDER BY destfile"%Trid)
+	filelisttxt = "List of files: \n"
+	nonwantedfilestxt = "List of nonwanted files: \n"
+	for entry in cursor2:
+		if entry[0] == 1:
+			filelisttxt += "\t"+entry[3]+"\t("+str(entry[1])+")\n"
+		else:
+			nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
+	return filelisttxt, nonwantedfilestxt
+
 def MsgService():
 	con = sqlite3.connect (dbpath)
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
+	mailcomplettedtorrents (con)
 	con.close()
 	return
 
@@ -1090,18 +1123,21 @@ def gettrrobj (tc, name):
 
 def Retrievefiles (tc):
 	con = sqlite3.connect (dbpath)
-	cursor3 = con.cursor()
-	cursor3.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
-	for Id, Trname in cursor3:
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
+	cursorFreeze = list()
+	for entry in cursor:
+		cursorFreeze.append(entry)
+	for Id, Trname in cursorFreeze:
 		
-		print ("\n"*4,Id, Trname,"\n")
+		#print ("\n"*4,Id, Trname,"\n")
 		trobject = gettrrobj (tc, Trname)
 		filesdict = trobject.files()
-		print (filesdict)
-		"""
+		#print (filesdict)
 		if len(filesdict) == 0:
+			print ("Torrent may be waitting for files....")
 			continue
-		"""
+		
 		matrix = [0,0,0,0,0,0,0,0,0]
 		folders = set()
 		for key in filesdict:
@@ -1250,7 +1286,6 @@ def Selectcase (matrix):
 	
 	return NCase, Psecuensedict[NCase]
 
-
 def addmatrix(matrix, mime):
 	""" Adds +1 on matrix [0]
 		Adds +1 on matrix by mime type dict.
@@ -1275,6 +1310,29 @@ def addfoldersmatrix (matrix, folders, posnfolders, posfolderlevels):
 	matrix [posfolderlevels] = levels
 	return matrix
 
+def ProcessCompletedTorrents():
+	''' Check for 'Completed' torrents and _deliverstatus_ = 'Added' in tw_inputs DB.
+		Process torrent's files and do the movements.
+		One the move is done, field _deliverstatus_ is set to 'Delivered'
+		'''
+	con = sqlite3.connect (dbpath)
+	cursor1 = con.cursor()
+	cursor1.execute ("SELECT id, trname from tw_inputs WHERE state = 'Completed' and deliverstatus = 'Added'")
+	for Id, Trname in cursor1:
+		cursor2 = con.cursor()
+		cursor2.execute ("SELECT nreg, originalfile, destfile from files WHERE trid = %s and wanted = 1 and state = 'Added' "%Id)
+		for Nreg, originalfile, destfile in cursor2:
+			# move file
+			print (originalfile, " >> " ,destfile)
+			con.execute ("UPDATE files SET state='Copied' WHERE nreg = %s"%Nreg)
+		print ("\n")
+		con.execute ("UPDATE tw_inputs SET deliverstatus = 'Delivered' WHERE id = %s"%Id)
+		SpoolUserMessages(con, 7, TRid = Id)
+	con.commit()
+	con.close()
+
+	return
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
@@ -1284,7 +1342,8 @@ if __name__ == '__main__':
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
 		SendtoTransmission ()  # Send DB files/magnets registry to Transmission
-		# MsgService ()
+		MsgService ()
+		ProcessCompletedTorrents ()
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
