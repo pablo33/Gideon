@@ -1090,9 +1090,9 @@ def gettrrobj (tc, name):
 
 def Retrievefiles (tc):
 	con = sqlite3.connect (dbpath)
-	cursor = con.cursor()
-	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
-	for Id, Trname in cursor:
+	cursor3 = con.cursor()
+	cursor3.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (state = 'Added' or state = 'Completed') ")
+	for Id, Trname in cursor3:
 		
 		print ("\n"*4,Id, Trname,"\n")
 		trobject = gettrrobj (tc, Trname)
@@ -1113,18 +1113,17 @@ def Retrievefiles (tc):
 			matrix = addmatrix (matrix, Mime)
 			folders.add (os.path.dirname(Originalfile))
 		params = len(filesdict), Id
-		# con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
+		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = 'Added' WHERE id = ?",params)
 		matrix = addfoldersmatrix (matrix,folders,7,8)
 		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
 		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
 		con.execute ("INSERT INTO pattern (trid,state,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
-		#con.commit()
+		con.commit()
 		ProcessSecuence (con, Id, Psecuence)
 		SpoolUserMessages(con, 6, Id)
 	con.commit()
 	con.close()
-
 
 def ProcessSecuence(con, Id, Psecuence):
 	global TRWorkflowconfig
@@ -1211,6 +1210,7 @@ Psecuensedict = {
 }
 
 Casos = {
+	0 : "There is no available case for this matrix",
 	1 : "(video) Torrent is just one file and it is a video file. plus NonWantedFiles.",
 	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
 	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
