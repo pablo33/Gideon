@@ -203,6 +203,7 @@ Msgtopics = {
 	6 : 'List of files has been retrieved and preasigned',
 	7 : 'Files have been processed and copied into destination',
 	8 : 'No Case was found for this Torrent',
+	9 : 'Transmission has been launched',
 }
 
 Codemimes = {
@@ -836,6 +837,23 @@ def mailaddedtorrents(con):
 	con.commit()
 	return
 
+def mailStartedSevice(con):
+	cursor = con.cursor ()
+	ncount = cursor.execute ("SELECT count (nreg) FROM msg_inputs WHERE topic = 9 and status = 'Ready'").fetchone()[0]
+	if ncount > 0:
+		msgtrrlst = gettrrpendingTXT (con)
+
+		msg = """Torrent Service has just Started due to incomplete downloads:
+		
+		%s
+		
+		""" %(msgtrrlst)
+
+		STmail ('Transmission Service Started ', msg)
+		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE topic = 9")
+	con.commit()
+	return
+
 def mailcomplettedtorrents(con):
 	''' e-mail Completed torrents, this is to inform that a torrent have been processed
 	usually corresponds with the preasigned destinations.
@@ -875,7 +893,6 @@ def mailcomplettedtorrents(con):
 	con.commit()
 	return
 
-
 def mailpreasignedtorrents (con):
 	''' e-mail preasigned torrents, this is to inform what is going to download and
 	How it is going to be process and delivered once it is completed.
@@ -901,6 +918,13 @@ def mailpreasignedtorrents (con):
 	con.commit()
 	return
 
+def gettrrpendingTXT (con):
+	cursor2 = con.execute ("SELECT id, trname FROM tw_inputs WHERE status = 'Added' ORDER BY added_date")
+	filelisttxt = "Torrents pending downloading:\n"
+	for entry in cursor2:
+		filelisttxt += "\t"+str(entry[0])+"\t"+entry[1]+"\n"
+	return filelisttxt
+
 def getfiledeliverlistTXT (con,Trid):
 	cursor2 = con.execute ("SELECT wanted, size, originalfile, destfile FROM files WHERE trid = %s ORDER BY destfile"%Trid)
 	filelisttxt = "List of files: \n"
@@ -911,7 +935,6 @@ def getfiledeliverlistTXT (con,Trid):
 		else:
 			nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
 	return filelisttxt, nonwantedfilestxt
-
 
 def getfileoriginlistTXT (con,Trid):
 	Dwfolder = con.execute ("SELECT dwfolder from tw_inputs WHERE id = %s"%Trid).fetchone()[0]
@@ -927,6 +950,7 @@ def MsgService():
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
 	mailcomplettedtorrents (con)
+	mailStartedSevice (con)
 	con.close()
 	return
 
@@ -1153,11 +1177,22 @@ def ProcessCompletedTorrents():
 
 	return
 
+def StartTRService ():
+	con = sqlite3.connect (dbpath)
+	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added'").fetchone()[0]
+	if Nactivetorrents > 0 and not getappstatus('transmission-gtk'):
+		launchTR (cmd, 25)
+		SpoolUserMessages(con, 9, 0)
+	con.commit()
+	con.close()
+	return
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
 if __name__ == '__main__':
 	# Main loop
+	StartTRService ()
 	while True:
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 		addinputs()  # add .torrents files to DB. queue
