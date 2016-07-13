@@ -1097,7 +1097,7 @@ def Selectcase (matrix):
 	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[8]==1:
 		NCase = 2
 
-	elif matrix[0] >= 1 and matrix[2]>=0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
+	elif matrix[0] >= 1 and matrix[2]>0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
 		NCase = 3
 
 	else:
