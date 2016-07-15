@@ -26,7 +26,9 @@ import os, sys, shutil, logging, datetime, time, smtplib, re
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
 import sqlite3  # for sqlite3 Database management
-import transmissionrpc
+
+# Specific library module import
+import transmissionrpc  # transmission rpc API
 
 
 __version__ = "2.0alfa"
@@ -55,10 +57,8 @@ def addslash (text):
 	''' Returns an ending slash in a path if it doesn't have one '''
 	if type(text) is not str:
 		raise NotStringError ('Bad input, it must be a string')
-
 	if text == "":
 		return text
-
 	if text [-1] != '/':
 		text += '/'
 	return text
@@ -87,6 +87,7 @@ def makepaths (fdlist):
 			os.makedirs(fditem)
 		if itemisa == '':
 			os.makedirs(fditem)
+	return
 
 def nextfilenumber (dest):
 	''' Returns the next filename counter as filename(nnn).ext
@@ -184,6 +185,14 @@ logging.debug("======================================================")
 Fmovie_Folder = addslash(TRWorkflowconfig.Fmovie_Folder)  # Default place to store movies
 Faudio_Folder = addslash(TRWorkflowconfig.Faudio_Folder)  # Default place to store music
 Hotfolder = addslash (TRWorkflowconfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
+
+s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
+cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
+lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
+TRmachine = TRWorkflowconfig.TRmachine
+TRuser = TRWorkflowconfig.TRuser
+TRpassword = TRWorkflowconfig.TRpassword
+
 Msgtimming = {
 	'low': datetime.timedelta(seconds=3600),
 	'med':datetime.timedelta(seconds=600),
@@ -209,16 +218,6 @@ Codemimes = {
 	'image' : 5,
 	'other' : 6,
 }
-
-
-s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
-cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
-lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
-lsext= ['.part','.torrent'] # extensions that delates a new torrent or an antive one. 
-TRmachine = TRWorkflowconfig.TRmachine
-TRuser = TRWorkflowconfig.TRuser
-TRpassword = TRWorkflowconfig.TRpassword
-
 
 # .. Default Videodest.ini file definition (in case there isn't one)
 startVideodestINIfile = """
@@ -250,22 +249,25 @@ dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
 # EOF
 """
 
-## Deprecated ## spoolfile = os.path.join (logpath, "Torrent.spool") # Spool file fullpath-location for incoming torrents
-
 # (1.6) Prequisites:
 #=============
 
 if itemcheck (Hotfolder) != 'folder' :
-	print ('Hotfolder does not exist. Please edit your user configuration file at: \n',  userconfig)
-	exit()
+	print ('\tHotfolder does not exist: %s'%Hotfolder)
+	print ('\tIf you want to use this inbox service,')
+	print ('\tplease edit your user configuration file at: \n',  userconfig)
+	print ('\tor create this configured path to start using it.')
+
+	Hotfolder = None  # This prevent using this Service.
 
 # Checking and setting up Fvideodest file:
-if itemcheck(Hotfolder+"Videodest.ini") == "":
-	logging.warning("Videodest.ini file does not exist, setting up for the first time")
-	f = open(Hotfolder+"Videodest.ini","a")
-	f.write(startVideodestINIfile)
-	f.close()
-	print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
+if Hotfolder != None:
+	if itemcheck(Hotfolder+"Videodest.ini") == "":
+		logging.warning("Videodest.ini file does not exist, setting up for the first time")
+		f = open(Hotfolder+"Videodest.ini","a")
+		f.write(startVideodestINIfile)
+		f.close()
+		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
 
 
 # (1.7) Checking DB or creating it:
@@ -339,7 +341,7 @@ else:
 
 
 # ===================================
-# 				Input process		
+# 				Not used		
 # ===================================
 
 
@@ -1056,14 +1058,14 @@ def ProcessSecuence(con, Id, Psecuence):
 					con.execute("UPDATE files SET destfile = null, wanted = 0  WHERE nreg = ?", (entry[0],))
 			con.commit()
 			continue
-		elif process == '(o)assign local path from videodest.ini':
-			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
+		elif process == '(o)assign local path from videodest.ini' and Hotfolder != None:
 			filmnamelist = set()
 			for entry in cursor2:
 				if entry[1] == 'video':
 					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[0])[0]))
 					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[-1])[0]))
 			Subpath, maxmatch = "", 5
+			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
 			for filmname in filmnamelist:
 				tmpSubpath, match = Getsubpath (filmname, Fvideodest)
 				if match > maxmatch:
@@ -1189,8 +1191,9 @@ if __name__ == '__main__':
 	# Main loop
 	StartTRService ()
 	while True:
-		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
-		addinputs()
+		if Hotfolder != None:
+			Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
+			addinputs()
 		SendtoTransmission ()
 		MsgService ()
 		ProcessCompletedTorrents ()

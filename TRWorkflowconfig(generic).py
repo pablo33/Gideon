@@ -9,25 +9,8 @@ __author__ = "pablo33"
 # Setting variables, default paths to store processed files.
 Fmovie_Folder = "/home/user/movies/" # Place to store processed movies
 Faudio_Folder = "/home/user/audio/" # Place to store processed music
-Hotfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+Hotfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
 
-# Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
-chapteridentifier = ('Cap', 'cap', 'episodio') 
-
-# How to typify items
-ext = {
-	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
-	"audio":['mp3', 'ogg', 'wav', 'm4a', 'wma', 'aac', 'flac', 'mka', 'ac3'],
-	"compressed":['rar','zip', '7z'],
-	"notwanted":['txt','url','lnk','DS_Store', 'nfo', 'info'],
-	"image":['jpg','png','gif'],
-}
-
-# List of prohibited words. This words will be deleted from files and folder-names
-prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www','mp3','HDTV','DVDRip','rip','Xvid','bluray','microhd','LeoParis',
-	'Widescreen','DVD9.','dvd9','dvdr','.FULL.','PAL','Eng.','Ger.','Spa.','Ita.','Fra.','Multisubs','x264',
-	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]'
-	]
 
 
 # mail config (this example is for a gmx account, with SSL autentication)
@@ -52,3 +35,22 @@ cmd  = "/usr/bin/transmission-gtk -m &"
 TRmachine = 'localhost'
 TRuser = 'yourconfigureduser'
 TRpassword = 'yourconfiguredpassword'
+
+
+# Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
+chapteridentifier = ('Cap', 'cap', 'episodio') 
+
+# How to typify items
+ext = {
+	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
+	"audio":['mp3', 'ogg', 'wav', 'm4a', 'wma', 'aac', 'flac', 'mka', 'ac3'],
+	"compressed":['rar','zip', '7z'],
+	"notwanted":['txt','url','lnk','DS_Store', 'nfo', 'info'],
+	"image":['jpg','png','gif'],
+}
+
+# List of prohibited words. This words will be deleted from files and folder-names
+prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www','mp3','HDTV','DVDRip','rip','Xvid','bluray','microhd','LeoParis',
+	'Widescreen','DVD9.','dvd9','dvdr','.FULL.','PAL','Eng.','Ger.','Spa.','Ita.','Fra.','Multisubs','x264',
+	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]'
+	]
