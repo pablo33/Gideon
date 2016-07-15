@@ -29,11 +29,6 @@ import sqlite3  # for sqlite3 Database management
 import transmissionrpc
 
 
-# Custom module iport
-# import namefilmcleaner, readini, filmcovermatch, programstarter
-
-
-
 __version__ = "2.0alfa"
 __author__ = "pablo33"
 
@@ -155,7 +150,7 @@ if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
 	import TRWorkflowconfig
-	import namefilmcleaner, readini, programstarter
+	import namefilmcleaner, readini
 else:
 	# initilizing user's default config file.
 	print ("There isn't an user config file: " + userconfig)
@@ -1195,8 +1190,8 @@ if __name__ == '__main__':
 	StartTRService ()
 	while True:
 		Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
-		addinputs()  # add .torrents files to DB. queue
-		SendtoTransmission ()  # Send DB files/magnets registry to Transmission
+		addinputs()
+		SendtoTransmission ()
 		MsgService ()
 		ProcessCompletedTorrents ()
 		if getappstatus('transmission-gtk'):
