@@ -62,11 +62,49 @@ def FetchFileSet (path):
 		for a in contentlist:
 			fileset.add (a)
 	return fileset
-
+COVER FOR GRIJANDER 
 
 #####TESTS########
 MD = TRWorkflowV2
 modulename = 'TRWorkflowV2.py'
+
+class TestPack2_CoverService (unittest.TestCase):
+	''' processing TestPack2, Cover Service'''
+
+	reftest = 'Test2'
+	testfolder = os.path.join (dyntestfolder,reftest)
+	Videofolder = os.path.join (testfolder,'VideoFolder')
+	Imagerepos = os.path.join (testfolder,'Imagerepos')
+
+	SetTestPack (reftest)
+
+	def test_VideoSACFilelist(self):
+		''' Look for videfiles with no associated cover '''
+
+		known_filevalues = set ([
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander  with no cover 1x.avi',
+			'TESTS/Test2/VideoFolder/JJ_This is a video of Jack Smith with no cover.avi',
+			'TESTS/Test2/VideoFolder/subfolder/Secret Agent.avi',
+			])
+
+		result = MD.VideoSACFilelist (Videofolder)
+		self.assertEqual (known_filevalues, result)
+	
+
+	"""
+	def test_CoverService (self):
+		''' Look for, assign and move cover files.'''
+
+		known_filevalues = set ([
+			'TESTS/Test2',
+			])
+
+		MD.CoverService (self.Videofolder,self.Imagerepos)
+		filestructureresult = FetchFileSet (self.testfolder)
+		self.assertEqual(known_filevalues,filestructureresult)
+		"""
+
+
 
 
 class Selectcase (unittest.TestCase):
@@ -85,12 +123,12 @@ class Selectcase (unittest.TestCase):
 		"""
 	known_values = (
 		([0,0,0,0,0,0,0,  0,0], 0),
-		([4,0,0,3,1,0,0,  1,1], 0),
 		([1,1,0,0,0,0,0,  1,1], 1),
 		([60,1,0,55,0,4,0,  1,1], 2),
 		([25,0,13,0,0,1,0,  1,1], 3),
 		([26,0,13,1,0,1,0,  1,1], 3),
 		([27,0,13,1,0,1,1,  1,1], 0),
+		([4,0,0,3,1,0,0,  1,1], 0),  # Compressed file
 		)
 	def test_Selectcase (self):
 		for example, pattern in self.known_values:
