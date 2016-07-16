@@ -334,12 +334,6 @@ else:
 	con.close()
 
 
-
-# .. Fvideodest var is global, that provides a dynamic read of videodest.ini on each processed torrent.
-## Deprecated: destination are an the DataBase >> Fvideodest = "" # Later it'll be a dictionary that it is read from Videodest.ini on each torrent process
-
-
-
 # ===================================
 # 				Not used		
 # ===================================
@@ -380,51 +374,6 @@ def MailMovieInfo(moviefile,mail):
 		emailme ( TRWorkflowconfig.mailsender, 'Alert notification in %s' %(os.path.basename(moviefile)), mail, info_file)
 	return send
 
-def removeitems(items):
-	""" Removes a list of items (files)
-		items can be absolute or relative path
-		input: List of items,  (/path/to/file.ext)
-		output: none
-		"""
-	logging.info("## removing items....")
-	for a in items:
-		logging.debug("Deleting:"+a)
-		os.remove(a)
-		logging.info("Deleted:"+a)
-
-def addcover(film,Torrentinbox):
-	''' This function evaluates a suitable cover for a filemovie based on its filename.
-		it scans into a folder most suitable cover based on cover filenames and returns this match.
-		Returns "" if not covers are found.
-		if a cover is found, it is moved beside the film and it is renamed (the image cover)
-		with film's name (obiously preserving image extension).
-			note that this function has been improved with chapter id. recognition to suit Freevo users (see comments below).
-
-		input: /path/to/film.ext
-		input: /path/to/repository_of_covers
-		'''
-	logging.debug("Finding a cover for:"+film+" in "+Torrentinbox)
-	cover, match = filmcovermatch.matchfilm(film,filmcovermatch.listcovers(Torrentinbox))
-	if cover == "":
-		logging.info("No covers found")
-		return ""
-	logging.info("Found "+cover+" as most suitable cover for "+film)
-	# If you are using Freevo as your HTPC, you should want to rename serie's cover without chapter's number, so:
-	# Check if cover has a chapter identifier:
-	if namefilmcleaner.chapid(film) == "":
-		dest = os.path.splitext(film)[0]+os.path.splitext(cover)[1].lower()
-	else:
-		dest = os.path.splitext(film)[0][:-2]+os.path.splitext(cover)[1].lower()
-		logging.info("Cover file is for a chapter structure, deleting Chapter identifier")
-	# If destination cover is found, we will re-write it, so covers can be update with new ones.
-	if itemcheck (dest) != "":
-		logging.warning("file already exists, deleting old cover")
-		os.remove(dest)
-	# Finally we move cover.
-	logging.debug("moving cover to:"+dest)
-	shutil.move(cover,dest)
-	return match
-
 def Extractcmovieinfo(filename):
 	""" Extracts video information, stores it into a Name_of_the_movie.ext.info in logging folder.
 		read parameters, returns it.
@@ -441,26 +390,17 @@ def Extractcmovieinfo(filename):
 	mydict = readini.readparameters(info_file,"=")
 	return mydict, info_file
 
-def listcovers(path):
-	''' Return a list of covers-files
-	input: relative path, or full-path
-	output: list of image-files with relative or full-path
-		'''
-	# We need a final slash to path
-	if path[-1] != "/":
-		path += "/"
-	# Initializing Lista
-	lista = []
-	# Listing
-	for a in ("jpg","png","jpeg"):
-		listb = glob(path+"*."+a)
-		listc = glob(path+"*."+a.upper())
-		for a in listb:
-			lista.append(a)
-		for a in listc:
-			lista.append(a)
-	lista.sort()
-	return lista
+def removeitems(items):
+	""" Removes a list of items (files)
+		items can be absolute or relative path
+		input: List of items,  (/path/to/file.ext)
+		output: none
+		"""
+	logging.info("## removing items....")
+	for a in items:
+		logging.debug("Deleting:"+a)
+		os.remove(a)
+		logging.info("Deleted:"+a)
 
 # ========================================
 # ===  PROCESING A TRANSMISSION ITEM ==========================
@@ -490,6 +430,59 @@ def copyfile(origin,dest,mode="c"):
 	else:
 		logging.debug("\tDestination file already exists")
 		return 'Exists'
+
+def listcovers(path):
+	''' Return a list of covers-files
+	input: relative path, or full-path
+	output: list of image-files with relative or full-path
+		'''
+	path = addslash(path)
+
+	# Initializing Lista
+	lista = []
+	# Listing
+	for a in ("jpg","png","jpeg"):
+		listb = glob(path+"*."+a)
+		listc = glob(path+"*."+a.upper())
+		for a in listb:
+			lista.append(a)
+		for a in listc:
+			lista.append(a)
+	lista.sort()
+	return lista
+
+def addcover(film,Coversinbox):
+	''' This function evaluates a suitable cover for a filemovie based on its filename.
+		it scans into a folder the most suitable cover based on cover filenames and returns this match.
+		Returns "" if not covers are found.
+		if a cover is found, it is moved beside the film and it is renamed (the image cover)
+		with film's name (obiously preserving image extension).
+			note that this function has been improved with chapter id. recognition to suit Freevo users (see comments below).
+
+		input: /path/to/film.ext
+		input: /path/to/repository_of_covers
+		'''
+	logging.debug("Searching a cover for:"+film+" in "+Coversinbox)
+	cover, match = filmcovermatch.matchfilm(film,filmcovermatch.listcovers(Coversinbox))
+	if cover == "":
+		logging.info("No covers found")
+		return ""
+	logging.info("Found "+cover+" as most suitable cover for "+film)
+	# If you are using Freevo as your HTPC, you should want to rename serie's cover without chapter's number, so:
+	# Check if cover has a chapter identifier:
+	if namefilmcleaner.chapid(film) == "":
+		dest = os.path.splitext(film)[0]+os.path.splitext(cover)[1].lower()
+	else:
+		dest = os.path.splitext(film)[0][:-2]+os.path.splitext(cover)[1].lower()
+		logging.info("Cover file is for a chapter structure, deleting Chapter identifier")
+	# If destination cover is found, we will re-write it, so covers can be update with new ones.
+	if itemcheck (dest) != "":
+		logging.warning("file already exists, deleting old cover")
+		os.remove(dest)
+	# Finally we move cover.
+	logging.debug("moving cover to:"+dest)
+	shutil.move(cover,dest)
+	return match
 
 def matchfilm(filmname,lista):
 	''' Selects a item from a list with the best match.
@@ -820,6 +813,15 @@ def STmail (topic, msg):
 	emailme(msgfrom, msgsubject, msgto, textfile, msgcc="")
 	return
 
+def MsgService():
+	con = sqlite3.connect (dbpath)
+	mailaddedtorrents (con)
+	mailpreasignedtorrents (con)
+	mailcomplettedtorrents (con)
+	mailStartedSevice (con)
+	con.close()
+	return
+
 def mailaddedtorrents(con):
 	cursor = con.cursor ()
 	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 1")
@@ -942,18 +944,9 @@ def getfileoriginlistTXT (con,Trid):
 		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+str(entry[1])+")\n"
 	return filelisttxt
 
-def MsgService():
-	con = sqlite3.connect (dbpath)
-	mailaddedtorrents (con)
-	mailpreasignedtorrents (con)
-	mailcomplettedtorrents (con)
-	mailStartedSevice (con)
-	con.close()
-	return
-
 def gettrrobj (tc, name):
 	""" Giving a Torrent's name, returns active Transmission's torrent object. 
-		 Returns None if noone is Fetched
+		 Returns None if none is fetched
 		"""
 	trr = tc.get_torrents()
 	for trobject in trr:
@@ -1184,6 +1177,69 @@ def StartTRService ():
 	con.close()
 	return
 
+def CoverService ():
+	filemovieset = VideoSACFilelist ()
+	for entry in filemovieset:
+		addcover(entry,Availablecoversfd)
+	return
+
+def VideoSACFilelist (folderpath):
+	dirlist = lsdirectorytree (folderpath)
+	filemovieset = set
+	for entry in dirlist:
+		# Listar los archivos
+			# Tomar los de video
+				# Checkear si tienen carátula
+					# Incluirlos en el filemovieset
+	return filemovieset
+
+def lsdirectorytree(directory = (os.getenv('HOME'))):
+	""" Returns a list of a directory and its child directories
+	usage:
+	lsdirectorytree ("start directory")
+	By default, user's home directory"""
+	#init list to start
+	dirlist = [directory]
+	#setting the first scan
+	moredirectories = dirlist
+	while len (moredirectories) != 0:
+		newdirectories = moredirectories
+		#reset flag to 0; we assume from start, that there aren't child directories
+		moredirectories = []
+		# print ('\n\n\n','nueva iteración', moredirectories)
+		for a in newdirectories:
+			# checking for items (child directories)
+			# print ('Checking directory', a)
+			añadir = addchilddirectory (a)
+			#adding found items to moredirectories
+			for b in añadir:
+				moredirectories.append (b)
+		#adding found items to dirlist
+		for a in moredirectories:
+			dirlist.append (a)
+	return dirlist
+
+def addchilddirectory (directorio):
+	""" Returns a list of child directories
+	Usage: addchilddirectory(directory with absolute path)"""
+	paraañadir = []
+	ficheros = os.listdir (directorio)
+	#print ('ficheros encontrados en: ',directorio, ':\n' , ficheros, '\n')
+	for a in ficheros:
+		item = directorio+'/'+a
+		#check, and if directory, it's added to paths-list
+		if os.path.isdir(item):
+			print('Directory found: '+ item)
+			# print('Añadiendo elemento para escanear')
+			paraañadir.append (item)
+	# print ('este listado hay que añadirlo para el escaneo: ', paraañadir)
+	return paraañadir
+
+
+
+
+
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
@@ -1197,6 +1253,7 @@ if __name__ == '__main__':
 		SendtoTransmission ()
 		MsgService ()
 		ProcessCompletedTorrents ()
+		CoverService ()
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
