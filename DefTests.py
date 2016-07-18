@@ -64,21 +64,44 @@ def FetchFileSet (path):
 MD = TRWorkflowV2
 modulename = 'TRWorkflowV2.py'
 
-class Relatedcover (unittest.TestCase):
-	'''Return the possiblecovers for an item '''
-	known_values = (
-		("filename.avi", set(['filename.jpg','filename.png'])),
-		("filename1x01.avi", set(['filename1x.jpg','filename1x.png'])),
-		("filename3x33.avi", set(['filename3x.jpg','filename3x.png'])),
-		("a/full/path/to/filename.avi", set(['a/full/path/to/filename.jpg','a/full/path/to/filename.png'])),
-		)
-	def test_Relatedcover (self):
-		for example, target in self.known_values:
-			result = MD.Relatedcover (example)
-			self.assertEqual (target, result)	
+class TestPack1 (unittest.TestCase):
+	''' processing TestPack1'''
 
+	reftest = 'Test1'
+	testfolder = os.path.join (dyntestfolder,reftest)
+	hotfolder = os.path.join (testfolder,'Hotfolder')
+	TRinboxfolder = os.path.join (testfolder,'TRinboxfolder')
+	extensionsls = ['jpg','torrent','png', 'jpeg']
 
-class TestPack2_CoverService (unittest.TestCase):
+	def test_extfilemove (self):
+		''' Move .torrent files and image files to a destination
+			'''
+
+		SetTestPack (self.reftest)
+
+		known_movedfiles = set ([
+					'TESTS/Test1/TRinboxfolder/Invalid Torrent For Testing Purposes.torrent',
+					'TESTS/Test1/TRinboxfolder/Screenshot From 2016 07 02 11 48 40.png',
+					'TESTS/Test1/TRinboxfolder/Name in Uppercase.jpg',
+					'TESTS/Test1/TRinboxfolder/This Is a Jpeg File.jpg',
+					])
+		known_filevalues = set ([
+			'TESTS/Test1/Hotfolder',
+			'TESTS/Test1/Hotfolder/other documents that should remain.txt',
+			'TESTS/Test1/Hotfolder/this is a folder-it should remain',
+			'TESTS/Test1/TRinboxfolder',
+			'TESTS/Test1/TRinboxfolder/Invalid Torrent For Testing Purposes.torrent',
+			'TESTS/Test1/TRinboxfolder/Name in Uppercase.jpg',
+			'TESTS/Test1/TRinboxfolder/Screenshot From 2016 07 02 11 48 40.png',
+			'TESTS/Test1/TRinboxfolder/This Is a Jpeg File.jpg',
+			])
+
+		fnresult = set (MD.extfilemove (self.hotfolder,self.TRinboxfolder,self.extensionsls))
+		filestructureresult = FetchFileSet (self.testfolder)
+		self.assertEqual(known_movedfiles, fnresult)
+		self.assertEqual(known_filevalues,filestructureresult)
+
+class TestPack2_CoverServiceA (unittest.TestCase):
 	''' processing TestPack2, Cover Service'''
 
 	reftest = 'Test2'
@@ -87,7 +110,6 @@ class TestPack2_CoverService (unittest.TestCase):
 	Imagerepos = os.path.join (testfolder,'Imagerepos')
 
 	SetTestPack (reftest)
-
 
 	def test_selectcover(self):
 		''' Selects the most suitable cover due on film-filename.
@@ -102,7 +124,6 @@ class TestPack2_CoverService (unittest.TestCase):
 			result = MD.selectcover (filename, self.Imagerepos)
 			print ("\n\tSelecting a suitable cover for:",filename)
 			self.assertEqual (cover, result)
-		
 
 	def test_listcovers(self):
 		''' Return a list of covers-files
@@ -118,8 +139,6 @@ class TestPack2_CoverService (unittest.TestCase):
 		result = MD.listcovers (self.Imagerepos)
 		self.assertEqual (set(known_values), set(result))
 
-
-
 	def test_VideoSACFilelist(self):
 		''' Look for videfiles with no associated cover '''
 
@@ -132,21 +151,58 @@ class TestPack2_CoverService (unittest.TestCase):
 		result = MD.VideoSACFilelist (self.Videofolder)
 		self.assertEqual (known_filevalues, result)
 
-"""
+class TestPack2_CoverServiceB (unittest.TestCase):
+	''' processing TestPack2, Cover Service'''
+
+	reftest = 'Test2'
+	testfolder = os.path.join (dyntestfolder,reftest)
+	Videofolder = os.path.join (testfolder,'VideoFolder')
+	Imagerepos = os.path.join (testfolder,'Imagerepos')
+
+	SetTestPack (reftest)
+
 	def test_CoverService (self):
 		''' Look for, assign and move cover files.'''
 
 		known_filevalues = set ([
-			'TESTS/Test2',
+			'TESTS/Test2/Imagerepos',
+			'TESTS/Test2/Imagerepos/a picture for nothing.png',
+			'TESTS/Test2/Imagerepos/spare cover.png',
+			'TESTS/Test2/VideoFolder',
+			'TESTS/Test2/VideoFolder/AAThis is a video with a cover.jpg',
+			'TESTS/Test2/VideoFolder/AAThis is a video with a cover.mpeg',
+			'TESTS/Test2/VideoFolder/JJ_This is a video of Jack Smith with no cover.avi',
+			'TESTS/Test2/VideoFolder/JJ_This is a video of Jack Smith with no cover.png',
+			'TESTS/Test2/VideoFolder/subfolder',
+			'TESTS/Test2/VideoFolder/subfolder/Secret Agent.avi',
+			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x.png',
+			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x01.avi',
+			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x02.avi',
+			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x03.avi',
+			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x04.avi',
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x.png',
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x01.avi',
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x02.avi',
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x03.avi',
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x04.avi',
 			])
 
 		MD.CoverService (self.Videofolder, self.Imagerepos)
 		filestructureresult = FetchFileSet (self.testfolder)
 		self.assertEqual(known_filevalues,filestructureresult)
-"""
 
-
-
+class Relatedcover (unittest.TestCase):
+	'''Return the possiblecovers for an item '''
+	known_values = (
+		("filename.avi", set(['filename.jpg','filename.png'])),
+		("filename1x01.avi", set(['filename1x.jpg','filename1x.png'])),
+		("filename3x33.avi", set(['filename3x.jpg','filename3x.png'])),
+		("a/full/path/to/filename.avi", set(['a/full/path/to/filename.jpg','a/full/path/to/filename.png'])),
+		)
+	def test_Relatedcover (self):
+		for example, target in self.known_values:
+			result = MD.Relatedcover (example)
+			self.assertEqual (target, result)	
 
 class Selectcase (unittest.TestCase):
 	""" Selects a case to deliver the torrent files and an operational behaviour for files.
@@ -262,43 +318,6 @@ class fileclasify (unittest.TestCase):
 		for example, target in self.known_values:
 			result = MD.fileclasify (example)
 			self.assertEqual (target, result)
-
-class TestPack1 (unittest.TestCase):
-	''' processing TestPack1'''
-
-	reftest = 'Test1'
-	testfolder = os.path.join (dyntestfolder,reftest)
-	hotfolder = os.path.join (testfolder,'Hotfolder')
-	TRinboxfolder = os.path.join (testfolder,'TRinboxfolder')
-	extensionsls = ['jpg','torrent','png', 'jpeg']
-
-	def test_extfilemove (self):
-		''' Move .torrent files and image files to a destination
-			'''
-
-		SetTestPack (self.reftest)
-
-		known_movedfiles = set ([
-					'TESTS/Test1/TRinboxfolder/Invalid Torrent For Testing Purposes.torrent',
-					'TESTS/Test1/TRinboxfolder/Screenshot From 2016 07 02 11 48 40.png',
-					'TESTS/Test1/TRinboxfolder/Name in Uppercase.jpg',
-					'TESTS/Test1/TRinboxfolder/This Is a Jpeg File.jpg',
-					])
-		known_filevalues = set ([
-			'TESTS/Test1/Hotfolder',
-			'TESTS/Test1/Hotfolder/other documents that should remain.txt',
-			'TESTS/Test1/Hotfolder/this is a folder-it should remain',
-			'TESTS/Test1/TRinboxfolder',
-			'TESTS/Test1/TRinboxfolder/Invalid Torrent For Testing Purposes.torrent',
-			'TESTS/Test1/TRinboxfolder/Name in Uppercase.jpg',
-			'TESTS/Test1/TRinboxfolder/Screenshot From 2016 07 02 11 48 40.png',
-			'TESTS/Test1/TRinboxfolder/This Is a Jpeg File.jpg',
-			])
-
-		fnresult = set (MD.extfilemove (self.hotfolder,self.TRinboxfolder,self.extensionsls))
-		filestructureresult = FetchFileSet (self.testfolder)
-		self.assertEqual(known_movedfiles, fnresult)
-		self.assertEqual(known_filevalues,filestructureresult)
 
 class test_nextfilenumber (unittest.TestCase):
 	""" test for nextfilenumber function """

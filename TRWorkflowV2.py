@@ -1167,13 +1167,6 @@ def listcovers(path):
 			lista2.append(a)
 	return lista2
 
-def CoverService (Fmovie_Folder, Availablecoversfd):
-	filemovieset = VideoSACFilelist (Fmovie_Folder)
-	for entry in filemovieset:
-		coverselected = selectcover (entry,Availablecoversfd)
-		print (coverselected)
-	return
-
 def selectcover (film,Coversinbox):
 	''' This function evaluates a suitable cover for a filemovie based on its filename.
 		it scans in a folder the most suitable cover based on cover filenames and returns this match
@@ -1185,11 +1178,27 @@ def selectcover (film,Coversinbox):
 		'''
 	logging.debug("\tSearching a cover for: "+film)
 	coverlist33 = listcovers(Coversinbox)
-	cover, match = matchfilm(film,coverlist33)
-	if cover == '' or match < 5:
-		logging.info("No covers found")
-		cover = ''
-	return cover
+	slcover, match = matchfilm(film,coverlist33)
+	if slcover == '' or match <= 5:
+		slcover = ''
+	return slcover
+
+def CoverService (Fmovie_Folder, Availablecoversfd):
+	filemovieset = VideoSACFilelist (Fmovie_Folder)
+	for entry in filemovieset:
+		filmname = os.path.basename(entry)
+		slcover = selectcover (filmname,Availablecoversfd)
+		if slcover == '':
+			logging.info("No covers found for %s"%filmname)
+			continue
+		else:
+			logging.info("A cover were found for %s"%filmname)
+			origin = os.path.join(Availablecoversfd,slcover)
+			dest = os.path.join(os.path.splitext(entry)[0]+os.path.splitext(slcover)[1])
+			print ("origin:\t", origin)
+			print ("dest:\t", dest)
+			shutil.move(origin,dest)
+	return
 
 def lsdirectorytree(directory = (os.getenv('HOME'))):
 	""" Returns a list of a directory and its child directories
