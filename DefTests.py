@@ -21,7 +21,6 @@ def addchilddirectory(directorio):
 		if os.path.isdir(item):
 			paraañadir.append(item)
 	return paraañadir
-
 def lsdirectorytree(directory):
 	""" Returns a list of a directory and its child directories
 
@@ -43,7 +42,6 @@ def lsdirectorytree(directory):
 			moredirectories += toadd
 		dirlist += moredirectories
 	return dirlist
-
 def SetTestPack (namepack):
 	namepack = os.path.join(dyntestfolder, namepack)
 	# delete old contents in test(n) folder
@@ -52,7 +50,6 @@ def SetTestPack (namepack):
 
 	# decompress pack
 	os.system ('unzip %s.zip -d %s'%(namepack, dyntestfolder))
-
 def FetchFileSet (path):
 	''' Fetchs a file set of files and folders'''
 	listree = lsdirectorytree (path)
@@ -62,11 +59,24 @@ def FetchFileSet (path):
 		for a in contentlist:
 			fileset.add (a)
 	return fileset
-COVER FOR GRIJANDER 
 
 #####TESTS########
 MD = TRWorkflowV2
 modulename = 'TRWorkflowV2.py'
+
+class Relatedcover (unittest.TestCase):
+	'''Return the possiblecovers for an item '''
+	known_values = (
+		("filename.avi", set(['filename.jpg','filename.png'])),
+		("filename1x01.avi", set(['filename1x.jpg','filename1x.png'])),
+		("filename3x33.avi", set(['filename3x.jpg','filename3x.png'])),
+		("a/full/path/to/filename.avi", set(['a/full/path/to/filename.jpg','a/full/path/to/filename.png'])),
+		)
+	def test_Relatedcover (self):
+		for example, target in self.known_values:
+			result = MD.Relatedcover (example)
+			self.assertEqual (target, result)	
+
 
 class TestPack2_CoverService (unittest.TestCase):
 	''' processing TestPack2, Cover Service'''
@@ -78,20 +88,51 @@ class TestPack2_CoverService (unittest.TestCase):
 
 	SetTestPack (reftest)
 
+
+	def test_selectcover(self):
+		''' Selects the most suitable cover due on film-filename.
+		covers are fetched from a folder, all of them at the same level.
+			'''
+		known_values = (
+			('JJ_This is a video of Jack Smith with no cover.avi','Cover for Jack Smith video.png'),
+			('This is a serie of Grijander with no cover 1x.avi','Cover for serie of Grijander.png'),
+			('Secret Agent.avi',''),
+			)
+		for filename, cover in known_values:
+			result = MD.selectcover (filename, self.Imagerepos)
+			print ("\n\tSelecting a suitable cover for:",filename)
+			self.assertEqual (cover, result)
+		
+
+	def test_listcovers(self):
+		''' Return a list of covers-files
+			input: relative path, or full-path
+			output: list of image-files with relative or full-path
+			'''
+		known_values = [
+			'Cover for Jack Smith video.png',
+			'Cover for serie of Grijander.png',
+			'a picture for nothing.png',
+			'spare cover.png',
+			]
+		result = MD.listcovers (self.Imagerepos)
+		self.assertEqual (set(known_values), set(result))
+
+
+
 	def test_VideoSACFilelist(self):
 		''' Look for videfiles with no associated cover '''
 
 		known_filevalues = set ([
-			'TESTS/Test2/VideoFolder/This is a serie of Grijander  with no cover 1x.avi',
-			'TESTS/Test2/VideoFolder/JJ_This is a video of Jack Smith with no cover.avi',
 			'TESTS/Test2/VideoFolder/subfolder/Secret Agent.avi',
+			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x.avi',
+			'TESTS/Test2/VideoFolder/JJ_This is a video of Jack Smith with no cover.avi',
 			])
 
-		result = MD.VideoSACFilelist (Videofolder)
+		result = MD.VideoSACFilelist (self.Videofolder)
 		self.assertEqual (known_filevalues, result)
-	
 
-	"""
+"""
 	def test_CoverService (self):
 		''' Look for, assign and move cover files.'''
 
@@ -99,10 +140,10 @@ class TestPack2_CoverService (unittest.TestCase):
 			'TESTS/Test2',
 			])
 
-		MD.CoverService (self.Videofolder,self.Imagerepos)
+		MD.CoverService (self.Videofolder, self.Imagerepos)
 		filestructureresult = FetchFileSet (self.testfolder)
 		self.assertEqual(known_filevalues,filestructureresult)
-		"""
+"""
 
 
 

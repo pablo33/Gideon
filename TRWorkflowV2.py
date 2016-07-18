@@ -431,59 +431,6 @@ def copyfile(origin,dest,mode="c"):
 		logging.debug("\tDestination file already exists")
 		return 'Exists'
 
-def listcovers(path):
-	''' Return a list of covers-files
-	input: relative path, or full-path
-	output: list of image-files with relative or full-path
-		'''
-	path = addslash(path)
-
-	# Initializing Lista
-	lista = []
-	# Listing
-	for a in ("jpg","png","jpeg"):
-		listb = glob(path+"*."+a)
-		listc = glob(path+"*."+a.upper())
-		for a in listb:
-			lista.append(a)
-		for a in listc:
-			lista.append(a)
-	lista.sort()
-	return lista
-
-def addcover(film,Coversinbox):
-	''' This function evaluates a suitable cover for a filemovie based on its filename.
-		it scans into a folder the most suitable cover based on cover filenames and returns this match.
-		Returns "" if not covers are found.
-		if a cover is found, it is moved beside the film and it is renamed (the image cover)
-		with film's name (obiously preserving image extension).
-			note that this function has been improved with chapter id. recognition to suit Freevo users (see comments below).
-
-		input: /path/to/film.ext
-		input: /path/to/repository_of_covers
-		'''
-	logging.debug("Searching a cover for:"+film+" in "+Coversinbox)
-	cover, match = filmcovermatch.matchfilm(film,filmcovermatch.listcovers(Coversinbox))
-	if cover == "":
-		logging.info("No covers found")
-		return ""
-	logging.info("Found "+cover+" as most suitable cover for "+film)
-	# If you are using Freevo as your HTPC, you should want to rename serie's cover without chapter's number, so:
-	# Check if cover has a chapter identifier:
-	if namefilmcleaner.chapid(film) == "":
-		dest = os.path.splitext(film)[0]+os.path.splitext(cover)[1].lower()
-	else:
-		dest = os.path.splitext(film)[0][:-2]+os.path.splitext(cover)[1].lower()
-		logging.info("Cover file is for a chapter structure, deleting Chapter identifier")
-	# If destination cover is found, we will re-write it, so covers can be update with new ones.
-	if itemcheck (dest) != "":
-		logging.warning("file already exists, deleting old cover")
-		os.remove(dest)
-	# Finally we move cover.
-	logging.debug("moving cover to:"+dest)
-	shutil.move(cover,dest)
-	return match
-
 def matchfilm(filmname,lista):
 	''' Selects a item from a list with the best match.
 		it is intended to find a cover file within a list of possible covers.
@@ -1177,21 +1124,72 @@ def StartTRService ():
 	con.close()
 	return
 
-def CoverService ():
-	filemovieset = VideoSACFilelist ()
-	for entry in filemovieset:
-		addcover(entry,Availablecoversfd)
-	return
+def Relatedcover(item):
+	''' Return the possiblecovers for an item name plus .jpg or .png form.
+		input filename >> outputt filename'''
+	possiblecovers = set ()
+	basename = os.path.splitext(item)[0]
+	if namefilmcleaner.chapid (basename) != '':
+		basename = basename[:-2]
+	for i in ['.jpg','.png']:
+		possiblecovers.add(basename+i)
+	return possiblecovers
 
 def VideoSACFilelist (folderpath):
 	dirlist = lsdirectorytree (folderpath)
-	filemovieset = set
+	filemovieset = set ()
 	for entry in dirlist:
-		# Listar los archivos
-			# Tomar los de video
-				# Checkear si tienen carátula
-					# Incluirlos en el filemovieset
+		ficheros = os.listdir (entry)
+		paraañadir = set ()
+		for a in ficheros:
+			item = os.path.join(entry,a)
+			if fileclasify(item) == 'video':
+				add = True
+				for i in Relatedcover (item):
+					basename = os.path.splitext(i)[0]
+					if itemcheck (i) == 'file':
+						add = False
+				if add == True:
+					filemovieset.add (basename+os.path.splitext(item)[1])
+				
 	return filemovieset
+
+def listcovers(path):
+	''' Return a list of covers-files
+	input: relative path, or full-path
+	output: list of image-files with relative or full-path
+		'''
+	path = addslash (path)
+	lista = os.listdir(path)
+	lista2 = list()
+	for a in lista:
+		if itemcheck(path+a) == 'file' and fileclasify (path+a) == 'image':
+			lista2.append(a)
+	return lista2
+
+def CoverService (Fmovie_Folder, Availablecoversfd):
+	filemovieset = VideoSACFilelist (Fmovie_Folder)
+	for entry in filemovieset:
+		coverselected = selectcover (entry,Availablecoversfd)
+		print (coverselected)
+	return
+
+def selectcover (film,Coversinbox):
+	''' This function evaluates a suitable cover for a filemovie based on its filename.
+		it scans in a folder the most suitable cover based on cover filenames and returns this match
+
+		Returns "" if no covers were found.
+		
+		input: film.extension
+		input: /path/to/repository_of_covers
+		'''
+	logging.debug("\tSearching a cover for: "+film)
+	coverlist33 = listcovers(Coversinbox)
+	cover, match = matchfilm(film,coverlist33)
+	if cover == '' or match < 5:
+		logging.info("No covers found")
+		cover = ''
+	return cover
 
 def lsdirectorytree(directory = (os.getenv('HOME'))):
 	""" Returns a list of a directory and its child directories
