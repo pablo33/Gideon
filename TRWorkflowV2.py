@@ -477,7 +477,7 @@ def Getsubpath(filmname,Fvideodest):
 	return Fvideodest[r1], match
 
 def getaliaspaths (textfile):
-	""" Returns a dictionary contanining words and a relativa path to store filesdict
+	""" Returns a dictionary contanining words and a relative path to store filesdict
 		The keys are fetched from a txt .ini like file.
 		Deftest OK!! """
 	logging.debug("\t\tExtracting alias definition from "+ textfile)
@@ -1183,8 +1183,20 @@ def selectcover (film,Coversinbox):
 		slcover = ''
 	return slcover
 
-def CoverService (Fmovie_Folder, Availablecoversfd):
-	filemovieset = VideoSACFilelist (Fmovie_Folder)
+def CoverService (Fmovie_Folder,Availablecoversfd):
+	logging.debug ('CoverService Started')
+	if Hotfolder != None:
+		Folderset = set()
+		aliaspaths = getaliaspaths(Hotfolder+"Videodest.ini")
+		for key in aliaspaths:
+			Folderset.add( os.path.join(Fmovie_Folder[:-1],aliaspaths[key]))
+	Folderset.add (Fmovie_Folder[:-1])
+	filemovieset = set ()
+	for folder2scan in Folderset:
+		if  itemcheck (folder2scan) == 'folder':
+			subset = VideoSACFilelist (folder2scan)
+			for i in subset:
+				filemovieset.add(i)
 	for entry in filemovieset:
 		filmname = os.path.basename(entry)
 		slcover = selectcover (filmname,Availablecoversfd)
@@ -1195,8 +1207,6 @@ def CoverService (Fmovie_Folder, Availablecoversfd):
 			logging.info("A cover were found for %s"%filmname)
 			origin = os.path.join(Availablecoversfd,slcover)
 			dest = os.path.join(os.path.splitext(entry)[0]+os.path.splitext(slcover)[1])
-			print ("origin:\t", origin)
-			print ("dest:\t", dest)
 			shutil.move(origin,dest)
 	return
 
@@ -1231,15 +1241,10 @@ def addchilddirectory (directorio):
 	Usage: addchilddirectory(directory with absolute path)"""
 	paraañadir = []
 	ficheros = os.listdir (directorio)
-	#print ('ficheros encontrados en: ',directorio, ':\n' , ficheros, '\n')
 	for a in ficheros:
 		item = directorio+'/'+a
-		#check, and if directory, it's added to paths-list
 		if os.path.isdir(item):
-			print('Directory found: '+ item)
-			# print('Añadiendo elemento para escanear')
 			paraañadir.append (item)
-	# print ('este listado hay que añadirlo para el escaneo: ', paraañadir)
 	return paraañadir
 
 
@@ -1258,15 +1263,15 @@ if __name__ == '__main__':
 			Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 			addinputs()
 		SendtoTransmission ()
-		MsgService ()
 		ProcessCompletedTorrents ()
-		CoverService ()
+		CoverService (Fmovie_Folder,Availablecoversfd)
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
 			TrackDeletedTorrents(tc)
 			TrackFinishedTorrents (tc)
 			Retrievefiles(tc)
+		MsgService ()
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
 		time.sleep(s)

@@ -156,8 +156,8 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 
 	reftest = 'Test2'
 	testfolder = os.path.join (dyntestfolder,reftest)
-	Videofolder = os.path.join (testfolder,'VideoFolder')
-	Imagerepos = os.path.join (testfolder,'Imagerepos')
+	Videofolder = os.path.join (testfolder,'VideoFolder/')
+	Imagerepos = os.path.join (testfolder,'Imagerepos/')
 
 	SetTestPack (reftest)
 
@@ -348,7 +348,8 @@ class test_getaliaspaths (unittest.TestCase):
 	aliasdict = {
 		'Sleepy Hollow temporada 1': 'series/Sleepy Hollow Temp 1',
 		'Sleepy Hollow temporada 2': 'series/Sleepy Hollow Temp 2',
-		'star wars rebels': 'Series infantiles'
+		'star wars rebels': 'Series infantiles',
+		'a level up':'../Novedades',
 			}
 
 
