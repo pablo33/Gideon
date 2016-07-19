@@ -185,7 +185,7 @@ def clearfilename(filename):
 		input: filename without extension, please
 		output: filename without extension, of course
 		"""
-	logging.info("# Cleaning filename: "+filename)
+	logging.debug("# Cleaning filename: "+filename)
 	filenametmp = filename
 
 	
