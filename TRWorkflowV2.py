@@ -23,6 +23,7 @@
 
 # Standard library module import
 import os, sys, shutil, logging, datetime, time, smtplib, re
+from math import sqrt
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
 import sqlite3  # for sqlite3 Database management
@@ -192,6 +193,7 @@ lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new fil
 TRmachine = TRWorkflowconfig.TRmachine
 TRuser = TRWorkflowconfig.TRuser
 TRpassword = TRWorkflowconfig.TRpassword
+minmatch = 15
 
 Msgtimming = {
 	'low': datetime.timedelta(seconds=3600),
@@ -441,23 +443,26 @@ def matchfilm(filmname,lista):
 		Deftest OK!!'''
 	# We want only the name of the file, without extension.
 	match = 0
-	matcheditem = ""
+	matcheditem = ''
 	for a in lista:
 		# Get only the filename without extension
 		name = os.path.splitext(os.path.basename(a))[0]
-		matchw = 0
+		if name == '': continue
+
+		points = 0
 		for b in name.split():
-			if b.upper() in filmname.upper():
-				matchw += len(b)
-				
-		if matchw > match:
-			matcheditem, match = a, matchw
-	"""
-	# We need at least a match of 4 points to return a reasonable match
-	if match < 5:
-		return "", 0
-	"""
-	return matcheditem, match
+			if (b.upper() in filmname.upper()) and not (2 <= len (b) <= 3):
+				points += len(b)
+
+		if filmname.upper() in name.upper() or name.upper() in filmname.upper():
+			points += len (name)
+
+		points =  points / len (name) * 100
+		
+
+		if points > match and points > minmatch:
+			matcheditem, match = a, points
+	return matcheditem, int(match)
 
 def Getsubpath(filmname,Fvideodest):
 	""" Delivers a fideofile in order a pertenency on a group
@@ -470,8 +475,8 @@ def Getsubpath(filmname,Fvideodest):
 	destinationlist = [""]
 	for a in Fvideodest:
 		destinationlist.append(a)
-	r1, match = matchfilm (filmname,destinationlist)
-	if r1 == "":
+	r1, match = matchfilm (filmname, destinationlist)
+	if r1 == "" or match < minmatch:
 		logging.debug("\t\tNo mathches found to deliver, returning default path for the item")
 		return "", 0
 	return Fvideodest[r1], match
@@ -480,13 +485,8 @@ def getaliaspaths (textfile):
 	""" Returns a dictionary contanining words and a relative path to store filesdict
 		The keys are fetched from a txt .ini like file.
 		Deftest OK!! """
-	logging.debug("\t\tExtracting alias definition from "+ textfile)
 	alias = readini.readdict (textfile,"alias",",")
-
-	logging.debug("\t\tExtracting dest definition")
 	subpahts = readini.readdict (textfile,"dest",",")
-
-	logging.debug("\t\tSubstituting dest alias")
 	for a in alias:
 		for b,c in subpahts.items():
 			if "<"+a+">" in c:
@@ -662,7 +662,7 @@ def connectTR():
 	if not getappstatus('transmission-gtk'):
 		launchTR (cmd, 5)
 	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
-	logging.info('A Transmission rpc session has started')
+	logging.debug('A Transmission rpc session has started')
 	print ('Started rpc session')
 	return tc
 
@@ -1004,13 +1004,13 @@ def ProcessSecuence(con, Id, Psecuence):
 				if entry[1] == 'video':
 					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[0])[0]))
 					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[-1])[0]))
-			Subpath, maxmatch = "", 5
+			Subpath, maxmatch = "", 10
 			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
 			for filmname in filmnamelist:
 				tmpSubpath, match = Getsubpath (filmname, Fvideodest)
 				if match > maxmatch:
 					Subpath , maxmatch = tmpSubpath, match
-			if maxmatch > 5:
+			if maxmatch > minmatch:
 				logging.info ("\tFound alias for movie: " + Subpath + ".Aciertos:"+ str(maxmatch) )
 				cursor3 = con.execute("SELECT nreg, destfile FROM files WHERE trid = ? and wanted = 1", (Id,))
 				for Nreg, destfile in cursor3:
@@ -1179,15 +1179,15 @@ def selectcover (film,Coversinbox):
 	logging.debug("\tSearching a cover for: "+film)
 	coverlist33 = listcovers(Coversinbox)
 	slcover, match = matchfilm(film,coverlist33)
-	if slcover == '' or match <= 5:
+	if slcover == '' or match <= minmatch:
 		slcover = ''
 	return slcover
 
-def CoverService (Fmovie_Folder,Availablecoversfd):
+def CoverService (Fmovie_Folder, Availablecoversfd, inivideodest):
 	logging.debug ('CoverService Started')
-	if Hotfolder != None:
-		Folderset = set()
-		aliaspaths = getaliaspaths(Hotfolder+"Videodest.ini")
+	Folderset = set()
+	if itemcheck(inivideodest) == 'file':
+		aliaspaths = getaliaspaths(inivideodest)
 		for key in aliaspaths:
 			Folderset.add( os.path.join(Fmovie_Folder[:-1],aliaspaths[key]))
 	Folderset.add (Fmovie_Folder[:-1])
@@ -1197,17 +1197,28 @@ def CoverService (Fmovie_Folder,Availablecoversfd):
 			subset = VideoSACFilelist (folder2scan)
 			for i in subset:
 				filemovieset.add(i)
+		else:
+			logging.warning('(coverservice):Folder %s does not exist.'%folder2scan)
+	coverperformer (filemovieset, Availablecoversfd)		
+
+def coverperformer(filemovieset,Availablecoversfd):
+	''' Assign cover files and moves matched cover next to the film file.
+		input sould be a list, but also a string with a /path/to/filename.ext is possible
+		'''
+	if type (filemovieset) == str():
+		filemovieset = [filemovieset,]
 	for entry in filemovieset:
 		filmname = os.path.basename(entry)
 		slcover = selectcover (filmname,Availablecoversfd)
 		if slcover == '':
-			logging.info("No covers found for %s"%filmname)
+			logging.debug("No covers found for %s"%filmname)
 			continue
 		else:
-			logging.info("A cover were found for %s"%filmname)
+			logging.debug("A cover were found for %s"%filmname)
 			origin = os.path.join(Availablecoversfd,slcover)
 			dest = os.path.join(os.path.splitext(entry)[0]+os.path.splitext(slcover)[1])
 			shutil.move(origin,dest)
+			logging.debug("from %s >> %s"%(origin,dest))
 	return
 
 def lsdirectorytree(directory = (os.getenv('HOME'))):
@@ -1262,9 +1273,9 @@ if __name__ == '__main__':
 		if Hotfolder != None:
 			Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 			addinputs()
+			CoverService (Fmovie_Folder, Availablecoversfd, Hotfolder+"Videodest.ini")
 		SendtoTransmission ()
 		ProcessCompletedTorrents ()
-		CoverService (Fmovie_Folder,Availablecoversfd)
 		if getappstatus('transmission-gtk'):
 			tc = connectTR ()
 			TrackManualTorrents (tc)

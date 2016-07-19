@@ -158,6 +158,7 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 	testfolder = os.path.join (dyntestfolder,reftest)
 	Videofolder = os.path.join (testfolder,'VideoFolder/')
 	Imagerepos = os.path.join (testfolder,'Imagerepos/')
+	inivideodest = os.path.join (dyntestfolder,'Videodest.ini_textfile.ini')
 
 	SetTestPack (reftest)
 
@@ -187,7 +188,7 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x04.avi',
 			])
 
-		MD.CoverService (self.Videofolder, self.Imagerepos)
+		MD.CoverService (self.Videofolder, self.Imagerepos, self.inivideodest)
 		filestructureresult = FetchFileSet (self.testfolder)
 		self.assertEqual(known_filevalues,filestructureresult)
 
@@ -375,7 +376,7 @@ class test_Getsubpath (unittest.TestCase):
 	def test_known_input (self):
 		for filmname, matched in self.known_values:
 			result = MD.Getsubpath (filmname,self.aliasdict)
-			self.assertEqual (matched, result)
+			self.assertEqual (matched[0], result[0])
 
 class test_matchfilm (unittest.TestCase):
 	""" returns the besta matched sub-path by matching strings on a list"""
@@ -383,19 +384,33 @@ class test_matchfilm (unittest.TestCase):
 		'a path/Sleepy Hollow temporada 1.jpg',
 		'Sleepy Hollow temporada 2',
 		'star wars rebels',
+		'Jurassic Park 1.jpg',
+		'Jurassic Park 2 - Los mundos perdidos.jpg',
+		'Jurassic Park 3.jpg',
+		'La casa de la pradera.jpg',
+		'Carátula de Zambezia.jpg',
+		'el hombre araña llamado spiderman 2.jpg',
 			]
 
 	known_values = (
 		("a name with no match",		 		("",0)),
-		("Sleepy Hollow 1",		 				("a path/Sleepy Hollow temporada 1.jpg",13)),
-		("sLeePy 2 temporada",			 		("Sleepy Hollow temporada 2",16)),
-		("star",		 						("star wars rebels",4)),
-		("wars rebels",		 					("star wars rebels",10)),
+		("Sleepy Hollow 1",		 				("a path/Sleepy Hollow temporada 1.jpg",0)),
+		("sLeePy 2 temporada",			 		("Sleepy Hollow temporada 2",0)),
+		("star",		 						("star wars rebels",0)),
+		("wars rebels",		 					("star wars rebels",0)),
+		("Jurassic Park 1",		 				("Jurassic Park 1.jpg",0)),
+		("Jurassic Park 2",		 				("Jurassic Park 2 - Los mundos perdidos.jpg",0)),
+		("Jurassic Park 3",		 				("Jurassic Park 3.jpg",0)),
+		("La cosa de hacer",		 			("",0)),
+		("Zambezia",		 					("Carátula de Zambezia.jpg",0)),
+		("Spiderman 2",		 					("el hombre araña llamado spiderman 2.jpg",0)),
+
 		)
 	def test_known_input (self):
 		for filmname, matched in self.known_values:
 			result = MD.matchfilm (filmname,self.matchlist)
-			self.assertEqual (matched, result)
+			print ('Matched film:', filmname, result)
+			self.assertEqual (matched[0], result[0])
 
 
 
