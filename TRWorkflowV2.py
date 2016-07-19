@@ -511,7 +511,8 @@ def fileclasify (filename):
 	global TRWorkflowconfig
 	ext = os.path.splitext(filename)
 	if str(ext[1]) in ['','.']:
-		logging.warning('File has no extension')
+		print ('>>>>',filename)
+		logging.warning('File has no extension: %s'%filename)
 		return 'other'
 	extwd = str (ext [1])
 	extwd = extwd [1:]
@@ -1017,11 +1018,12 @@ def ProcessSecuence(con, Id, Psecuence):
 					con.execute("UPDATE files SET destfile = ? WHERE nreg = ?", (os.path.join(Subpath,destfile) ,Nreg))		
 				con.commit()
 			continue
+
 	return
 
 Psecuensedict = {
 	0 : list(),
-	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination',],
+	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination'],
 	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
 	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
 	4 : list(),
@@ -1095,7 +1097,7 @@ def addfoldersmatrix (matrix, folders, posnfolders, posfolderlevels):
 def ProcessCompletedTorrents():
 	''' Check for 'Completed' torrents and _deliverstatus_ = 'Added' in tw_inputs DB.
 		Process torrent's files and do the movements.
-		One the move is done, field _deliverstatus_ is set to 'Delivered'
+		Once the move is done, field _deliverstatus_ is set to 'Delivered'
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor1 = con.cursor()
@@ -1126,7 +1128,8 @@ def StartTRService ():
 
 def Relatedcover(item):
 	''' Return the possiblecovers for an item name plus .jpg or .png form.
-		input filename >> outputt filename'''
+		input filename >> outputt filename
+		DEFTEST....OK!!'''
 	possiblecovers = set ()
 	basename = os.path.splitext(item)[0]
 	if namefilmcleaner.chapid (basename) != '':
@@ -1143,14 +1146,15 @@ def VideoSACFilelist (folderpath):
 		paraañadir = set ()
 		for a in ficheros:
 			item = os.path.join(entry,a)
-			if fileclasify(item) == 'video':
-				add = True
-				for i in Relatedcover (item):
-					basename = os.path.splitext(i)[0]
-					if itemcheck (i) == 'file':
-						add = False
-				if add == True:
-					filemovieset.add (basename+os.path.splitext(item)[1])
+			if itemcheck (item) == 'file':
+				if fileclasify(item) == 'video':
+					add = True
+					for i in Relatedcover (item):
+						basename = os.path.splitext(i)[0]
+						if itemcheck (i) == 'file':
+							add = False
+					if add == True:
+						filemovieset.add (basename+os.path.splitext(item)[1])
 				
 	return filemovieset
 
@@ -1211,14 +1215,14 @@ def coverperformer(filemovieset,Availablecoversfd):
 		filmname = os.path.basename(entry)
 		slcover = selectcover (filmname,Availablecoversfd)
 		if slcover == '':
-			logging.debug("No covers found for %s"%filmname)
+			logging.debug("\tNo covers found for %s"%filmname)
 			continue
 		else:
-			logging.debug("A cover were found for %s"%filmname)
+			logging.debug("\tA cover were found for %s"%filmname)
 			origin = os.path.join(Availablecoversfd,slcover)
 			dest = os.path.join(os.path.splitext(entry)[0]+os.path.splitext(slcover)[1])
 			shutil.move(origin,dest)
-			logging.debug("from %s >> %s"%(origin,dest))
+			logging.debug("\t\tfrom %s >> %s"%(origin,dest))
 	return
 
 def lsdirectorytree(directory = (os.getenv('HOME'))):
