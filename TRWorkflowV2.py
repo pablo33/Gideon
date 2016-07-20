@@ -1301,6 +1301,10 @@ def RetentionPService(tc):
 		if DBid == None:
 			logging.warning('Active torrent is not being tracked on DB: %s'%trr.name)
 			continue
+		elif trr.seed_ratio_mode == 'unlimited':
+			# Retention policy does not apply to torrents that seeds forever.
+			print ("Retention policy does not apply to torrents that seeds forever.")
+			continue
 		elif trr.doneDate == 0:
 			# Retention policy does not apply to Manual added torrents with already existent files
 			continue
