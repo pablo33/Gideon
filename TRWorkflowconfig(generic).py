@@ -27,6 +27,10 @@ TR_MAILTOCC="peopletocc@here.com" # one or more recipients in "CC" separated by 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "INFO"
 
+# Retention Policy: None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
+MaxseedingDays = None
+#MaxseedingDays = 30
+
 # Seconds to wait until hot folders are scanned for new items.
 s = 60
 

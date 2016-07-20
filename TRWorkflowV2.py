@@ -193,6 +193,9 @@ lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new fil
 TRmachine = TRWorkflowconfig.TRmachine
 TRuser = TRWorkflowconfig.TRuser
 TRpassword = TRWorkflowconfig.TRpassword
+MaxseedingDays = TRWorkflowconfig.MaxseedingDays
+
+
 minmatch = 15
 
 Msgtimming = {
@@ -210,6 +213,7 @@ Msgtopics = {
 	7 : 'Files have been processed and copied into destination',
 	8 : 'No Case was found for this Torrent',
 	9 : 'Transmission has been launched',
+	10:	'Torrent Deleted due to a retention Policy',
 }
 
 Codemimes = {
@@ -763,11 +767,33 @@ def STmail (topic, msg):
 
 def MsgService():
 	con = sqlite3.connect (dbpath)
+	mailStartedSevice (con)
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
 	mailcomplettedtorrents (con)
-	mailStartedSevice (con)
+	mailRPolicytorrents (con)
 	con.close()
+	return
+
+def mailRPolicytorrents(con):
+	cursor = con.cursor ()
+	cursor.execute ("SELECT nreg, trid, trname, dwfolder FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 10")
+	for Nreg, Trid, Trname, Dwfolder in cursor:
+		filelisttxt = getfileoriginlistTXT (con,Trid)
+
+		msg = """A torrent has been deleted due to a configured Retention Policy:
+	(%s days after downloading has been completed or Torrent's seeding ratio has finished.)
+	Torrent id in data base (%s), Name:
+	%s
+	
+	It has been deleted from Transmission Service,
+	Downloaded files at %s have been also deleted.
+
+	""" %(MaxseedingDays,Trid,Trname, Dwfolder)
+		msg += filelisttxt
+		STmail ('Torrent Deleted: ' + Trname, msg)
+		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
+	con.commit()
 	return
 
 def mailaddedtorrents(con):
@@ -1262,7 +1288,51 @@ def addchilddirectory (directorio):
 			paraañadir.append (item)
 	return paraañadir
 
-
+def RetentionPService(tc):
+	if MaxseedingDays == None:
+		logging.debug ('Retention Policy Service deactivated by user option')
+		return
+	MaxseedingDays_dt = datetime.timedelta(days=MaxseedingDays)
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	dellist = ['',]
+	for trr in tc.get_torrents():
+		DBid, Deliverstatus = cursor.execute ("SELECT id, deliverstatus from tw_inputs WHERE TRname = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trr.name,)).fetchone()
+		if DBid == None:
+			logging.warning('Active torrent is not being tracked on DB: %s'%trr.name)
+			continue
+		elif trr.doneDate == 0:
+			# Retention policy does not apply to Manual added torrents with already existent files
+			continue
+		elif Deliverstatus == None:
+			#Torrent has no Case Selected, you can stablish a retention policy for this torrents.
+			continue
+		elif Deliverstatus == 'Delivered':
+			# This torrents have been delivered to another location. You can delete them due to a retention policy defined here:
+			if trr.isFinished or (trr.status in ['seeding','stopped'] and trr.progress >= 100 and now > (trr.date_done + MaxseedingDays_dt)):
+				logging.info ('Torrent %s in DB is going to be deleted due to a retention policy: (%s)'%(DBid, trr.name))
+				SpoolUserMessages(con, 10, TRid = DBid)
+				dellist.append ((trr.id, DBid))
+				'''
+				print ('trr.isFinished:',trr.isFinished)
+				print ('trr.date_active:',trr.date_active)
+				print ('trr.date_done:',trr.date_done)
+				print ('trr.ratio:',trr.ratio)
+				print ('trr.seed_ratio_limit:',trr.seed_ratio_limit)
+				print ('Is going to be deleted on:',trr.date_done + MaxseedingDays_dt)
+				print (now > (trr.date_done + MaxseedingDays_dt))
+				print (trr.doneDate)
+				print (trr.id)
+				print ('\n')
+				'''
+	dellist.remove('')
+	for trr_id, DBid in dellist:
+		tc.remove_torrent(trr_id, delete_data=True, timeout=None)
+		logging.info ('\tTorrent %s in DB has been deleted from Transmission Service.'%DBid)
+		con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
+	con.commit()
+	con.close()
+	return
 
 
 
@@ -1286,6 +1356,7 @@ if __name__ == '__main__':
 			TrackDeletedTorrents(tc)
 			TrackFinishedTorrents (tc)
 			Retrievefiles(tc)
+			RetentionPService(tc)
 		MsgService ()
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
