@@ -194,9 +194,9 @@ TRmachine = TRWorkflowconfig.TRmachine
 TRuser = TRWorkflowconfig.TRuser
 TRpassword = TRWorkflowconfig.TRpassword
 MaxseedingDays = TRWorkflowconfig.MaxseedingDays
+mail_topic_recipients = TRWorkflowconfig.mail_topic_recipients
 
-
-minmatch = 15
+minmatch = 15  # Points to match files and cover names
 
 Msgtimming = {
 	'low': datetime.timedelta(seconds=3600),
@@ -757,12 +757,15 @@ def SpoolUserMessages(con, Topic, TRid=0):
 	con.execute ("INSERT INTO msg_inputs (status, topic, trid) VALUES (?,?,?)", params)
 	return
 
-def STmail (topic, msg):
+def STmail (title, msg, topic=0):
 	msgfrom = TRWorkflowconfig.mailsender
-	msgto = TRWorkflowconfig.mail_recipients
-	msgsubject = topic
+	msgto = ":".join(getrecipients(topic, mail_topic_recipients))
+	msgsubject = title
 	textfile = msg
-	emailme(msgfrom, msgsubject, msgto, textfile, msgcc="")
+	if msgto != '':
+		emailme(msgfrom, msgsubject, msgto, textfile, msgcc="")
+	else:
+		logging.info('No senders were configured to send this e-mails with topic number %s'%topic)
 	return
 
 def MsgService():
@@ -791,7 +794,7 @@ def mailRPolicytorrents(con):
 
 	""" %(MaxseedingDays,Trid,Trname, Dwfolder)
 		msg += filelisttxt
-		STmail ('Torrent Deleted: ' + Trname, msg)
+		STmail ('Torrent Deleted: ' + Trname, msg, topic=10)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
@@ -805,7 +808,7 @@ def mailaddedtorrents(con):
 	%s
 	
 	It will be tracked as nº:%s in Database.""" %(Trname,Trid)
-		STmail ('Added to Transmission ' + Trname, msg)
+		STmail ('Added to Transmission ' + Trname, msg, topic=1)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
@@ -822,7 +825,7 @@ def mailStartedSevice(con):
 		
 		""" %(msgtrrlst)
 
-		STmail ('Transmission Service Started ', msg)
+		STmail ('Transmission Service Started ', msg, topic=9)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE topic = 9")
 	con.commit()
 	return
@@ -849,8 +852,7 @@ def mailcomplettedtorrents(con):
 			filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 			msgbody += filelisttxt + "\n"
 			msgbody += nonwantedfilestxt + "\n"
-			# msgbody += gettorrentstatisticsTXT ()
-			STmail ('Torrent completted and delivered: '+ Trname ,msgbody)
+			STmail ('Torrent completted and delivered: '+ Trname ,msgbody, topic=7)
 		else:
 			msgbody = "A torrent has been Downloaded: \n\
 				Torrent Name: %s \n\
@@ -861,10 +863,21 @@ def mailcomplettedtorrents(con):
 			filelisttxt = getfileoriginlistTXT (con,Trid)
 			msgbody += filelisttxt + "\n"
 			# msgbody += gettorrentstatisticsTXT ()
-			STmail ('Torrent is completted: '+ Trname ,msgbody)
+			STmail ('Torrent is completted: '+ Trname ,msgbody, topic=7)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = %s"%Nreg)
 	con.commit()
 	return
+
+def getrecipients(topic, mail_topic_recipients):
+	''' Given a topic number, return a set of recipients.
+	mail_topic_recipients is defined as a dictionay, one or more e-mails as key, and a number-set 
+	with associated topic numbers
+	DEFTEST OK!!	'''
+	recipients = set()
+	for entry in mail_topic_recipients:
+		if topic in mail_topic_recipients[entry]:
+			recipients.add (entry)
+	return recipients
 
 def mailpreasignedtorrents (con):
 	''' e-mail preasigned torrents, this is to inform what is going to download and
@@ -886,7 +899,7 @@ def mailpreasignedtorrents (con):
 		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 		msgbody += filelisttxt + "\n"
 		msgbody += nonwantedfilestxt + "\n"
-		STmail ('Predelivered status for: '+ Trname ,msgbody)
+		STmail ('Predelivered status for: '+ Trname ,msgbody, topic = 6 )
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return

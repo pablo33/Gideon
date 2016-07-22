@@ -17,12 +17,29 @@ Hotfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .tor
 mailmachine = 'mail.gmx.com'		# your server machine
 mailsender = 'youremail@here.com'	# your sender email account
 mailpassw = 'yourPa$$wordhere'		# your email password.
-mail_recipients = 'recipientsemail@here.com'	# Recipients to send info: you can add as many as you want, write them into one string and separated by semi-colons (;). 
 
-# Transmission norifications
-TR_DW_DIRECTORY="/your/full/path/to/transmission/download/dir" # Path where transmission stores downloaded files.
-TR_MAILTO="peopleto@here.com" # one or more recipients in "To" separated by semi colons (;)
-TR_MAILTOCC="peopletocc@here.com" # one or more recipients in "CC" separated by semi colons (;)
+# Notifications config:
+# Recipients to send info: you can add as many as you want and assign different topics to e-mail them,
+# you can write more than one e-mail recipient into one string by separating them by colons (:)
+# Asociate msg topics here by number. (note that only topics marked OK will are enabled)
+
+mail_topic_recipients = {
+	'adminemail@gmx.es' 		: set(range (1,11)),
+	'user1@email.com' : set([7,]),
+	'user2@email.com' : set([6,7,10,]),	
+	}
+
+#Msgtopics:
+#OK	1 : 'Added incoming torrent to process',
+#	2 : 'Torrent has been added to Transmission for downloading',
+#	3 : 'Torrent has been manually added',
+#	4 : 'Torrent has been manually deleted',
+#	5 : 'Torrent is completed',
+#OK	6 : 'List of files has been retrieved and preasigned',
+#OK	7 : 'Files have been processed and copied into destination',
+#	8 : 'No Case was found for this Torrent',
+#OK	9 : 'Transmission has been launched',
+#OK	10:	'Torrent Deleted due to a retention Policy',
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "INFO"

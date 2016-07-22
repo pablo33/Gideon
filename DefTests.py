@@ -192,6 +192,26 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 		filestructureresult = FetchFileSet (self.testfolder)
 		self.assertEqual(known_filevalues,filestructureresult)
 
+class getrecipients (unittest.TestCase):
+	""" given a topic, return a string of associated recipients """
+	mail_topic_recipients = {
+	'someonemail@gmx.es' 		: set([1,2,3,4,5,6,7,8,9,10]),
+	'manme.xx33@gmail.com' : set([7,]),
+	'one@gmail.com:another@hotmail.com' : set([3,]),
+	}
+
+	known_values = 	(
+		(1,	set(['someonemail@gmx.es'])),
+		(7,	set(['someonemail@gmx.es','manme.xx33@gmail.com'])),
+		(3,	set(['someonemail@gmx.es','one@gmail.com:another@hotmail.com'])),
+		(0,	set()),
+		)
+
+	def test_getrecipients(self):
+		for topic, target in self.known_values:
+			result = MD.getrecipients (topic, self.mail_topic_recipients)
+			self.assertEqual (target, result)	
+
 class Relatedcover (unittest.TestCase):
 	'''Return the possiblecovers for an item '''
 	known_values = (
