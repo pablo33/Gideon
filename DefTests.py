@@ -193,7 +193,7 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 		self.assertEqual(known_filevalues,filestructureresult)
 
 class getrecipients (unittest.TestCase):
-	""" given a topic, return a string of associated recipients """
+	""" given a topic, return a set of associated recipients """
 	mail_topic_recipients = {
 	'someonemail@gmx.es' 		: set([1,2,3,4,5,6,7,8,9,10]),
 	'manme.xx33@gmail.com' : set([7,]),
@@ -275,14 +275,16 @@ class getappstatus (unittest.TestCase):
 	""" tests is an application is running
 	and gets a list of PIDs """
 	known_values = (
-		("transmission-gtkX", False),
-		("python3", True),
+		(["transmission-gtkX"], False),
+		(["python3"], True),
+		(["transmission-gtkX","python3"], True),
+		(["transmission-gtkX","pythonX"], False),		
 		)
 
 	def test_getappstatus (self):
-		for process, PIDs in self.known_values:
+		for process, status in self.known_values:
 			result = MD.getappstatus (process)
-			self.assertEqual (PIDs, result)
+			self.assertEqual (status, result)
 
 class addmatrix (unittest.TestCase):
 	""" Adds +1 on matrix [0]

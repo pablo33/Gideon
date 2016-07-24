@@ -197,6 +197,8 @@ MaxseedingDays = TRWorkflowconfig.MaxseedingDays
 mail_topic_recipients = TRWorkflowconfig.mail_topic_recipients
 
 minmatch = 15  # Points to match files and cover names
+players = ['mplayer','vlc']
+
 
 Msgtimming = {
 	'low': datetime.timedelta(seconds=3600),
@@ -567,7 +569,6 @@ def get_pid (app):
 	try:
 		pids = check_output(["pidof", app ])
 	except:
-		#print (type(pids))
 		logging.debug('no %s app is currently running'%(app))
 		return None
 	pidlist = pids.split()
@@ -576,10 +577,13 @@ def get_pid (app):
 	return pidlist
 
 def getappstatus (app):
-	''' DefTest >> OK'''
-	if get_pid (app) == None:
-		return False
-	return True
+	''' Given a list of names's process, it checks if there is any instance running
+		DefTest >> OK'''
+	state = False
+	for entry in app:
+		if get_pid (entry) != None:
+			state = True
+	return state
 
 def extfilemove(origin,dest,extensions=[]):
 	''' This function scans files that matches desired extensions and
@@ -664,7 +668,7 @@ def launchTR (cmdline, seconds=0):
 	return
 
 def connectTR():
-	if not getappstatus('transmission-gtk'):
+	if not getappstatus(['transmission-gtk']):
 		launchTR (cmd, 5)
 	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
 	logging.debug('A Transmission rpc session has started')
@@ -1158,7 +1162,7 @@ def ProcessCompletedTorrents():
 def StartTRService ():
 	con = sqlite3.connect (dbpath)
 	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added'").fetchone()[0]
-	if Nactivetorrents > 0 and not getappstatus('transmission-gtk'):
+	if Nactivetorrents > 0 and not getappstatus(['transmission-gtk']):
 		launchTR (cmd, 25)
 		SpoolUserMessages(con, 9, 0)
 	con.commit()
@@ -1365,9 +1369,13 @@ if __name__ == '__main__':
 			Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 			addinputs()
 			CoverService (Fmovie_Folder, Availablecoversfd, Hotfolder+"Videodest.ini")
+
 		SendtoTransmission ()
-		ProcessCompletedTorrents ()
-		if getappstatus('transmission-gtk'):
+
+		if getappstatus (['mplayer','vlc']) == False:
+			ProcessCompletedTorrents ()
+
+		if getappstatus(['transmission-gtk']):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
 			TrackDeletedTorrents(tc)
