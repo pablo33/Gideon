@@ -31,7 +31,7 @@ This programs needs to run the following programs in your system:
 
  ** Notes: **  
 
-Remember to set up _TRWorkflowconfig.py_ first with your paths and preferences.  
+Remember to set up _GideonConfig.py_ first with your paths and preferences.  
 Python3 is required to run the code.  
 Tested on Ubuntu, it may not work properly in windows  
 For the moment there is not a guide to setup this program, so ask me if you want to download and run it.  
