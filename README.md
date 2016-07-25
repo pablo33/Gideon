@@ -1,4 +1,4 @@
-# TRWorkflow
+# Gideon
 -------------
 
 This program aims to automate the process of renaming, classifying, copying and taking care of downloaded torrents, specially movies.	
