@@ -748,15 +748,11 @@ def TrackFinishedTorrents (tc):
 	con.commit()
 	con.close()
 
-def SpoolUserMessages(con, Topic, TRid=0):
+def SpoolUserMessages(con, Topic, TRid=None):
 	''' Insert an outgoing message into Data base,
 		it assign a date of message release, so many messages can be send a time into one e-mail
 		'''
-	params = (
-		'Ready',
-		Topic,
-		TRid
-		)
+	params = ('Ready', Topic, TRid)
 	con.execute ("INSERT INTO msg_inputs (status, topic, trid) VALUES (?,?,?)", params)
 	return
 
@@ -1163,7 +1159,7 @@ def StartTRService ():
 	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added'").fetchone()[0]
 	if Nactivetorrents > 0 and not getappstatus(['transmission-gtk']):
 		launchTR (cmd, 25)
-		SpoolUserMessages(con, 9, 0)
+		SpoolUserMessages(con, 9, None)
 	con.commit()
 	con.close()
 	return
@@ -1270,8 +1266,7 @@ def coverperformer(filemovieset,Availablecoversfd):
 			if Trid != None:
 				logging.info('A cover was assigned to a torrent file-movie: Trid=%s'%Trid)
 				Trid = Trid[0]
-			params = Trid, 11
-			con.execute ("INSERT INTO msg_inputs (trid, topic) VALUES (?,?)", params)
+			SpoolUserMessages(con, 11, Trid)
 			con.commit()
 
 	return
