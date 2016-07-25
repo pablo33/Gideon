@@ -40,6 +40,8 @@ mail_topic_recipients = {
 #	8 : 'No Case was found for this Torrent',
 #OK	9 : 'Transmission has been launched',
 #OK	10:	'Torrent Deleted due to a retention Policy',
+#	11:	'Cover assigned to a moviefile',
+
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "INFO"

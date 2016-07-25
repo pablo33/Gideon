@@ -216,6 +216,7 @@ Msgtopics = {
 	8 : 'No Case was found for this Torrent',
 	9 : 'Transmission has been launched',
 	10:	'Torrent Deleted due to a retention Policy',
+	11:	'Cover assigned to a moviefile',
 }
 
 Codemimes = {
@@ -1266,6 +1267,15 @@ def coverperformer(filemovieset,Availablecoversfd):
 			dest = os.path.join(os.path.splitext(entry)[0]+os.path.splitext(slcover)[1])
 			shutil.move(origin,dest)
 			logging.debug("\t\tfrom %s >> %s"%(origin,dest))
+			con = sqlite3.connect (dbpath)
+			Trid = con.execute ("SELECT trid from files WHERE destfile = '%s' and status = 'Copied' ORDER BY added_date DESC"%entry).fetchone()
+			if Trid != None:
+				logging.info('A cover was assigned to a torrent file-movie: Trid=%s'%Trid)
+				Trid = Trid[0]
+			params = Trid, 11
+			con.execute ("INSERT INTO msg_inputs (trid, topic) VALUES (?,?)", params)
+			con.commit()
+
 	return
 
 def lsdirectorytree(directory = (os.getenv('HOME'))):
