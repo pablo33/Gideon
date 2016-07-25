@@ -16,9 +16,9 @@
 	It can process this queue of videofiles and recompress automatically to a given codec without loosing its final deliver path. Youl'l need avidemux to do that.
 	It can send e-mails to notify some processes. You'l need to config your mail account.
 
-	Logs are stored in a single TRworkflow.log file.
+	Logs are stored in a single Gideon.log file.
 
-	You need to set up TRWorkflowconfig.py first. o run this program for the first time.
+	You need to set up GideonConfig.py first. o run this program for the first time.
 	'''
 
 # Standard library module import
@@ -135,14 +135,15 @@ tohour = ":".join([str(now.hour),str(now.minute)])
 
 # (1.2) Getting user folder to place log files, generating paths....
 
-userpath = os.path.join(os.getenv('HOME'),".TRWorkflow")
-userconfig = os.path.join(userpath,"TRWorkflowconfig.py")
+userpath = os.path.join(os.getenv('HOME'),".Gideon")
+userconfig = os.path.join(userpath,"GideonConfig.py")
 dbpath = os.path.join(userpath,"DB.sqlite3")
 Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
 Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
 
-logpath =  os.path.join(userpath,"logs")
-logging_file = os.path.join(logpath,"TRworkflow.log")
+#logpath =  os.path.join(userpath,"logs")
+logpath = userpath
+logging_file = os.path.join(logpath,"GideonLogFile.log")
 
 makepaths ([userpath, logpath, Torrentinbox, Availablecoversfd])
 
@@ -152,25 +153,25 @@ if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
 	# Own library module import and user config file
-	import TRWorkflowconfig
+	import GideonConfig
 	import namefilmcleaner, readini
 else:
 	# initilizing user's default config file.
 	print ("There isn't an user config file: " + userconfig)
-	if itemcheck ("TRWorkflowconfig(generic).py") != "file":
-		print ("Please, run TRWorkflow.py for the first time from its own intalled dir. ")
+	if itemcheck ("GideonConfig(generic).py") != "file":
+		print ("Please, run Gideon.py for the first time from its own intalled dir. ")
 		exit()
 	else:
-		copyfile ("TRWorkflowconfig(generic).py",userconfig,"c")
+		copyfile ("GideonConfig(generic).py",userconfig,"c")
 		print ("An user config file has been created: " + userconfig)
 		print ("Please customize by yourself before run this software again")
 		print ("This software is going to try to open with a text editor.")
 		os.system ("gedit "+userconfig)
 		exit()
 
-print ("Loginlevel:", TRWorkflowconfig.loginlevel)
+print ("Loginlevel:", GideonConfig.loginlevel)
 logging.basicConfig(
-    level=TRWorkflowconfig.loginlevel,
+    level=GideonConfig.loginlevel,
     format='%(asctime)s : %(levelname)s : %(message)s',
     filename = logging_file,
     filemode = 'a', # uncomment this to overwrite log file.
@@ -184,18 +185,18 @@ logging.debug("======================================================")
 
 
 # (1.5) Setting main variables
-Fmovie_Folder = addslash(TRWorkflowconfig.Fmovie_Folder)  # Default place to store movies
-Faudio_Folder = addslash(TRWorkflowconfig.Faudio_Folder)  # Default place to store music
-Hotfolder = addslash (TRWorkflowconfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
+Fmovie_Folder = addslash(GideonConfig.Fmovie_Folder)  # Default place to store movies
+Faudio_Folder = addslash(GideonConfig.Faudio_Folder)  # Default place to store music
+Hotfolder = addslash (GideonConfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
 
-s =  TRWorkflowconfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
-cmd  = TRWorkflowconfig.cmd # Command line to lauch transmission
-lsdy = TRWorkflowconfig.lsdy # List of hot folders to scan for active or new file-torrents
-TRmachine = TRWorkflowconfig.TRmachine
-TRuser = TRWorkflowconfig.TRuser
-TRpassword = TRWorkflowconfig.TRpassword
-MaxseedingDays = TRWorkflowconfig.MaxseedingDays
-mail_topic_recipients = TRWorkflowconfig.mail_topic_recipients
+s =  GideonConfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
+cmd  = GideonConfig.cmd # Command line to lauch transmission
+lsdy = GideonConfig.lsdy # List of hot folders to scan for active or new file-torrents
+TRmachine = GideonConfig.TRmachine
+TRuser = GideonConfig.TRuser
+TRpassword = GideonConfig.TRpassword
+MaxseedingDays = GideonConfig.MaxseedingDays
+mail_topic_recipients = GideonConfig.mail_topic_recipients
 
 minmatch = 15  # Points to match files and cover names
 players = ['mplayer','vlc']
@@ -235,7 +236,7 @@ startVideodestINIfile = """
 #	
 #	define a destination with some words to automatically store file-movies to the right place.
 #	
-#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at TRWorkflowconfig.py))
+#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at GideonConfig.py))
 #	
 
 __version__ = 1.1
@@ -247,7 +248,7 @@ alias=Sinfantiles   ,    /Series infantiles/
 
 # Define destinations:
 #	guess a title to match the filemovie then,
-#   define a relative path to store it (starting at default "filemovie folder" defined in TRWorkflowconfig.py file) 
+#   define a relative path to store it (starting at default "filemovie folder" defined in GideonConfig.py file) 
 #	(you can use alias enclosed in <....> to replace text, but remember that you must define them first)
 #  Those are examples, please replace them and follow the structure.
 #  Please, do not include comments at the end of alias or dest lines. This is not an python file.
@@ -352,20 +353,20 @@ def MailMovieInfo(moviefile,mail):
 		input: filemovie, recipient e-mail
 		output: 
 		"""
-	global TRWorkflowconfig
+	global GideonConfig
 	
 	send = 0 # We put send flag > off
 	mydict, info_file = Extractcmovieinfo(moviefile)
 	# we add a Megapixel parameter
 	mydict ['MP'] = int(mydict ['ID_VIDEO_WIDTH']) * int(mydict ['ID_VIDEO_HEIGHT']) / 1000000
-	alerts = set (a for a in TRWorkflowconfig.alert_values)
+	alerts = set (a for a in GideonConfig.alert_values)
 	data = set (a for a in mydict)
 	union = alerts & data
 	if len (union) > 0:
 		f = open (info_file,"a")
 		f.write("===========  ALERTS ===========\n\n")
 		for a in union:
-			if mydict[a] == TRWorkflowconfig.alert_values[a]:
+			if mydict[a] == GideonConfig.alert_values[a]:
 				f.write(a+"="+mydict[a]+"\n")
 				send = 1
 		f.write('MP='+str(mydict['MP'])+'\n')
@@ -376,9 +377,9 @@ def MailMovieInfo(moviefile,mail):
 		send = 0
 
 	# Sending alerts
-	if send == 1 or TRWorkflowconfig.send_info_mail == "always":
+	if send == 1 or GideonConfig.send_info_mail == "always":
 		logging.debug("Sending alert mail")
-		emailme ( TRWorkflowconfig.mailsender, 'Alert notification in %s' %(os.path.basename(moviefile)), mail, info_file)
+		emailme ( GideonConfig.mailsender, 'Alert notification in %s' %(os.path.basename(moviefile)), mail, info_file)
 	return send
 
 def Extractcmovieinfo(filename):
@@ -512,7 +513,7 @@ def fileclasify (filename):
 		output: 'other' (default), 'audio', 'video', 'movie', 'compressed', 'image'
 		
 		DefTest OK"""
-	global TRWorkflowconfig
+	global GideonConfig
 	ext = os.path.splitext(filename)
 	if str(ext[1]) in ['','.']:
 		print ('>>>>',filename)
@@ -520,11 +521,11 @@ def fileclasify (filename):
 		return 'other'
 	extwd = str (ext [1])
 	extwd = extwd [1:]
-	if extwd in TRWorkflowconfig.ext['video']: return 'video'
-	elif extwd in TRWorkflowconfig.ext['audio']: return 'audio'
-	elif extwd in TRWorkflowconfig.ext['compressed']: return 'compressed'
-	elif extwd in TRWorkflowconfig.ext['notwanted']: return 'notwanted'
-	elif extwd in TRWorkflowconfig.ext['image']: return 'image'
+	if extwd in GideonConfig.ext['video']: return 'video'
+	elif extwd in GideonConfig.ext['audio']: return 'audio'
+	elif extwd in GideonConfig.ext['compressed']: return 'compressed'
+	elif extwd in GideonConfig.ext['notwanted']: return 'notwanted'
+	elif extwd in GideonConfig.ext['image']: return 'image'
 	return 'other'
 
 def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=''):
@@ -536,7 +537,7 @@ def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=''):
 			textfile = path to textfile, this is the body of the message. You can pass a string anyway,
 		'''
 	
-	global TRWorkflowconfig
+	global GideonConfig
 	
 	# Open a plain text file for reading.
 	if itemcheck (textfile) == "file":
@@ -553,9 +554,9 @@ def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=''):
 	msg['Cc'] = msgcc
 
 	# Send the message via our own SMTP server.
-	s = smtplib.SMTP(TRWorkflowconfig.mailmachine)
+	s = smtplib.SMTP(GideonConfig.mailmachine)
 	s.starttls()
-	s.login( TRWorkflowconfig.mailsender, TRWorkflowconfig.mailpassw) # your user account and password
+	s.login( GideonConfig.mailsender, GideonConfig.mailpassw) # your user account and password
 	s.send_message(msg)
 	s.quit( )
 	return
@@ -600,9 +601,9 @@ def extfilemove(origin,dest,extensions=[]):
 		DefTest >> OK '''
 	# Checking folders:
 	if itemcheck (origin) in (["","file"]):
-		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Hotfolder to a valid path")
+		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check GideonConfig and set up Hotfolder to a valid path")
 	if itemcheck (dest) in (["","file"]):
-		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check TRWorkflowconfig and set up Torrentinbox to a valid path")
+		logging.critical("Path doesn't exist or it is already a file, can't continue: Please, check GideonConfig and set up Torrentinbox to a valid path")
 	origin, dest = addslash (origin), addslash (dest)
 	items = []
 	newitems = [origin + i for i in os.listdir (origin)]
@@ -630,7 +631,7 @@ def Dropfd(destfolder, lsextensions):
 	''' move .torrents and covers from one destination to another.
 		Pej. after setup your hotfolder, you can place there .torrent files or covers to 
 		Start processing downloads or covers to have in mind.
-		.torrent files and covers goes to $HOME/.TRWorkflow/Torrentinbox folder
+		.torrent files and covers goes to $HOME/.Gideon/Torrentinbox folder
 		'''
 	movelist = extfilemove (Hotfolder, destfolder, lsextensions)
 	if movelist == []:
@@ -695,7 +696,7 @@ def TrackManualTorrents(tc):
 		add to DB those which are unknown.
 		Those torrents are 'untracked torrents', and usually has been added
 		directly to transmission by the user.
-		With this function, TRWorkflow will track them.
+		With this function, Gideon will track them.
 		'''
 	trobjlst = tc.get_torrents()
 	if len (trobjlst) > 0:
@@ -760,7 +761,7 @@ def SpoolUserMessages(con, Topic, TRid=0):
 	return
 
 def STmail (title, msg, topic=0):
-	msgfrom = TRWorkflowconfig.mailsender
+	msgfrom = GideonConfig.mailsender
 	msgto = ":".join(getrecipients(topic, mail_topic_recipients))
 	msgsubject = title
 	textfile = msg
@@ -983,7 +984,7 @@ def Retrievefiles (tc):
 	con.close()
 
 def ProcessSecuence(con, Id, Psecuence):
-	global TRWorkflowconfig
+	global GideonConfig
 	for process in Psecuence:
 		print ("\t",process,'...........')
 		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id)

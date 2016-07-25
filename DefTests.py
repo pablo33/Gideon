@@ -2,7 +2,7 @@
 # Test Configuration
 import unittest, os, shutil
 from glob import glob
-import TRWorkflowV2
+import Gideon
 import datetime
 import namefilmcleaner
 
@@ -61,8 +61,8 @@ def FetchFileSet (path):
 	return fileset
 
 #####TESTS########
-MD = TRWorkflowV2
-modulename = 'TRWorkflowV2.py'
+MD = Gideon
+modulename = 'Gideon.py'
 
 class TestPack1 (unittest.TestCase):
 	''' processing TestPack1'''

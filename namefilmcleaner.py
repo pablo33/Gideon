@@ -6,7 +6,7 @@
 	or add more configurations '''
 
 # module import, normal mode
-import os, logging, re, TRWorkflowconfig
+import os, logging, re, GideonConfig
 
 
 # sys.path.append ('/home/pablo/python3')
@@ -41,7 +41,7 @@ def trimbetween(a, lim):
 			word = a[st+1:end]
 			trim = 1
 			# If there is a Chapter id. we do not want to loose it >> so trim = 0
-			for i in TRWorkflowconfig.chapteridentifier :
+			for i in GideonConfig.chapteridentifier :
 				if word.find(i) != -1 or word == i :
 					a = a[0:st]+"-"+word+"-"+a[end+1:]
 					trim = 0
@@ -200,7 +200,7 @@ def clearfilename(filename):
 	#3 Replacing prohibited words.
 	
 	while True:
-		filenametmp2 = prohibitedwords (filenametmp,TRWorkflowconfig.prohibited_words)
+		filenametmp2 = prohibitedwords (filenametmp,GideonConfig.prohibited_words)
 		if filenametmp == filenametmp2 :
 			break
 		filenametmp = filenametmp2
