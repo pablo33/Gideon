@@ -27,13 +27,13 @@ It can detect chapter-numbers at the end of the file/s, and rename them as nxnn 
 This programs needs to run the following programs in your system:  
 
  * Transmission, with rpc API for python3
- * Dropbox (optional)
+ * Dropbox, Drive, or some filesync desktop client  (optional)
 
  ** Notes: **  
 
 Remember to set up _GideonConfig.py_ first with your paths and preferences.  
 Python3 is required to run the code.  
-Tested on Ubuntu, it may not work properly in windows  
+Tested on Ubuntu, it is sure that it will not work properly in windows  
 For the moment there is not a guide to setup this program, so ask me if you want to download and run it.  
 
 Obviously this software comes without any guaranty, so use by your own risk.
