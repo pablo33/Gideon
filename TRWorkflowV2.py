@@ -151,6 +151,7 @@ makepaths ([userpath, logpath, Torrentinbox, Availablecoversfd])
 if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
+	# Own library module import and user config file
 	import TRWorkflowconfig
 	import namefilmcleaner, readini
 else:
@@ -290,9 +291,6 @@ else:
 	cursor = con.cursor() # object to manage queries
 
 	# 0.1) Setup DB
-	#  For Incoming torrents and pictures, it registers the date of inclusion and state of referenced file:
-	#	ready: file is ready to be used.
-	#	deleted: file has been deleted.
 	cursor.execute ("CREATE TABLE tw_inputs (\
 		id INTEGER PRIMARY KEY AUTOINCREMENT,\
 		fullfilepath char NOT NULL ,\
@@ -412,10 +410,9 @@ def removeitems(items):
 		logging.info("Deleted:"+a)
 
 # ========================================
-# ===  PROCESING A TRANSMISSION ITEM ==========================
+# ===  Def Definition ====================
 # ========================================
 
-# < used / reviewed > ----------------------------------------------------------------------------
 def copyfile(origin,dest,mode="c"):
 	""" Copy or moves file to another place
 		input: file origin (full/relative patn and name)
