@@ -1223,6 +1223,8 @@ def MsgService():
 	mailpreasignedtorrents (con)
 	mailcomplettedtorrents (con)
 	mailRPolicytorrents (con)
+	#print (getactivitylogTXT(con,7))
+
 	con.close()
 	return
 
@@ -1372,12 +1374,62 @@ def getfiledeliverlistTXT (con,Trid):
 
 def getfileoriginlistTXT (con,Trid):
 	Dwfolder = con.execute ("SELECT dwfolder from tw_inputs WHERE id = %s"%Trid).fetchone()[0]
+	if Dwfolder == None:
+		Dwfolder =''
 	Dwfolder = addslash(Dwfolder)
 	cursor2 = con.execute ("SELECT wanted, size, originalfile FROM files WHERE trid = %s ORDER BY originalfile "%Trid)
 	filelisttxt = "List of files: \n"
 	for entry in cursor2:
 		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+str(entry[1])+")\n"
 	return filelisttxt
+
+def getactivitylogTXT (con,Trid):
+	TRname, Fullfilepath, Filetype, Dwfolder, Filesretrieved = con.execute ("SELECT trname, fullfilepath, filetype, dwfolder, filesretrieved FROM tw_inputs WHERE id = %s"%Trid).fetchone()
+	Caso = con.execute("SELECT Caso FROM pattern WHERE trid = %s"%Trid).fetchone()[0]
+	cursor = con.execute ("SELECT added_date, topic FROM msg_inputs WHERE trid = %s ORDER BY added_date ASC"%Trid)
+	activityTXT = 'Activity for %s:'%(TRname) + '\n'
+	for date, topic in cursor:
+		if topic == 1:
+			txt = "%s\tTorrent was registered to be processed: torrent file name:%s"%(date, os.path.basename(Fullfilepath))
+			activityTXT += txt + '\n'
+		elif topic == 2:
+			txt = "%s\tTorrent was added to Transmission for downloading."%date
+			activityTXT += txt + '\n'
+		elif topic == 3:
+			txt = "%s\tTorrent was manually added to Transmission: MagnetLink: %s"%(date,Fullfilepath)
+			activityTXT += txt + '\n'
+		elif topic == 4:
+			txt = "%s\tTorrent was manually deleted."%date
+			activityTXT += txt + '\n'
+		elif topic == 5:
+			txt = "%s\tTorrent completed downloading."%date
+			txt += "\tDownloaded folder: %s"%Dwfolder
+			activityTXT += txt + '\n'
+		elif topic == 6:
+			txt = "%s\tTorrent was checked and preasigned:"%date
+			txt += "\t Content of torrent (%s) files:\n"%Filesretrieved
+			txt += getfileoriginlistTXT (con, Trid)
+			activityTXT += txt + '\n'
+		elif topic == 7:
+			txt = "%s\tTorrent was processed and a file copying was performed:\n"%date
+			txt += "\tCase %s: (%s).\n"%(Caso, Casos[Caso])
+			txt += "\tProcessed files:\n"
+			filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
+			txt += filelisttxt + "\n"
+			txt += nonwantedfilestxt + "\n"
+			activityTXT += txt + '\n'
+		elif topic == 8:
+			txt = "%s\tNo case was found:"%date
+			txt += "\t Orifinal content of torrent (%s) files:\n"%Filesretrieved
+			txt += getfileoriginlistTXT (con, Trid)
+			activityTXT += txt + '\n'
+		elif topic == 10:
+			txt = "%s\tTorrent was deleted due to configured retiention policy:"%date
+			activityTXT += txt + '\n'
+		elif topic == 11:
+			txt = "%s\tA movie file of this torrent was assigned a cover."%date
+			activityTXT += txt + '\n'
+	return activityTXT
 
 def Retrievefiles (tc):
 	con = sqlite3.connect (dbpath)
