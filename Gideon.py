@@ -1074,7 +1074,7 @@ def extfilemove(origin,dest,extensions=[]):
 		# new cover's name will be cleaned for better procesing
 		cleanedname = clearfilename (basename)
 		itemdest =  dest+cleanedname+extension
-		while not copyfile (i,itemdest,mode="m"):
+		while copyfile (i,itemdest,mode="m") == 'Exists':
 			itemdest = nextfilenumber (itemdest)
 		moveditems.append (itemdest)
 	return moveditems
