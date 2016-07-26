@@ -279,9 +279,8 @@ makepaths ([userpath, logpath, Torrentinbox, Availablecoversfd])
 if itemcheck (userconfig) == "file":
 	print ("Loading user configuration....")
 	sys.path.append(userpath)
-	# Own library module import and user config file
+	# Import user config file
 	import GideonConfig
-	import namefilmcleaner, readini
 else:
 	# initilizing user's default config file.
 	print ("There isn't an user config file: " + userconfig)
@@ -489,7 +488,7 @@ def Extractcmovieinfo(filename):
 	logging.debug("Storing movie information at:"+ info_file)
 	# We use mplayer to obtain movie information, be sure you have it istalled in your system.
 	os.system("mplayer -vo null -ao null -identify -frames 0 '"+filename+"' > '"+info_file+"'")
-	mydict = readini.readparameters(info_file,"=")
+	mydict = readparameters(info_file,"=")
 	return mydict, info_file
 
 def removeitems(items):
@@ -507,6 +506,366 @@ def removeitems(items):
 # ========================================
 # ===  Def Definition ====================
 # ========================================
+
+# Readini Functions ----------------------
+
+def strip(string):
+	""" input a string, and this script will trim start and end spaces and/or tabs.
+		"""
+	while True:
+		go = 1
+		if len (string) > 0:
+			if string[0] == " " or string[-1] == " ":
+				string = string.strip()
+				go = 0
+				continue
+			if string[0] == "\t":
+				string = string [1:]
+				go = 0
+				continue
+			if string[-1] == "\t":
+				string = string [:-1]
+				go = 0
+				continue
+		if go == 1:
+			break
+	return string
+
+def split(line,var):
+	""" Split a string at first $var encountered
+
+		If not any found, returs line, ''
+		"""
+	lt1, lt2  = line, ""
+	at = line.find(var)
+	if at != -1:
+		lt1 = line [:at]
+		lt2 = line[at+1:]
+	return lt1, lt2
+
+def readdict(inifile,var,sep):
+	""" This function reads lines from an .ini file and gets parameters 
+		to 	return a dictionary
+
+		to read an ini-file like that:
+			alias=word1,result1
+			alias=word2,result2
+
+		you should call this function as:
+			readdict("/pathtofile/file.ini","alias",",")
+
+	input:
+		file (path)
+		var to read
+		sep identifier
+	output:
+		a dictionary
+		"""	
+	mydict = {'':''}
+	with open(inifile,"r") as f:
+		for line in f:
+			a,b = split(line[:-1],"=")
+			if strip(a) == var:
+				logging.debug("Found "+var+" definition line")
+				logging.debug("Splitting: "+line[:-1])
+				lt1, lt2 = split(b,sep)				
+				#Clean empty starting and end spaces
+				lt1, lt2 = strip(lt1), strip(lt2)
+				#adding to dict
+				mydict [lt1] = lt2
+	# cleaning empty entry
+	mydict.pop("",None)
+	return mydict
+
+def readparameters(inifile,param="="):
+	"""This function reads parameters from a .ini and returns a dictionary
+		name of parameter : value
+		"""
+	mydict = {'':''}
+	with open(inifile,"r") as f:
+		for line in f:
+			if param in line:
+				a,b = split(line[:-1],"=")
+				logging.debug("Found: %s %s %s" %(a,param,b))
+				mydict [strip(a)] = strip(b)
+	# cleaning empty entry
+	mydict.pop("",None)
+	return mydict
+
+def listtags(inifile,var,sep):
+	""" This function reads lines from an .ini file and gets parameters 
+		to 	return a list of the same Tag(alias) values.
+
+		to read an ini-file like that:
+			alias=string1
+			alias=string2
+			aliasX=string 3
+
+		you should call this function as:
+			readdict("/pathtofile/file.ini","alias","=")
+
+		and you'll get:
+			['string1','string2']
+			# but not 'string3' so it is another alias.
+
+	input:
+		file (path)
+		var to read
+		sep identifier
+	output:
+		a list of sttrings
+		"""	
+	mylist = ['']
+	with open(inifile,"r") as f:
+		for line in f:
+			a,b = split(line[:-1],sep)
+			if strip(a) == var:
+				#logging.debug("Found: "+line)
+				#Cleaning and adding to list
+				a1 , b1 = split (b,"\t")
+				mylist.append (strip(a1)+"\t"+strip(b1))
+	# cleaning empty entry if any registry is found
+	if len (mylist) > 1:
+		mylist.remove("")
+	return mylist
+
+def writedict_string(var,dict,sep=","):
+	""" This function outputs a formatted string in a .ini like form.
+
+		to write an ini-file like that:
+			alias=word1,result1
+			alias=word2,result2
+
+		you should call this function as:
+			writedict_string("alias",dictionary,",")
+	input:
+		alias
+		dictionary to write
+		sep identifier
+	output:
+		a formatted string with a new line on each key.
+		"""	
+	for a,b in dict.items():
+		line = var+"="+a+sep+b+"\n"
+
+# NamefilmCleaner Functions --------------
+
+def trimbetween(a, lim):
+	''' Trims a string between a pair of defined characters.
+	input: "string"
+	input: two characters (in order) pe. "[]"
+	outputt: processed string
+
+	inform the argument by two caracters
+	p.e.  source: "La.Espada.Magica.DVDRip.[www.DivxTotal.com].LeoParis", "[]"
+	results in : "La.Espada.Magica.DVDRip..LeoParis"
+
+	DefTest >> OK'''
+	cc = 0
+	while True :
+		st = a.find(lim[0])
+		end = a.find(lim[1])
+		if st > end and end != -1:
+			a = a[0:end]+"\t"+a[end+1:] # We add a tab to mark this place and restart
+			continue
+		if st == -1 or end == -1 or st == end :
+			break
+		else:
+			word = a[st+1:end]
+			trim = 1
+			# If there is a Chapter id. we do not want to loose it >> so trim = 0
+			for i in GideonConfig.chapteridentifier :
+				if word.find(i) != -1 or word == i :
+					a = a[0:st]+"-"+word+"-"+a[end+1:]
+					trim = 0
+			if trim == 1:
+				a = a[0:st]+a[end+1:]
+	a = a.replace("\t",lim[1]) # we substitute tabs with end limit.
+	return a
+
+def dotreplacement(a,lim):
+	'''replaces character between leters
+	
+	usage: dotreplacement ("string.with.some.dots.", ". ")
+		input: "String.to.process"
+		input: "lim" String, must contain two characters: caracter to search and character to replace with.
+		output: "String to process" (procesed string)
+	DefTest >> OK'''
+	if a != '':
+		leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
+		while True :
+			logging.debug(a)
+			st = a.find(lim[0])
+			if a[0] == lim[0]:
+				a = lim[1]+a[1:]
+			elif a[-1] == lim[0]:
+				a = a[0:-1]
+			elif st == -1:
+				break
+			elif not (a[st-1] in leters and a[st+1] in leters):
+				break
+			else:
+				a = a[0:st]+lim[1]+a[st+1:]
+	return a
+
+def prohibitedwords(a,lista):
+	'''  Eliminates words in text entries
+		those words matches if they are between spaces.
+		input: "string with some words."
+		input: ['List','of','words']
+		outputt: "string without this words".
+	DefTest >> OK'''
+
+	for pw in lista:
+		# words in the middle
+		x = a.upper().find(" "+pw.upper()+" ")
+		if x >= 0:
+			a = a[:x]+a[x+len(pw)+1:]
+		# words at the end
+		if len (pw)+1 < len (a):
+			if a.upper().endswith(" "+pw.upper()):
+				a = a[:-len(pw)-1]
+		# words at the begining
+		if len (pw)+1 < len (a):
+			if a.upper().startswith(pw.upper()+" "):
+				a = a[len(pw)+1:]
+	return a
+
+def sigcapfinder(filename):
+	""" This little Function, scans for a chapter-counter at the end of the 
+		filename, it will delete any punctuation character at the end and 
+		it will also try to find numbers at the end of the filename. 
+		If filename ends in three numbers, it'll change 'nnn' to 'nxnn'.
+		This not affects if filename ends in four or more numbers. 'nnnn' so they are treated as a 'year'
+		for example:
+
+		sigcapfinder("my title 123") returns>> "my title 1x23"
+		sigcapfinder("my title 123-[[[") returns>> "my title 1x23"
+		sigcapfinder("my title ending in a year 1985") returns "my title ending in a year 1985"
+	DefTest >> OK	"""
+	if filename == "":
+		logging.warning("Empty filename to find chapter!")
+		return filename
+	base = filename
+	# chapter = 0 # for now, we assume there isn't any chapter in filename.
+	# we trim not wanted characters at the end:
+	count = 0
+	for a in base[::-1]:
+		if a in '[]-:,*+_.':
+			count +=1
+			continue
+		break
+	if count != 0:
+		base = base [0:-count]		
+		logging.debug("namebase has changed to "+base)
+	if base == "" or len(base) < 5:
+			logging.warning("filename made of simbols or very short, returning same filename")
+			return filename
+	
+	# finding a final identifier, cleaning odd chars before capter
+	expr = '[-. ]\d[xX]\d{2}'
+	mo = re.search (expr, base[-5:])
+	try:
+		grupo = mo.group()
+	except:
+		pass
+	else:
+		base = base[:-5]+' '+base[-4:]
+		return base
+
+
+	# finding 3 final numbers
+	expr = '[-. ]\d{3}'
+	mo = re.search (expr, base[-4:])
+	try:
+		grupo = mo.group()
+	except:
+		pass
+	else:
+		base = base[:-4]+' '+base[-3:-2]+'x'+base[-2:]
+	return base
+
+def chapid(item):
+	''' Checks four last char$ of filename.
+		Returns chapter number if a chapter is found.
+
+		Chapters are idenfied with this mask :  'nxnn'
+		input: fullpath (or not) of filename
+		output: number of chapter (string) _or_
+		output: ""  if no chapter is found.
+	DefTest >> OK'''
+	expr = '\d[xX]\d{2}'
+	mo = re.search (expr, item[-4:])
+	try:
+		grupo = mo.group()
+	except:
+		return ''
+	else:
+		return item[-2:]
+	
+def littlewords(filename):
+	''' Change little words starting uppercase to lowercase. This words must be defined.
+		'''
+	words = ["in","to","my","the","and","on","at","en","a","y","de","o","el","la","los","las","del", "lo", "es"]
+	for a in words:
+		wa=" "+a[0].upper()+a[1:]+" "
+		wb=" "+a+" "
+		filename = filename.replace(wa,wb)
+	return filename
+
+def clearfilename(filename):
+	""" Process several filters for filename cleaning
+		input: filename without extension, please
+		output: filename without extension, of course
+		"""
+	logging.debug("# Cleaning filename: "+filename)
+	filenametmp = filename
+
+	
+	#1 replacing dots, underscores & half  between leters.
+	filenametmp = dotreplacement(filenametmp, ". ")
+	filenametmp = dotreplacement(filenametmp, "_ ")
+	filenametmp = dotreplacement(filenametmp, "- ")
+
+	#2 trimming brackets
+	filenametmp = trimbetween(filenametmp, "[]")
+	
+	#3 Replacing prohibited words.
+	
+	while True:
+		filenametmp2 = prohibitedwords (filenametmp,GideonConfig.prohibited_words)
+		if filenametmp == filenametmp2 :
+			break
+		filenametmp = filenametmp2
+
+	while True:
+		loop = 0
+		#4 Trimming first and last spaces
+		filenametmp = filenametmp.strip()
+		if filenametmp[0] == " " or filenametmp[-1] == " ":
+			loop = 1
+		#5 Trimming first and last dots.
+		if filenametmp[-1] == ".":
+			filenametmp = filenametmp [:-1]
+			loop = 1
+		if filenametmp[0] == ".":
+			filenametmp	= filenametmp [1:]
+			loop = 1
+		if loop == 0 :
+			break
+
+	#6 Finding and placing a Chapter-counter
+	filenametmp = sigcapfinder(filenametmp)
+
+	#7 Formatting as Title Type
+	filenametmp = filenametmp.title()
+
+	#8 Replacing little words to lowerCase
+	filenametmp = littlewords (filenametmp)
+	
+	return filenametmp
+
+# Main Functions -------------------------
 
 def copyfile(origin,dest,mode="c"):
 	""" Copy or moves file to another place
@@ -584,8 +943,8 @@ def getaliaspaths (textfile):
 	""" Returns a dictionary contanining words and a relative path to store filesdict
 		The keys are fetched from a txt .ini like file.
 		Deftest OK!! """
-	alias = readini.readdict (textfile,"alias",",")
-	subpahts = readini.readdict (textfile,"dest",",")
+	alias = readdict (textfile,"alias",",")
+	subpahts = readdict (textfile,"dest",",")
 	for a in alias:
 		for b,c in subpahts.items():
 			if "<"+a+">" in c:
@@ -714,7 +1073,7 @@ def extfilemove(origin,dest,extensions=[]):
 		if extension == ".jpeg":
 			extension = ".jpg"
 		# new cover's name will be cleaned for better procesing
-		cleanedname = namefilmcleaner.clearfilename (basename)
+		cleanedname = clearfilename (basename)
 		itemdest =  dest+cleanedname+extension
 		while not copyfile (i,itemdest,mode="m"):
 			itemdest = nextfilenumber (itemdest)
@@ -1086,7 +1445,7 @@ def ProcessSecuence(con, Id, Psecuence):
 			for entry in cursor2:
 				folder= os.path.dirname(entry[3])
 				filename, ext = os.path.splitext(os.path.basename(entry[3]))
-				cleanedfilename = namefilmcleaner.clearfilename(filename)
+				cleanedfilename = clearfilename(filename)
 				newdest = os.path.join(folder,(cleanedfilename+ext))
 				params = (newdest,
 					entry[0])
@@ -1098,7 +1457,7 @@ def ProcessSecuence(con, Id, Psecuence):
 				folder= os.path.dirname(entry[2])
 				filename = os.path.basename(entry[2])
 				if folder != '':
-					folder = namefilmcleaner.clearfilename(folder)
+					folder = clearfilename(folder)
 				newdest = os.path.join(folder,filename)
 				params = (newdest, entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
@@ -1110,7 +1469,7 @@ def ProcessSecuence(con, Id, Psecuence):
 			folder= os.path.dirname(entry[3])
 			filename , ext  = (os.path.splitext(entry[3]))
 			if folder == '':
-				folder = namefilmcleaner.clearfilename(filename)
+				folder = clearfilename(filename)
 			params = (folder+ext, entry[0])
 			con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -1125,8 +1484,8 @@ def ProcessSecuence(con, Id, Psecuence):
 			filmnamelist = set()
 			for entry in cursor2:
 				if entry[1] == 'video':
-					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[0])[0]))
-					filmnamelist.add(namefilmcleaner.clearfilename(os.path.splitext(entry[2].split("/")[-1])[0]))
+					filmnamelist.add(clearfilename(os.path.splitext(entry[2].split("/")[0])[0]))
+					filmnamelist.add(clearfilename(os.path.splitext(entry[2].split("/")[-1])[0]))
 			Subpath, maxmatch = "", 10
 			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
 			for filmname in filmnamelist:
@@ -1254,7 +1613,7 @@ def Relatedcover(item):
 		DEFTEST....OK!!'''
 	possiblecovers = set ()
 	basename = os.path.splitext(item)[0]
-	if namefilmcleaner.chapid (basename) != '':
+	if chapid (basename) != '':
 		basename = basename[:-2]
 	for i in ['.jpg','.png']:
 		possiblecovers.add(basename+i)

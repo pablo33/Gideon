@@ -1,10 +1,8 @@
 #!/usr/bin/python3
 # Test Configuration
-import unittest, os, shutil
+import unittest, os, shutil, datetime
 from glob import glob
 import Gideon
-import datetime
-import namefilmcleaner
 
 dyntestfolder = 'TESTS'
 
@@ -438,8 +436,7 @@ class test_matchfilm (unittest.TestCase):
 
 
 #####TESTS########
-MD2 = namefilmcleaner
-modulename = 'namefilmcleaner.py'
+MD2 = Gideon
 
 class namefilmcleaner (unittest.TestCase):
 	'''testing namefilmcleaner library'''
