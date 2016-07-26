@@ -119,6 +119,131 @@ def nextfilenumber (dest):
 		newfilename = os.path.join( os.path.dirname(dest), filename [0:-cut] + "(" + str(counter) + ")" + extension)
 	return newfilename
 
+def startDefaultFile (Stringfile,filepath):
+	''' Dumps a string variable into a TXT file.'''
+	if itemcheck(filepath) == "":
+		logging.warning("%s file does not exist, setting up for the first time"%filepath)
+		f = open(filepath,"a")
+		f.write(Stringfile)
+		f.close()
+		return True
+	return False
+
+
+# .. Default Videodest.ini file definition (in case there isn't one)
+startVideodestINIfile = """
+# Put this file into Dropbox/TRinbox
+#	
+#	define a destination with some words to automatically store file-movies to the right place.
+#	
+#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at GideonConfig.py))
+#	
+
+__version__ = 1.1
+__date__ = "11/04/2015"
+
+# You can define alias for common destinations, to substitute text 
+alias=Series        ,    /series/
+alias=Sinfantiles   ,    /Series infantiles/
+
+# Define destinations:
+#	guess a title to match the filemovie then,
+#   define a relative path to store it (starting at default "filemovie folder" defined in GideonConfig.py file) 
+#	(you can use alias enclosed in <....> to replace text, but remember that you must define them first)
+#  Those are examples, please replace them and follow the structure.
+#  Please, do not include comments at the end of alias or dest lines. This is not an python file.
+#  
+dest = star wars rebels, <Sinfantiles>
+dest = Sleepy Hollow temporada 2, <Series>Sleepy Hollow Temp 2
+dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
+
+# EOF
+"""
+
+
+# .. Default GideonConfig(generic).py file definition (in case there isn't one)
+DefaultConfigFile = """
+''' Config file of Gideon
+	'''
+
+__version__ = 2.0
+__date__ = "26/07/2016"
+__author__ = "pablo33"
+
+
+# Setting variables, default paths to store processed files.
+Fmovie_Folder = "/home/user/movies/" # Place to store processed movies
+Faudio_Folder = "/home/user/audio/" # Place to store processed music
+Hotfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+
+
+
+# mail config (this example is for a gmx account, with SSL autentication)
+mailmachine = 'mail.gmx.com'		# your server machine
+mailsender = 'youremail@here.com'	# your sender email account
+mailpassw = 'yourPa$$wordhere'		# your email password.
+
+# Notifications config:
+# Recipients to send info: you can add as many as you want and assign different topics to e-mail them,
+# you can write more than one e-mail recipient into one string by separating them by colons (:)
+# Asociate msg topics here by number. (note that only topics marked OK will are enabled)
+
+mail_topic_recipients = {
+	'adminemail@gmx.es' 		: set(range (1,11)),
+	'user1@email.com' : set([7,]),
+	'user2@email.com' : set([6,7,10,]),	
+	}
+
+#Msgtopics:
+#OK	1 : 'Added incoming torrent to process',
+#	2 : 'Torrent has been added to Transmission for downloading',
+#	3 : 'Torrent has been manually added',
+#	4 : 'Torrent has been manually deleted',
+#	5 : 'Torrent is completed',
+#OK	6 : 'List of files has been retrieved and preasigned',
+#OK	7 : 'Files have been processed and copied into destination',
+#	8 : 'No Case was found for this Torrent',
+#OK	9 : 'Transmission has been launched',
+#OK	10:	'Torrent Deleted due to a retention Policy',
+#	11:	'Cover assigned to a moviefile',
+
+
+# The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
+loginlevel = "INFO"
+
+# Retention Policy: None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
+MaxseedingDays = None
+#MaxseedingDays = 30
+
+# Seconds to wait until hot folders are scanned for new items.
+s = 60
+
+# Command line to start Transmission
+cmd  = "/usr/bin/transmission-gtk -m &"
+TRmachine = 'localhost'
+TRuser = 'yourconfigureduser'
+TRpassword = 'yourconfiguredpassword'
+
+
+# Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
+chapteridentifier = ('Cap', 'cap', 'episodio') 
+
+# How to typify items
+ext = {
+	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
+	"audio":['mp3', 'ogg', 'wav', 'm4a', 'wma', 'aac', 'flac', 'mka', 'ac3'],
+	"compressed":['rar','zip', '7z'],
+	"notwanted":['txt','url','lnk','DS_Store', 'nfo', 'info'],
+	"image":['jpg','png','gif'],
+}
+
+# List of prohibited words. This words will be deleted from files and folder-names
+prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www','mp3','HDTV','DVDRip','rip','Xvid','bluray','microhd','LeoParis',
+	'Widescreen','DVD9.','dvd9','dvdr','.FULL.','PAL','Eng.','Ger.','Spa.','Ita.','Fra.','Multisubs','x264',
+	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]'
+	]
+
+"""
 
 
 # ===================================
@@ -137,14 +262,13 @@ tohour = ":".join([str(now.hour),str(now.minute)])
 
 userpath = os.path.join(os.getenv('HOME'),".Gideon")
 userconfig = os.path.join(userpath,"GideonConfig.py")
+Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
+Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
 if __name__ == '__main__':
 	dbpath = os.path.join(userpath,"DB.sqlite3")
 else:
-	dbpath = os.path.join("TESTS", "DB.sqlite3")	
-Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
-Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
+	dbpath = os.path.join("TESTS", "DB.sqlite3")
 
-#logpath =  os.path.join(userpath,"logs")
 logpath = userpath
 logging_file = os.path.join(logpath,"GideonLogFile.log")
 
@@ -161,16 +285,12 @@ if itemcheck (userconfig) == "file":
 else:
 	# initilizing user's default config file.
 	print ("There isn't an user config file: " + userconfig)
-	if itemcheck ("GideonConfig(generic).py") != "file":
-		print ("Please, run Gideon.py for the first time from its own intalled dir. ")
-		exit()
-	else:
-		copyfile ("GideonConfig(generic).py",userconfig,"c")
-		print ("An user config file has been created: " + userconfig)
-		print ("Please customize by yourself before run this software again")
-		print ("This software is going to try to open with a text editor.")
-		os.system ("gedit "+userconfig)
-		exit()
+	startDefaultFile (DefaultConfigFile, userconfig)
+	print ("An user config file has been created: " + userconfig)
+	print ("Please customize by yourself before run this software again")
+	print ("This software is going to try to open with a text editor.")
+	os.system ("gedit "+userconfig)
+	exit()
 
 print ("Loginlevel:", GideonConfig.loginlevel)
 logging.basicConfig(
@@ -233,35 +353,6 @@ Codemimes = {
 	'other' : 6,
 }
 
-# .. Default Videodest.ini file definition (in case there isn't one)
-startVideodestINIfile = """
-# Put this file into Dropbox/TRinbox
-#	
-#	define a destination with some words to automatically store file-movies to the right place.
-#	
-#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at GideonConfig.py))
-#	
-
-__version__ = 1.1
-__date__ = "11/04/2015"
-
-# You can define alias for common destinations, to substitute text 
-alias=Series        ,    /series/
-alias=Sinfantiles   ,    /Series infantiles/
-
-# Define destinations:
-#	guess a title to match the filemovie then,
-#   define a relative path to store it (starting at default "filemovie folder" defined in GideonConfig.py file) 
-#	(you can use alias enclosed in <....> to replace text, but remember that you must define them first)
-#  Those are examples, please replace them and follow the structure.
-#  Please, do not include comments at the end of alias or dest lines. This is not an python file.
-#  
-dest = star wars rebels, <Sinfantiles>
-dest = Sleepy Hollow temporada 2, <Series>Sleepy Hollow Temp 2
-dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
-
-# EOF
-"""
 
 # (1.6) Prequisites:
 #=============
@@ -276,12 +367,11 @@ if itemcheck (Hotfolder) != 'folder' :
 
 # Checking and setting up Fvideodest file:
 if Hotfolder != None:
-	if itemcheck(Hotfolder+"Videodest.ini") == "":
-		logging.warning("Videodest.ini file does not exist, setting up for the first time")
-		f = open(Hotfolder+"Videodest.ini","a")
-		f.write(startVideodestINIfile)
-		f.close()
+	if startDefaultFile (startVideodestINIfile, Hotfolder + "Videodest.ini") == True:
 		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
+
+
+
 
 
 # (1.7) Checking DB or creating it:
@@ -734,7 +824,6 @@ def TrackDeletedTorrents(tc):
 	con.close()
 	return
 
-
 def TrackFinishedTorrents (tc):
 	''' Check if 'Added' torrents in DB are commpleted in Transmission.
 		If an entry is not present, it will be mark as 'Deleted'
@@ -931,7 +1020,6 @@ def getfileoriginlistTXT (con,Trid):
 	for entry in cursor2:
 		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+str(entry[1])+")\n"
 	return filelisttxt
-
 
 def Retrievefiles (tc):
 	con = sqlite3.connect (dbpath)
