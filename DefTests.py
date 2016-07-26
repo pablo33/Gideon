@@ -60,7 +60,6 @@ def FetchFileSet (path):
 
 #####TESTS########
 MD = Gideon
-modulename = 'Gideon.py'
 
 class TestPack1 (unittest.TestCase):
 	''' processing TestPack1'''

@@ -23,7 +23,6 @@
 
 # Standard library module import
 import os, sys, shutil, logging, datetime, time, smtplib, re
-from math import sqrt
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
 import sqlite3  # for sqlite3 Database management
