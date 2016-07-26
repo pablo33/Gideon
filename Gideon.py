@@ -137,7 +137,10 @@ tohour = ":".join([str(now.hour),str(now.minute)])
 
 userpath = os.path.join(os.getenv('HOME'),".Gideon")
 userconfig = os.path.join(userpath,"GideonConfig.py")
-dbpath = os.path.join(userpath,"DB.sqlite3")
+if __name__ == '__main__':
+	dbpath = os.path.join(userpath,"DB.sqlite3")
+else:
+	dbpath = os.path.join("TESTS", "DB.sqlite3")	
 Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
 Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
 
@@ -294,6 +297,7 @@ else:
 	# 0.1) Setup DB
 	cursor.execute ("CREATE TABLE tw_inputs (\
 		id INTEGER PRIMARY KEY AUTOINCREMENT,\
+		hashstring char,\
 		fullfilepath char NOT NULL ,\
 		filetype char,\
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
@@ -648,8 +652,8 @@ def addinputs ():
 		'''
 	Hotfolderinputs = Dropfd (Torrentinbox, ["torrent",])
 	if len (Hotfolderinputs) > 0:
-		con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
-		cursor = con.cursor() # object to manage queries
+		con = sqlite3.connect (dbpath)
+		cursor = con.cursor()
 		for entry in Hotfolderinputs:
 			params = (entry,'.torrent')
 			cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", params)
@@ -677,7 +681,7 @@ def connectTR():
 def SendtoTransmission():
 	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
 	cursor = con.cursor() # object to manage queries
-	nfound = (cursor.execute ("select count(id) from tw_inputs where status = 'Ready'").fetchone())[0]
+	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready'").fetchone())[0]
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
 		tc = connectTR ()
@@ -685,7 +689,8 @@ def SendtoTransmission():
 		for Id, Fullfilepath in cursor:
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
-			con.execute ("UPDATE tw_inputs SET status='Added', trname=? WHERE id=?", (TRname,str(Id)))
+			TRhash = trobject.hashString
+			con.execute ("UPDATE tw_inputs SET status='Added',  hashstring = ? , trname=? WHERE id=?", (TRhash, TRname,str(Id)))
 			SpoolUserMessages(con, 2, TRid = Id)
 	con.commit()
 	con.close()
@@ -703,10 +708,10 @@ def TrackManualTorrents(tc):
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for trobject in tc.get_torrents():
-			DBid = cursor.execute ("SELECT id from tw_inputs WHERE TRname = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trobject.name,)).fetchone()
+			DBid = cursor.execute ("SELECT id from tw_inputs WHERE hashstring = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ORDER BY id DESC", (trobject.hashString,)).fetchone()
 			if DBid == None and ( trobject.status in ['check pending', 'checking', 'downloading', 'seeding']):
-				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name)
-				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, filetype, status, TRname) VALUES (?,?,?,?)", params)
+				params = (trobject.magnetLink, '.magnet', 'Added', trobject.name, trobject.hashString)
+				cursor.execute ("INSERT INTO tw_inputs (Fullfilepath, filetype, status, TRname, hashstring) VALUES (?,?,?,?,?)", params)
 				logging.info ('Found new entry in transmission, added into DB for tracking: %s' %trobject.name)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
 				SpoolUserMessages(con, 3, TRid = Id)
@@ -720,17 +725,15 @@ def TrackDeletedTorrents(tc):
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, trname from tw_inputs WHERE status = 'Added' or status = 'Completed'")
-	TRRset = set()
-	for trr in tc.get_torrents():
-		TRRset.add (trr.name)
-	for Id, TRname in cursor:
-		if TRname not in TRRset:
+	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE status = 'Added' or status = 'Completed'")
+	for Id, HashString in cursor:
+		if len(tc.info(HashString)) == 0:
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (Id,))
 			SpoolUserMessages(con, 4, TRid = Id)
 	con.commit()
 	con.close()
 	return
+
 
 def TrackFinishedTorrents (tc):
 	''' Check if 'Added' torrents in DB are commpleted in Transmission.
@@ -738,13 +741,12 @@ def TrackFinishedTorrents (tc):
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	for trr in tc.get_torrents():
+	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE status = 'Added'")
+	for DBid, HashString in cursor:
+		trr = tc.get_torrent(HashString)
 		if trr.status in ['seeding','stopped'] and trr.progress >= 100:
-			cursor.execute ("SELECT id from tw_inputs WHERE status = 'Added' and trname = ?", (trr.name,))
-			for entry in cursor:
-				Id = entry[0]
-				con.execute ("UPDATE tw_inputs SET status='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,Id))
-				SpoolUserMessages(con, 5, TRid = Id)
+			con.execute ("UPDATE tw_inputs SET status='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,DBid))
+			SpoolUserMessages(con, 5, TRid = DBid)
 	con.commit()
 	con.close()
 
@@ -930,26 +932,20 @@ def getfileoriginlistTXT (con,Trid):
 		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+str(entry[1])+")\n"
 	return filelisttxt
 
-def gettrrobj (tc, name):
-	""" Giving a Torrent's name, returns active Transmission's torrent object. 
-		 Returns None if none is fetched
-		"""
-	trr = tc.get_torrents()
-	for trobject in trr:
-		if trobject.name == name:
-			return trobject
-	return None
 
 def Retrievefiles (tc):
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, trname FROM tw_inputs WHERE filesretrieved = 0 and (status = 'Added' or status = 'Completed') ")
+	cursor.execute ("SELECT id, hashstring FROM tw_inputs WHERE filesretrieved = 0 and (status = 'Added' or status = 'Completed') ")
 	cursorFreeze = list()
 	for entry in cursor:
 		cursorFreeze.append(entry)
-	for Id, Trname in cursorFreeze:
-		trobject = gettrrobj (tc, Trname)
-		filesdict = trobject.files()
+	for DBid, HashString in cursorFreeze:
+		trr = tc.get_torrent (HashString)
+		if len(tc.info(HashString)) == 0:
+			logging.warning ("Can't get torrent object: DBid: %s"%DBid)
+			continue
+		filesdict = trr.files()
 		if len(filesdict) == 0:
 			print ("Torrent may be waitting for files....")
 			continue
@@ -959,7 +955,7 @@ def Retrievefiles (tc):
 			Size = filesdict.get(key)['size']
 			Originalfile = filesdict.get(key)['name']
 			Mime = fileclasify(Originalfile)
-			params = Id, Size, Originalfile, Mime
+			params = DBid, Size, Originalfile, Mime
 			con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
 			matrix = addmatrix (matrix, Mime)
 			folders.add (os.path.dirname(Originalfile))
@@ -969,13 +965,13 @@ def Retrievefiles (tc):
 		Deliverstatus, Msgcode = 'Added', 6
 		if Caso == 0 :
 			Deliverstatus, Msgcode = None, 7
-		params = len(filesdict), Deliverstatus ,Id
+		params = len(filesdict), Deliverstatus ,DBid
 		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
-		params = Id, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],
+		params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
 		con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 		con.commit()
-		ProcessSecuence (con, Id, Psecuence)
-		SpoolUserMessages(con, Msgcode, Id)
+		ProcessSecuence (con, DBid, Psecuence)
+		SpoolUserMessages(con, Msgcode, DBid)
 	con.commit()
 	con.close()
 
@@ -1389,3 +1385,5 @@ if __name__ == '__main__':
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
 		time.sleep(s)
+
+
