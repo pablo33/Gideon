@@ -29,6 +29,7 @@ import sqlite3  # for sqlite3 Database management
 
 # Specific library module import
 import transmissionrpc  # transmission rpc API
+dyntestfolder = 'TESTS'
 
 
 __version__ = "2.0alfa"
@@ -266,7 +267,7 @@ Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available 
 if __name__ == '__main__':
 	dbpath = os.path.join(userpath,"DB.sqlite3")
 else:
-	dbpath = os.path.join("TESTS", "DB.sqlite3")
+	dbpath = os.path.join(dyntestfolder, "DB.sqlite3")
 
 logpath = userpath
 logging_file = os.path.join(logpath,"GideonLogFile.log")
@@ -1223,8 +1224,6 @@ def MsgService():
 	mailpreasignedtorrents (con)
 	mailcomplettedtorrents (con)
 	mailRPolicytorrents (con)
-	#print (getactivitylogTXT(con,7))
-
 	con.close()
 	return
 
@@ -1232,8 +1231,6 @@ def mailRPolicytorrents(con):
 	cursor = con.cursor ()
 	cursor.execute ("SELECT nreg, trid, trname, dwfolder FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 10")
 	for Nreg, Trid, Trname, Dwfolder in cursor:
-		filelisttxt = getfileoriginlistTXT (con,Trid)
-
 		msg = """A torrent has been deleted due to a configured Retention Policy:
 	(%s days after downloading has been completed or Torrent's seeding ratio has finished.)
 	Torrent id in data base (%s), Name:
@@ -1243,7 +1240,9 @@ def mailRPolicytorrents(con):
 	Downloaded files at %s have been also deleted.
 
 	""" %(MaxseedingDays,Trid,Trname, Dwfolder)
-		msg += filelisttxt
+		msg += "---------------------------------------"
+		msg += "This is a full log of the torrent life:\n\n"
+		msg += getactivitylogTXT(con,Trid)
 		STmail ('Torrent Deleted: ' + Trname, msg, topic=10)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
@@ -1364,12 +1363,15 @@ def gettrrpendingTXT (con):
 def getfiledeliverlistTXT (con,Trid):
 	cursor2 = con.execute ("SELECT wanted, size, originalfile, destfile FROM files WHERE trid = %s ORDER BY destfile"%Trid)
 	filelisttxt = "List of files: \n"
-	nonwantedfilestxt = "List of nonwanted files: \n"
+	nonwantedfilestxt = ""
 	for entry in cursor2:
 		if entry[0] == 1:
 			filelisttxt += "\t"+entry[3]+"\t("+str(entry[1])+")\n"
 		else:
+			if nonwantedfilestxt == "":
+				nonwantedfilestxt = "List of nonwanted files: \n"
 			nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
+	
 	return filelisttxt, nonwantedfilestxt
 
 def getfileoriginlistTXT (con,Trid):
@@ -1879,6 +1881,7 @@ if __name__ == '__main__':
 			TrackFinishedTorrents (tc)
 			Retrievefiles(tc)
 			RetentionPService(tc)
+		
 		MsgService ()
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
