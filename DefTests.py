@@ -4,7 +4,7 @@ import unittest, os, shutil, datetime
 from glob import glob
 import Gideon
 
-dyntestfolder = 'TESTS'
+dyntestfolder = Gideon.dyntestfolder
 
 
 # Tools for test file movements
