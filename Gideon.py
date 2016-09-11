@@ -1130,11 +1130,11 @@ def connectTR():
 def SendtoTransmission():
 	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
 	cursor = con.cursor() # object to manage queries
-	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready'").fetchone())[0]
+	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready' and ( filetype = '.magnet' or filetype = '.torrent') ").fetchone())[0]
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
 		tc = connectTR ()
-		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE status = 'Ready'")
+		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE status = 'Ready'  and ( filetype = '.magnet' or filetype = '.torrent')")
 		for Id, Fullfilepath in cursor:
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
