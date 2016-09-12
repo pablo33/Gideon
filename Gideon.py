@@ -129,6 +129,17 @@ def startDefaultFile (Stringfile,filepath):
 		return True
 	return False
 
+def fileinuse (entry):
+	''' returns False if file is not beign used (opened), or
+		returns True if file is beign used. 
+		'''
+	try:
+		pids = check_output(["lsof", '-t', entry ])
+	except:
+		return False
+	logging.debug('%s is beign accesed'%(entry))
+	return True
+
 
 # .. Default Videodest.ini file definition (in case there isn't one)
 startVideodestINIfile = """
@@ -172,10 +183,11 @@ __author__ = "pablo33"
 
 
 # Setting variables, default paths to store processed files.
-Fmovie_Folder = "/home/user/movies/" # Place to store processed movies
-Faudio_Folder = "/home/user/audio/" # Place to store processed music
-Hotfolder = "/home/user/Dropbox/TRinbox/" # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
-
+Fmovie_Folder = "/home/user/movies/"  # Place to store processed movies
+Faudio_Folder = "/home/user/audio/"  # Place to store processed music
+Hotfolder = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+Telegraminbox = None  #  "/home/user/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
+TelegramNoCasedest = "/home/user/Downloads/"  # Destination file where telegram files goes if no Case is found.
 
 
 # mail config (this example is for a gmx account, with SSL autentication)
@@ -1099,17 +1111,19 @@ def addinputs ():
 	''' Add new torrent entries into a DB queue,
 	This queue is stored into the software database SQLite. > Table "TW_Inputs"
 		'''
-	Hotfolderinputs = Dropfd (Torrentinbox, ["torrent",])
+	Hotfolderinputs = [(i,".torrent") for i in Dropfd (Torrentinbox, ["torrent",])]
+	#if Telegraminbox != None:
+	#	Hotfolderinputs += Telegramfd (Telegraminbox)
 	if len (Hotfolderinputs) > 0:
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
-		for entry in Hotfolderinputs:
-			params = (entry,'.torrent')
-			cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", params)
-			logging.info ('added incoming torrent to process: %s' %entry)
-			Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
-			SpoolUserMessages(con, 1, TRid = Id)
-		con.commit()
+		for Entry, Filetype in Hotfolderinputs:
+			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Ready'", (Entry,)).fetchone()[0] == 0:
+				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
+				logging.info ('added incoming torrent to process: %s' %Entry)
+				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
+				SpoolUserMessages(con, 1, TRid = Id)
+				con.commit()
 		con.close()
 	return
 
@@ -1854,6 +1868,29 @@ def RetentionPService(tc):
 	con.close()
 	return
 
+def Telegramfd (Tfolder):
+	""" Checks a folder content and returns it to be added to process.
+		As content for this folders usually are downloaded or copied,
+		this function will check the size and the last modification time in order to
+		return the pack.
+		It will treat folders and files as inputs.
+		compressed files will be ignored, as they sometimes are multifile and have passwords.
+		"""
+	Itemlist = []
+	filelist = [os.path.join(Tfolder,i) for i in os.listdir(Tfolder)]
+	for entry in filelist:
+		if os.path.isdir (entry):
+			logging.info("file %s was not processed because it is a folder." %entry)
+			continue
+		if os.path.isfile (entry):
+			if os.path.splitext(entry)[1].lower() in ('.rar','.zip','.7z'):
+				logging.info("file %s was not processed because it is a compressed file." %entry)
+				continue
+			if fileinuse (entry) == True:
+				logging.info("file %s was not processed because it were open by an application." %entry)
+				continue
+			Itemlist += [(entry,'.file'),]
+	return Itemlist
 
 
 

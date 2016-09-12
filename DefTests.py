@@ -431,7 +431,53 @@ class test_matchfilm (unittest.TestCase):
 			print ('Matched film:', filmname, result)
 			self.assertEqual (matched[0], result[0])
 
+class TestPack3 (unittest.TestCase):
+	''' processing TestPack3'''
 
+	reftest = 'Test3'
+	testfolder = os.path.join (dyntestfolder,reftest)
+	hotfolder = os.path.join (testfolder,'Telegram Desktop')
+	Downloadfolder = os.path.join (testfolder,'Downloads')
+
+	SetTestPack (reftest)
+
+
+	def test_fileinuse (self):
+		""" returns None if file is not beign used, or returns applications PIDs if it is beign used. 
+			"""
+		# open a file:
+		testfilepath = os.path.join (self.testfolder, "fileinuse.txt")
+		f = open(testfilepath,"a")  #opens file with name of "test.txt"
+		f.write("This file is now opened and i'm writting on it \n")
+		self.assertEqual (MD.fileinuse(testfilepath), True)  # Checks a file that it is beign written.
+		f.close()
+		self.assertEqual (MD.fileinuse(testfilepath), False)  # Cheks a file that it is closed.
+
+	def test_Telegramfd (self):
+		""" Checks a folder content and returns its pointers to be added to process.
+		As content for this folders usually are downloaded or copied,
+		this function will check the size and the last modification time in order to
+		return the pack.
+		It will treat folders and files as inputs.
+		compressed files will be ignored, as they sometimes are multifile and have passwords.
+		"""
+		# This file is delivered openned while this test.
+		testfilepath = os.path.join (self.hotfolder, "fileinuse.txt")
+		f = open(testfilepath,"a")  #opens file with name of "test.txt"
+		f.write("This file is now opened and i'm writting on it \n")
+
+
+		known_values = set ([
+			('TESTS/Test3/Telegram Desktop/Printer output.pdf', '.file'),
+			('TESTS/Test3/Telegram Desktop/This is a Zero avi file.avi', '.file'),
+			('TESTS/Test3/Telegram Desktop/File not in use.CBR', '.file'),
+			])
+
+		Entries = MD.Telegramfd (self.hotfolder)
+		self.assertEqual (known_values, set(Entries))
+
+		f.close ()
+		
 
 
 #####TESTS########
