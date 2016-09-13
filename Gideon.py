@@ -376,6 +376,8 @@ logging.debug("======================================================")
 Fmovie_Folder = addslash(GideonConfig.Fmovie_Folder)  # Default place to store movies
 Faudio_Folder = addslash(GideonConfig.Faudio_Folder)  # Default place to store music
 Hotfolder = addslash (GideonConfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
+Telegraminbox = addslash (GideonConfig.Telegraminbox)  # Hotfolder to retrieve Telegram Downloaded files or whatever other files
+TelegramNoCasedest = addslash (GideonConfig.TelegramNoCasedest)  # Telegram files with no Case goes here, preserving the file/folder structure
 
 s =  GideonConfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 cmd  = GideonConfig.cmd # Command line to lauch transmission
@@ -1161,17 +1163,14 @@ def Dropfd(destfolder, lsextensions):
 			logging.info('\t'+ a)
 	return movelist
 
-def addinputs ():
+def addinputs (entrieslist):
 	''' Add new torrent entries into a DB queue,
 	This queue is stored into the software database SQLite. > Table "TW_Inputs"
 		'''
-	Hotfolderinputs = [(i,".torrent") for i in Dropfd (Torrentinbox, ["torrent",])]
-	#if Telegraminbox != None:
-	#	Hotfolderinputs += Telegramfd (Telegraminbox)
-	if len (Hotfolderinputs) > 0:
+	if len (entrieslist) > 0:
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
-		for Entry, Filetype in Hotfolderinputs:
+		for Entry, Filetype in entrieslist:
 			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Ready'", (Entry,)).fetchone()[0] == 0:
 				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
 				logging.info ('added incoming torrent to process: %s' %Entry)
@@ -1318,7 +1317,7 @@ def mailRPolicytorrents(con):
 
 def mailaddedtorrents(con):
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 1")
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND ( filetype = '.torrent' OR filetype = '.magnet')")
 	for Nreg, Trid, Trname in cursor:
 		msg = """A new torrent has been sent to Transmission Service for Downloading:
 	Torrent Name:
@@ -1924,11 +1923,19 @@ if __name__ == '__main__':
 	StartTRService ()
 	while True:
 		if Hotfolder != None:
-			Dropfd ( Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
-			addinputs()
+			Dropfd (Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
+			Hotfolderinputs = [(i,".torrent") for i in Dropfd (Torrentinbox, ["torrent",])]
+			if len (Hotfolderinputs) > 0:
+				addinputs (Hotfolderinputs)
 			CoverService (Fmovie_Folder, Availablecoversfd, Hotfolder+"Videodest.ini")
 
+		if Telegraminbox != None:
+			Hotfolderinputs += Telegramfd (Telegraminbox)
+			if len (Hotfolderinputs) > 0:
+				addinputs (Hotfolderinputs)
+
 		SendtoTransmission ()
+		# Process file and folders Telegram entries
 
 		if getappstatus (['mplayer','vlc']) == False:
 			ProcessCompletedTorrents ()
