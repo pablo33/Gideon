@@ -140,6 +140,60 @@ def fileinuse (entry):
 	logging.debug('%s is beign accesed'%(entry))
 	return True
 
+def lsdirectorytree(directory = (os.getenv('HOME'))):
+	""" Returns a list of a directory and its child directories
+	usage:
+	lsdirectorytree ("start directory")
+	By default, user's home directory"""
+	#init list to start
+	dirlist = [directory]
+	#setting the first scan
+	moredirectories = dirlist
+	while len (moredirectories) != 0:
+		newdirectories = moredirectories
+		#reset flag to 0; we assume from start, that there aren't child directories
+		moredirectories = []
+		# print ('\n\n\n','nueva iteración', moredirectories)
+		for a in newdirectories:
+			# checking for items (child directories)
+			# print ('Checking directory', a)
+			añadir = addchilddirectory (a)
+			#adding found items to moredirectories
+			for b in añadir:
+				moredirectories.append (b)
+		#adding found items to dirlist
+		for a in moredirectories:
+			dirlist.append (a)
+	return dirlist
+
+def addchilddirectory (directoriy):
+	""" Returns a list of child directories
+	Usage: addchilddirectory(directory with absolute path)"""
+	paraañadir = []
+	ficheros = os.listdir (directoriy)
+	for a in ficheros:
+		item = directoriy+'/'+a
+		if os.path.isdir(item):
+			paraañadir.append (item)
+	return paraañadir
+
+def folderinuse (folder):
+	""" Scans a folder for files.
+			Returns True if any file is in use (is being writted)
+			Otherwise returns False
+		(DefTest in TestPack3)
+		"""
+	folder = addslash(folder)
+	folderlist = lsdirectorytree (folder)
+	for a in folderlist:
+		filelist = [(folder + i) for i in os.listdir(a)]
+		for entry in filelist:
+			if os.path.isfile (entry):
+				if fileinuse (entry):
+					return True
+	return False
+
+
 
 # .. Default Videodest.ini file definition (in case there isn't one)
 startVideodestINIfile = """
@@ -1781,43 +1835,6 @@ def coverperformer(filemovieset,Availablecoversfd):
 
 	return
 
-def lsdirectorytree(directory = (os.getenv('HOME'))):
-	""" Returns a list of a directory and its child directories
-	usage:
-	lsdirectorytree ("start directory")
-	By default, user's home directory"""
-	#init list to start
-	dirlist = [directory]
-	#setting the first scan
-	moredirectories = dirlist
-	while len (moredirectories) != 0:
-		newdirectories = moredirectories
-		#reset flag to 0; we assume from start, that there aren't child directories
-		moredirectories = []
-		# print ('\n\n\n','nueva iteración', moredirectories)
-		for a in newdirectories:
-			# checking for items (child directories)
-			# print ('Checking directory', a)
-			añadir = addchilddirectory (a)
-			#adding found items to moredirectories
-			for b in añadir:
-				moredirectories.append (b)
-		#adding found items to dirlist
-		for a in moredirectories:
-			dirlist.append (a)
-	return dirlist
-
-def addchilddirectory (directorio):
-	""" Returns a list of child directories
-	Usage: addchilddirectory(directory with absolute path)"""
-	paraañadir = []
-	ficheros = os.listdir (directorio)
-	for a in ficheros:
-		item = directorio+'/'+a
-		if os.path.isdir(item):
-			paraañadir.append (item)
-	return paraañadir
-
 def RetentionPService(tc):
 	if MaxseedingDays == None:
 		logging.debug ('Retention Policy Service deactivated by user option')
@@ -1879,20 +1896,25 @@ def Telegramfd (Tfolder):
 	Itemlist = []
 	filelist = [os.path.join(Tfolder,i) for i in os.listdir(Tfolder)]
 	for entry in filelist:
+		entrytype = None
 		if os.path.isdir (entry):
-			logging.info("file %s was not processed because it is a folder." %entry)
-			continue
-		if os.path.isfile (entry):
+			if folderinuse (entry):
+				logging.info("folder %s was not processed because was in use." %entry)
+				continue
+			else:
+				entrytype = '.folder'
+		elif os.path.isfile (entry):
 			if os.path.splitext(entry)[1].lower() in ('.rar','.zip','.7z'):
 				logging.info("file %s was not processed because it is a compressed file." %entry)
 				continue
 			if fileinuse (entry) == True:
 				logging.info("file %s was not processed because it were open by an application." %entry)
 				continue
-			Itemlist += [(entry,'.file'),]
+			else:
+				entrytype = '.file'
+		if entrytype != None:
+			Itemlist += [(entry,entrytype),]
 	return Itemlist
-
-
 
 # ========================================
 # 			== MAIN PROCESS  ==

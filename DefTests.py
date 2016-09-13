@@ -450,8 +450,10 @@ class TestPack3 (unittest.TestCase):
 		f = open(testfilepath,"a")  #opens file with name of "test.txt"
 		f.write("This file is now opened and i'm writting on it \n")
 		self.assertEqual (MD.fileinuse(testfilepath), True)  # Checks a file that it is beign written.
+		self.assertEqual (MD.folderinuse(self.testfolder), True)  # Checks if any file inside the folder is beign used.
 		f.close()
 		self.assertEqual (MD.fileinuse(testfilepath), False)  # Cheks a file that it is closed.
+		self.assertEqual (MD.folderinuse(self.testfolder), False)
 
 	def test_Telegramfd (self):
 		""" Checks a folder content and returns its pointers to be added to process.
@@ -471,6 +473,7 @@ class TestPack3 (unittest.TestCase):
 			('TESTS/Test3/Telegram Desktop/Printer output.pdf', '.file'),
 			('TESTS/Test3/Telegram Desktop/This is a Zero avi file.avi', '.file'),
 			('TESTS/Test3/Telegram Desktop/File not in use.CBR', '.file'),
+			('TESTS/Test3/Telegram Desktop/This is a folder', '.folder')
 			])
 
 		Entries = MD.Telegramfd (self.hotfolder)
