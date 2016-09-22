@@ -1289,6 +1289,7 @@ def MsgService():
 	mailStartedSevice (con)
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
+	#mailnocasetorrents (con)  #  TO DO ----  8
 	mailcomplettedtorrents (con)
 	mailRPolicytorrents (con)
 	con.close()
@@ -1531,7 +1532,7 @@ def Retrievefiles (tc):
 		Caso, Psecuence = Selectcase (matrix)
 		Deliverstatus, Msgcode = 'Added', 6
 		if Caso == 0 :
-			Deliverstatus, Msgcode = None, 7
+			Deliverstatus, Msgcode = None, 8
 		params = len(filesdict), Deliverstatus ,DBid
 		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
 		params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
