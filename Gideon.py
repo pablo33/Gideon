@@ -1295,6 +1295,9 @@ def MsgService():
 	con.close()
 	return
 
+def mailnocasetorrents (con):
+	pass 
+
 def mailRPolicytorrents(con):
 	cursor = con.cursor ()
 	cursor.execute ("SELECT nreg, trid, trname, dwfolder FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 10")
@@ -1531,8 +1534,10 @@ def Retrievefiles (tc):
 		# Selecting Case and processing torrent files.
 		Caso, Psecuence = Selectcase (matrix)
 		Deliverstatus, Msgcode = 'Added', 6
+		'''
 		if Caso == 0 :
 			Deliverstatus, Msgcode = None, 8
+		'''
 		params = len(filesdict), Deliverstatus ,DBid
 		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
 		params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
