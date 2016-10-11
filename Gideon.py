@@ -1372,17 +1372,17 @@ def mailcomplettedjobs(con):
 	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname, fullfilepath FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 7")
-	for Nreg, Trid, Trname, Fullfilepath in cursor:
+	cursor.execute ("SELECT nreg, trid, trname, fullfilepath, filetype FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 7")
+	for Nreg, Trid, Trname, Fullfilepath, Filetype in cursor:
 		if Trname is None:
 			Trname = os.path.basename (Fullfilepath)
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
 		if NCase > 0:
-			msgbody = "A torrent has been Delivered to its destination: \n\
-				Torrent Name: %s \n\
+			msgbody = "A %s job has been Delivered to its destination: \n\
+				Job Name: %s \n\
 				trid = %s \n\
 				Case = %s \n\n \
-			Files movements:\n"%(Trname, Trid, Casos[NCase])
+			Files movements:\n"%(Filetype [1:],Trname, Trid, Casos[NCase])
 
 			filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 			msgbody += filelisttxt + "\n"
