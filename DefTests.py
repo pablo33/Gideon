@@ -237,17 +237,19 @@ class Selectcase (unittest.TestCase):
 		[8] folderlevels
 		"""
 	known_values = (
-		([0,0,0,0,0,0,0,  0,0], 0),
-		([1,1,0,0,0,0,0,  1,1], 1),
-		([60,1,0,55,0,4,0,  1,1], 2),
-		([25,0,13,0,0,1,0,  1,1], 3),
-		([26,0,13,1,0,1,0,  1,1], 3),
-		([27,0,13,1,0,1,1,  1,1], 0),
-		([4,0,0,3,1,0,0,  1,1], 0),  # Compressed file
+		([0,0,0,0,0,0,0,  0,0], None , 0),
+		([1,1,0,0,0,0,0,  1,1], None , 1),
+		([60,1,0,55,0,4,0,  1,1], None, 2),
+		([25,0,13,0,0,1,0,  1,1], None, 3),
+		([26,0,13,1,0,1,0,  1,1], None, 3),
+		([26,0,13,1,0,1,0,  1,1], 'Telegram', 3),
+		([27,0,13,1,0,1,1,  1,1], None, 0),
+		([27,0,13,1,0,1,1,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
+		([4,0,0,3,1,0,0,  1,1], None, 0),  # Compressed file
 		)
 	def test_Selectcase (self):
-		for example, pattern in self.known_values:
-			result = MD.Selectcase (example)
+		for example, inputtype, pattern in self.known_values:
+			result = MD.Selectcase (example, inputtype)
 			self.assertEqual (pattern, result[0])
 
 class itemcheck_text_values (unittest.TestCase):
@@ -473,13 +475,52 @@ class TestPack3 (unittest.TestCase):
 			('TESTS/Test3/Telegram Desktop/Printer output.pdf', '.file'),
 			('TESTS/Test3/Telegram Desktop/This is a Zero avi file.avi', '.file'),
 			('TESTS/Test3/Telegram Desktop/File not in use.CBR', '.file'),
-			('TESTS/Test3/Telegram Desktop/This is a folder', '.folder')
 			])
 
 		Entries = MD.Telegramfd (self.hotfolder)
 		self.assertEqual (known_values, set(Entries))
 
 		f.close ()
+
+	def test_Retrievefilesdict (self):
+		""" Given a pointer, returns a dictionary with its contents """
+
+		known_values = (
+				(
+					('TESTS/Test3/Telegram Desktop/File not in use.CBR','.file'),
+					{0: {'name': 'File not in use.CBR', 'size': 0}},
+					),
+				(	
+					('TESTS/Test3/Emptyfoldertest/This is a folder', '.folder'),
+					{0: {'name': 'This is a folder/Videofile.avi', 'size': 0},
+					 1: {'name': 'This is a folder/Text Document.txt', 'size': 64},
+					 2: {'name': 'This is a folder/Subfolder to analyze/Document in a sub-folder.txt', 'size': 410}},
+					)
+					)
+		for testvalue, goal in known_values:
+			Fullfilepath, Filetype = testvalue
+			itemdict = MD.Retrievefilesdict (Fullfilepath, Filetype)
+			self.assertEqual (len (goal), len (itemdict))
+			for key in goal:
+				self.assertEqual (itemdict[key],goal[key])
+
+	def test_CleanEmptyFolders (self):
+		""" Given an upper folder, it scans and deletes empty subdirectories and the upper level
+		if it is also empty """
+
+		known_values = (
+			('TESTS/Test3/Emptyfoldertest/An empty folder', False),
+			('TESTS/Test3/Emptyfoldertest/This is a folder', True),
+		)
+
+		for testvalue, goal in known_values:
+			MD.CleanEmptyFolders(testvalue)
+			result = os.path.exists (testvalue)
+			print (testvalue)
+			self.assertEqual (goal,result)
+			
+
+
 		
 
 

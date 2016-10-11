@@ -429,8 +429,21 @@ if itemcheck (Hotfolder) != 'folder' :
 	print ('\tIf you want to use this inbox service,')
 	print ('\tplease edit your user configuration file at: \n',  userconfig)
 	print ('\tor create this configured path to start using it.')
-
 	Hotfolder = None  # This prevent using this Service.
+
+if itemcheck (Telegraminbox) != 'folder' :
+	print ('\Telegraminbox does not exist: %s'%Hotfolder)
+	print ('\tIf you want to use this inbox service,')
+	print ('\tplease edit your user configuration file at: \n',  userconfig)
+	print ('\tor create this configured path to start using it.')
+	Telegraminbox = None  # This prevent using this Service.
+
+elif Telegraminbox == TelegramNoCasedest:
+	print ("You can't assign the same Telegram folder as input/output")
+	print ('\tplease edit your user configuration file at: \n',  userconfig)
+	Telegraminbox = None  # This prevent using this Service.
+
+
 
 # Checking and setting up Fvideodest file:
 if Hotfolder != None:
@@ -460,7 +473,7 @@ else:
 		added_date date NOT NULL DEFAULT (strftime('%Y-%m-%d','now')),\
 		status char NOT NULL DEFAULT('Ready'),\
 		deliverstatus char,\
-		filesretrieved integer DEFAULT (0),\
+		filesretrieved integer DEFAULT (NULL),\
 		trname char, \
 		dwfolder char \
 		)")
@@ -1171,9 +1184,9 @@ def addinputs (entrieslist):
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for Entry, Filetype in entrieslist:
-			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Ready'", (Entry,)).fetchone()[0] == 0:
+			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and (status = 'Ready' or status =  'Added' or deliverstatus = 'Added')", (Entry,)).fetchone()[0] == 0:
 				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
-				logging.info ('added incoming torrent to process: %s' %Entry)
+				logging.info ('added incoming job to process: %s' %Entry)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
 				SpoolUserMessages(con, 1, TRid = Id)
 				con.commit()
@@ -1195,8 +1208,8 @@ def connectTR():
 	return tc
 
 def SendtoTransmission():
-	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
-	cursor = con.cursor() # object to manage queries
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
 	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready' and ( filetype = '.magnet' or filetype = '.torrent') ").fetchone())[0]
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
@@ -1241,7 +1254,7 @@ def TrackDeletedTorrents(tc):
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE status = 'Added' or status = 'Completed'")
+	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE (status = 'Added' or status = 'Completed') and trname IS NOT NULL")
 	for Id, HashString in cursor:
 		if len(tc.info(HashString)) == 0:
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (Id,))
@@ -1256,8 +1269,8 @@ def TrackFinishedTorrents (tc):
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE status = 'Added'")
-	for DBid, HashString in cursor:
+	cursor.execute ("SELECT id, hashstring, fullfilepath, filetype from tw_inputs WHERE status = 'Added' and trname IS NOT NULL")
+	for DBid, HashString, Fullfilepath, Filetype in cursor:
 		trr = tc.get_torrent(HashString)
 		if trr.status in ['seeding','stopped'] and trr.progress >= 100:
 			con.execute ("UPDATE tw_inputs SET status='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,DBid))
@@ -1290,7 +1303,7 @@ def MsgService():
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
 	#mailnocasetorrents (con)  #  TO DO ----  8
-	mailcomplettedtorrents (con)
+	mailcomplettedjobs (con)
 	mailRPolicytorrents (con)
 	con.close()
 	return
@@ -1321,7 +1334,7 @@ def mailRPolicytorrents(con):
 
 def mailaddedtorrents(con):
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND ( filetype = '.torrent' OR filetype = '.magnet')")
+	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND trname IS NOT NULL")
 	for Nreg, Trid, Trname in cursor:
 		msg = """A new torrent has been sent to Transmission Service for Downloading:
 	Torrent Name:
@@ -1350,7 +1363,7 @@ def mailStartedSevice(con):
 	con.commit()
 	return
 
-def mailcomplettedtorrents(con):
+def mailcomplettedjobs(con):
 	''' e-mail Completed torrents, this is to inform that a torrent have been processed
 	usually corresponds with the preasigned destinations.
 	It could contain other info of the torrent process.
@@ -1359,8 +1372,10 @@ def mailcomplettedtorrents(con):
 	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 7")
-	for Nreg, Trid, Trname in cursor:
+	cursor.execute ("SELECT nreg, trid, trname, fullfilepath FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 7")
+	for Nreg, Trid, Trname, Fullfilepath in cursor:
+		if Trname is None:
+			Trname = os.path.basename (Fullfilepath)
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
 		if NCase > 0:
 			msgbody = "A torrent has been Delivered to its destination: \n\
@@ -1407,19 +1422,28 @@ def mailpreasignedtorrents (con):
 	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 6")
-	for Nreg, Trid, Trname in cursor:
+	cursor.execute ("SELECT nreg, trid, trname, fullfilepath, filetype FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 6")
+	for r in cursor:
+		Nreg, Trid, Trname, Fullfilepath, Filetype = r[0], r[1], r[2], r[3], r[4]
+		if Filetype in ('.torrent','.magnet'):
+			Jobname = Trname
+		elif Filetype in ('.file', '.folder'):
+			Jobname = os.path.basename (Fullfilepath)
+		else:
+			logging.critical ('unknown job type, cannot continue')
+			continue
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
-		msgbody = "A new torrent has been preasigned: \n\
-			Torrent Name: %s \n\
+		msgbody = "A new download job has been preasigned: \n\
+			Job Name: %s \n\
+			Job Type = %s \n\
 			trid = %s \n\
 			Case = %s \n\n \
-		Predeliver:\n"%(Trname, Trid, Casos[NCase])
+		Predeliver:\n"%(Jobname, Filetype[1:],Trid, Casos[NCase])
 
 		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 		msgbody += filelisttxt + "\n"
 		msgbody += nonwantedfilestxt + "\n"
-		STmail ('Predelivered status for: '+ Trname ,msgbody, topic = 6 )
+		STmail ('Predelivered status for: '+ Jobname + '(' + Filetype[1:] + ')' ,msgbody, topic = 6 )
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	return
@@ -1504,10 +1528,12 @@ def getactivitylogTXT (con,Trid):
 			activityTXT += txt + '\n'
 	return activityTXT
 
-def Retrievefiles (tc):
+def RetrieveTorrentFiles (tc):
+	''' Selects from tW_inputs the new imputs, process their files and do the predeliver at DB
+	'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, hashstring FROM tw_inputs WHERE filesretrieved = 0 and (status = 'Added' or status = 'Completed') ")
+	cursor.execute ("SELECT id, hashstring FROM tw_inputs WHERE filesretrieved IS NULL and (status = 'Added' or status = 'Completed') AND trname IS NOT NULL")
 	cursorFreeze = list()
 	for entry in cursor:
 		cursorFreeze.append(entry)
@@ -1520,33 +1546,72 @@ def Retrievefiles (tc):
 		if len(filesdict) == 0:
 			print ("Torrent may be waitting for files....")
 			continue
-		matrix = [0,0,0,0,0,0,0,0,0]
-		folders = set()
-		for key in filesdict:
-			Size = filesdict.get(key)['size']
-			Originalfile = filesdict.get(key)['name']
-			Mime = fileclasify(Originalfile)
-			params = DBid, Size, Originalfile, Mime
-			con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
-			matrix = addmatrix (matrix, Mime)
-			folders.add (os.path.dirname(Originalfile))
-		matrix = addfoldersmatrix (matrix,folders,7,8)
-		# Selecting Case and processing torrent files.
-		Caso, Psecuence = Selectcase (matrix)
-		Deliverstatus, Msgcode = 'Added', 6
-		'''
-		if Caso == 0 :
-			Deliverstatus, Msgcode = None, 8
-		'''
-		params = len(filesdict), Deliverstatus ,DBid
-		con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
-		params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
-		con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
-		con.commit()
-		ProcessSecuence (con, DBid, Psecuence)
-		SpoolUserMessages(con, Msgcode, DBid)
-	con.commit()
+		AddFilesToDB (con, DBid, filesdict, 'Transmission')
 	con.close()
+
+def Retrievefilesdict ( Fullfilepath, Filetype):
+	''' Given a file or a folder, it creates a dictionary with information as a torrent does.
+		it returns this dictionary
+		Keys used by Gideon and Transmission-Service:
+		{0: {
+			'size': _in bytes_,
+			'name': _filename with relative path to the main node_,
+			},
+		 1: {'size': _in bytes_,
+			'name': _filename relativepath_,}
+			...........}
+	'''
+	CollectionDictionary = dict ()
+	regcounter = 0
+
+	if Filetype == '.folder':
+		itempath = Fullfilepath
+		folderlist = lsdirectorytree (Fullfilepath)
+		for subdirectory in folderlist:
+			filelist = [(subdirectory + '/' + i) for i in os.listdir(subdirectory)]
+			for entry in filelist:
+				if itemcheck (entry) != 'file':
+					continue
+				name = entry [len(os.path.dirname(Fullfilepath))+1:]
+				size = os.path.getsize (entry)
+				itemdict = {'name': name , 'size': size}
+				CollectionDictionary[regcounter] = itemdict			
+				regcounter += 1
+	else:
+		itempath = os.path.dirname(Fullfilepath)
+		itemdict = {'name': os.path.basename(Fullfilepath)}
+		itemdict['size'] = os.path.getsize(Fullfilepath)
+		CollectionDictionary = {regcounter : itemdict}
+
+	return CollectionDictionary
+
+def AddFilesToDB (con, DBid, filesdict, inputtype):
+	''' Given a downloaded entry and its files-dict,
+		it informs those files in the Data Base,
+		it gets the matrix,
+		inform the matrix into the database,
+		it applies the process secuence and inform the destination of the files.
+	'''
+	matrix = [0,0,0,0,0,0,0,0,0]
+	folders = set()
+	for key in filesdict:
+		Size = filesdict.get(key)['size']
+		Originalfile = filesdict.get(key)['name']
+		Mime = fileclasify(Originalfile)
+		params = DBid, Size, Originalfile, Mime
+		con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
+		matrix = addmatrix (matrix, Mime)
+		folders.add (os.path.dirname(Originalfile))
+	matrix = addfoldersmatrix (matrix,folders,7,8)
+	# Selecting Case and processing torrent files.
+	Caso, Psecuence = Selectcase (matrix, inputtype)
+	ProcessSecuence (con, DBid, Psecuence)
+	params = len(filesdict), 'Added' ,DBid
+	con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
+	params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
+	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
+	con.commit()
+	return 
 
 def ProcessSecuence(con, Id, Psecuence):
 	global GideonConfig
@@ -1563,6 +1628,13 @@ def ProcessSecuence(con, Id, Psecuence):
 		elif process == 'assign audio destination':
 			for entry in cursor2:
 				params = (Faudio_Folder+entry[3],
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+		elif process == 'assign Telegram destination':
+			for entry in cursor2:
+				params = (TelegramNoCasedest+entry[2],
 					entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -1625,7 +1697,7 @@ def ProcessSecuence(con, Id, Psecuence):
 					con.execute("UPDATE files SET destfile = ? WHERE nreg = ?", (os.path.join(Subpath,destfile) ,Nreg))		
 				con.commit()
 			continue
-
+	SpoolUserMessages(con, 6, Id)
 	return
 
 Psecuensedict = {
@@ -1633,7 +1705,7 @@ Psecuensedict = {
 	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination'],
 	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
 	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
-	4 : list(),
+	4 : ['assign Telegram destination'],
 }
 
 Casos = {
@@ -1641,9 +1713,10 @@ Casos = {
 	1 : "(video) Torrent is just one file and it is a video file. and it may have some NonWantedFiles.",
 	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
 	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
+	4 : "Telegram downloaded file with no Case",
 }
 
-def Selectcase (matrix):
+def Selectcase (matrix, inputtype):
 	""" Selects a case to deliver the torrent files and an operational behaviour for files.
 		operational behaviour is returned a a list of number of codes that operates on all the files of
 		the torrent.
@@ -1669,6 +1742,9 @@ def Selectcase (matrix):
 
 	elif matrix[0] >= 1 and matrix[2]>0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
 		NCase = 3
+
+	elif inputtype == 'Telegram':
+		NCase = 4
 
 	else:
 		NCase = 0
@@ -1701,31 +1777,35 @@ def addfoldersmatrix (matrix, folders, posnfolders, posfolderlevels):
 	matrix [posfolderlevels] = levels
 	return matrix
 
-def ProcessCompletedTorrents():
-	''' Check for 'Completed' torrents and _deliverstatus_ = 'Added' in tw_inputs DB.
-		Process torrent's files and do the movements.
+def DeliverFiles():
+	''' Check for 'Completed' entries and _deliverstatus_ = 'Added' in tw_inputs DB.
+		Process files and do the movements.
 		Once the move is done, field _deliverstatus_ is set to 'Delivered'
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor1 = con.cursor()
-	cursor1.execute ("SELECT id, trname, dwfolder from tw_inputs WHERE status = 'Completed' and deliverstatus = 'Added'")
-	for Id, Trname, Dwfolder in cursor1:
+	cursor1.execute ("SELECT id, trname, fullfilepath, dwfolder, filetype from tw_inputs WHERE status = 'Completed' and deliverstatus = 'Added'")
+	for Id, Trname, Fullfilepath, Dwfolder, Filetype in cursor1:
 		cursor2 = con.cursor()
 		cursor2.execute ("SELECT nreg, originalfile, destfile from files WHERE trid = %s and wanted = 1 and status = 'Added' "%Id)
 		for Nreg, originalfile, destfile in cursor2:
+			mode = 'c'
+			if Filetype in ('.file','.folder'):
+				mode = 'm'  # It's a Telegram input and need to be moved
 			origin = addslash (Dwfolder) + originalfile
-			status = copyfile (origin, destfile)
+			status = copyfile (origin, destfile, mode = mode)
+			if Filetype == '.folder':
+				CleanEmptyFolders (Fullfilepath)
 			con.execute ("UPDATE files SET status = ? WHERE nreg = ?",(status,Nreg))
 		con.execute ("UPDATE tw_inputs SET deliverstatus = 'Delivered' WHERE id = %s"%Id)
 		SpoolUserMessages(con, 7, TRid = Id)
 	con.commit()
 	con.close()
-
 	return
 
 def StartTRService ():
 	con = sqlite3.connect (dbpath)
-	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added'").fetchone()[0]
+	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added' and trname IS NOT NULL").fetchone()[0]
 	if Nactivetorrents > 0 and not getappstatus(['transmission-gtk']):
 		launchTR (cmd, 25)
 		SpoolUserMessages(con, 9, None)
@@ -1921,6 +2001,65 @@ def Telegramfd (Tfolder):
 			Itemlist += [(entry,entrytype),]
 	return Itemlist
 
+def PreProcessReadyTelegramInputs ():
+	""" Pre-Process Ready Telegram Inputs, sets the downloaded folder and sets status = Added in Database
+		now the input is ready to retrieve and pre-asign the files."""
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, fullfilepath, filetype from tw_inputs WHERE status = 'Ready' and trname IS NULL")
+	for DBid, Fullfilepath, Filetype in cursor:
+		Basedir = os.path.dirname(Fullfilepath)
+		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (Basedir,DBid))
+		# Here goes the code for Compressed files.
+		# SpoolUserMessages(con, 5, TRid = DBid)  ##  Create a new Message
+	con.commit()
+	con.close()
+	return
+
+def RetrieveTelegramInputfiles():
+	""" Retrieve the input files and do the Pre-deliver process, only for thelegram inputs.
+		"""
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, fullfilepath, filetype, dwfolder FROM tw_inputs WHERE filesretrieved IS NULL and status = 'Added' AND trname IS NULL")
+	cursorFreeze = list()
+	for entry in cursor:
+		cursorFreeze.append(entry)
+	for DBid, Fullfilepath, Filetype, Dwfolder in cursorFreeze:
+		filesdict = Retrievefilesdict (Fullfilepath, Filetype)
+		if len(filesdict) == 0:
+			print ("Thereis no files for this entry ....")
+			continue
+		AddFilesToDB (con, DBid, filesdict, 'Telegram')
+		cursor.execute ("UPDATE tW_inputs SET status = 'Completed' WHERE id = %s"%DBid)
+		con.commit ()
+	con.close ()
+	return
+
+def CleanEmptyFolders (upperfolder):
+	upperparent = os.path.dirname (upperfolder)
+	foldercollection = lsdirectorytree (upperfolder)
+	logging.info ('\tChecking empty folders to delete them')
+	foldercollectionnext = set()
+	while len(foldercollection) > 0:
+		for i in foldercollection:
+			logging.info ('checking: %s' %i)
+			if itemcheck(i) != 'folder':
+				logging.warning ('\tDoes not exists or is not a folder. Skipping')
+				continue		
+			if len (os.listdir(i)) == 0:
+				if i != upperparent:
+					shutil.rmtree (i)
+					infomsg = "\tfolder: %s has been removed. (was empty)" % i
+					logging.info (infomsg)
+					foldercollectionnext.add (os.path.dirname(i))
+					logging.debug ("\tadded next level to re-scan")			
+		foldercollection = foldercollectionnext
+		foldercollectionnext = set()
+	return
+
+
+
 # ========================================
 # 			== MAIN PROCESS  ==
 # ========================================
@@ -1936,27 +2075,30 @@ if __name__ == '__main__':
 			CoverService (Fmovie_Folder, Availablecoversfd, Hotfolder+"Videodest.ini")
 
 		if Telegraminbox != None:
-			Hotfolderinputs += Telegramfd (Telegraminbox)
+			Hotfolderinputs = Telegramfd (Telegraminbox)
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
+			PreProcessReadyTelegramInputs ()
+			RetrieveTelegramInputfiles ()
 
 		SendtoTransmission ()
-		# Process file and folders Telegram entries
 
 		if getappstatus (['mplayer','vlc']) == False:
-			ProcessCompletedTorrents ()
-
+			DeliverFiles ()
+			
 		if getappstatus(['transmission-gtk']):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
 			TrackDeletedTorrents(tc)
 			TrackFinishedTorrents (tc)
-			Retrievefiles(tc)
-			RetentionPService(tc)
+			RetrieveTorrentFiles (tc)
+			RetentionPService (tc)
+
+
 		
 		MsgService ()
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
-		time.sleep(s)
+		time.sleep (s)
 
 
