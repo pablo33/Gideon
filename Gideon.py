@@ -2076,7 +2076,6 @@ if __name__ == '__main__':
 			Hotfolderinputs = [(i,".torrent") for i in Dropfd (Torrentinbox, ["torrent",])]
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
-			CoverService (Fmovie_Folder, Availablecoversfd, TransmissionInbox+"Videodest.ini")
 
 		if Telegraminbox != None:
 			Hotfolderinputs = Telegramfd (Telegraminbox)
@@ -2089,7 +2088,10 @@ if __name__ == '__main__':
 
 		if getappstatus (['mplayer','vlc']) == False:
 			DeliverFiles ()
-			
+
+		if TransmissionInbox != None:
+			CoverService (Fmovie_Folder, Availablecoversfd, TransmissionInbox+"Videodest.ini")
+		
 		if getappstatus(['transmission-gtk']):
 			tc = connectTR ()
 			TrackManualTorrents (tc)
