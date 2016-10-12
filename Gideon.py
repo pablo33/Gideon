@@ -1805,10 +1805,13 @@ def DeliverFiles():
 
 def StartTRService ():
 	con = sqlite3.connect (dbpath)
-	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added' and trname IS NOT NULL").fetchone()[0]
+	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added' and (filetype='.torrent' or filetype='.magnet')").fetchone()[0]
 	if Nactivetorrents > 0 and not getappstatus(['transmission-gtk']):
 		launchTR (cmd, 25)
 		SpoolUserMessages(con, 9, None)
+	else:
+		logging.info('There are no pending torrents in Database to continue downloading in Transmission Service')
+	
 	con.commit()
 	con.close()
 	return
@@ -1984,16 +1987,16 @@ def Telegramfd (Tfolder):
 		entrytype = None
 		if os.path.isdir (entry):
 			if folderinuse (entry):
-				logging.info("folder %s was not processed because was in use." %entry)
+				logging.info("Detected folder job %s was not processed because some of their content was in use." %entry)
 				continue
 			else:
 				entrytype = '.folder'
 		elif os.path.isfile (entry):
 			if os.path.splitext(entry)[1].lower() in ('.rar','.zip','.7z'):
-				logging.info("file %s was not processed because it is a compressed file." %entry)
+				logging.info("Detected job %s was not processed because it is a compressed file." %entry)
 				continue
 			if fileinuse (entry) == True:
-				logging.info("file %s was not processed because it were open by an application." %entry)
+				logging.info("Detected job %s was not processed because it were open by an application." %entry)
 				continue
 			else:
 				entrytype = '.file'
@@ -2064,7 +2067,6 @@ def CleanEmptyFolders (upperfolder):
 # 			== MAIN PROCESS  ==
 # ========================================
 if __name__ == '__main__':
-	# Main loop
 	StartTRService ()
 	while True:
 		if Hotfolder != None:
