@@ -239,7 +239,7 @@ __author__ = "pablo33"
 # Setting variables, default paths to store processed files.
 Fmovie_Folder = "/home/user/movies/"  # Place to store processed movies
 Faudio_Folder = "/home/user/audio/"  # Place to store processed music
-Hotfolder = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+TransmissionInbox = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
 Telegraminbox = None  #  "/home/user/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
 TelegramNoCasedest = "/home/user/Downloads/"  # Destination file where telegram files goes if no Case is found.
 
@@ -375,7 +375,7 @@ logging.debug("======================================================")
 # (1.5) Setting main variables
 Fmovie_Folder = addslash(GideonConfig.Fmovie_Folder)  # Default place to store movies
 Faudio_Folder = addslash(GideonConfig.Faudio_Folder)  # Default place to store music
-Hotfolder = addslash (GideonConfig.Hotfolder)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
+TransmissionInbox = addslash (GideonConfig.TransmissionInbox)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
 Telegraminbox = addslash (GideonConfig.Telegraminbox)  # Hotfolder to retrieve Telegram Downloaded files or whatever other files
 TelegramNoCasedest = addslash (GideonConfig.TelegramNoCasedest)  # Telegram files with no Case goes here, preserving the file/folder structure
 
@@ -424,15 +424,15 @@ Codemimes = {
 # (1.6) Prequisites:
 #=============
 
-if itemcheck (Hotfolder) != 'folder' :
-	print ('\tHotfolder does not exist: %s'%Hotfolder)
+if itemcheck (TransmissionInbox) != 'folder' :
+	print ('\tHotfolder does not exist: %s'%TransmissionInbox)
 	print ('\tIf you want to use this inbox service,')
 	print ('\tplease edit your user configuration file at: \n',  userconfig)
 	print ('\tor create this configured path to start using it.')
-	Hotfolder = None  # This prevent using this Service.
+	TransmissionInbox = None  # This prevent using this Service.
 
 if itemcheck (Telegraminbox) != 'folder' :
-	print ('\Telegraminbox does not exist: %s'%Hotfolder)
+	print ('\Telegraminbox does not exist: %s'%TransmissionInbox)
 	print ('\tIf you want to use this inbox service,')
 	print ('\tplease edit your user configuration file at: \n',  userconfig)
 	print ('\tor create this configured path to start using it.')
@@ -446,8 +446,8 @@ elif Telegraminbox == TelegramNoCasedest:
 
 
 # Checking and setting up Fvideodest file:
-if Hotfolder != None:
-	if startDefaultFile (startVideodestINIfile, Hotfolder + "Videodest.ini") == True:
+if TransmissionInbox != None:
+	if startDefaultFile (startVideodestINIfile, TransmissionInbox + "Videodest.ini") == True:
 		print ("Don't forget to customize Videodest.ini file with video-destinations to automatically store them into the right place. More instructions are available inside Videodest.ini file.")
 
 
@@ -1167,7 +1167,7 @@ def Dropfd(destfolder, lsextensions):
 		Start processing downloads or covers to have in mind.
 		.torrent files and covers goes to $HOME/.Gideon/Torrentinbox folder
 		'''
-	movelist = extfilemove (Hotfolder, destfolder, lsextensions)
+	movelist = extfilemove (TransmissionInbox, destfolder, lsextensions)
 	if movelist == []:
 		logging.debug("Nothing was in the Dropbox-hot-folder.")
 	else:
@@ -1678,14 +1678,14 @@ def ProcessSecuence(con, Id, Psecuence):
 					con.execute("UPDATE files SET destfile = null, wanted = 0  WHERE nreg = ?", (entry[0],))
 			con.commit()
 			continue
-		elif process == '(o)assign local path from videodest.ini' and Hotfolder != None:
+		elif process == '(o)assign local path from videodest.ini' and TransmissionInbox != None:
 			filmnamelist = set()
 			for entry in cursor2:
 				if entry[1] == 'video':
 					filmnamelist.add(clearfilename(os.path.splitext(entry[2].split("/")[0])[0]))
 					filmnamelist.add(clearfilename(os.path.splitext(entry[2].split("/")[-1])[0]))
 			Subpath, maxmatch = "", 10
-			Fvideodest = getaliaspaths(Hotfolder+"Videodest.ini")
+			Fvideodest = getaliaspaths(TransmissionInbox+"Videodest.ini")
 			for filmname in filmnamelist:
 				tmpSubpath, match = Getsubpath (filmname, Fvideodest)
 				if match > maxmatch:
@@ -1806,14 +1806,16 @@ def DeliverFiles():
 def StartTRService ():
 	con = sqlite3.connect (dbpath)
 	Nactivetorrents = con.execute("SELECT count(status) FROM tw_inputs WHERE status = 'Added' and (filetype='.torrent' or filetype='.magnet')").fetchone()[0]
-	if Nactivetorrents > 0 and not getappstatus(['transmission-gtk']):
-		launchTR (cmd, 25)
-		SpoolUserMessages(con, 9, None)
+	if Nactivetorrents > 0:
+		if not getappstatus(['transmission-gtk']):
+			launchTR (cmd, 25)
+			SpoolUserMessages(con, 9, None)
+			con.commit()
+			con.close()
+		else:
+			logging.info ('There are pending torrents to download, Transmission service is alive.')
 	else:
 		logging.info('There are no pending torrents in Database to continue downloading in Transmission Service')
-	
-	con.commit()
-	con.close()
 	return
 
 def Relatedcover(item):
@@ -2069,12 +2071,12 @@ def CleanEmptyFolders (upperfolder):
 if __name__ == '__main__':
 	StartTRService ()
 	while True:
-		if Hotfolder != None:
+		if TransmissionInbox != None:
 			Dropfd (Availablecoversfd, ["jpg","png","jpeg"])  # move incoming user covers to covers repository
 			Hotfolderinputs = [(i,".torrent") for i in Dropfd (Torrentinbox, ["torrent",])]
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
-			CoverService (Fmovie_Folder, Availablecoversfd, Hotfolder+"Videodest.ini")
+			CoverService (Fmovie_Folder, Availablecoversfd, TransmissionInbox+"Videodest.ini")
 
 		if Telegraminbox != None:
 			Hotfolderinputs = Telegramfd (Telegraminbox)
