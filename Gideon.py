@@ -32,7 +32,7 @@ import transmissionrpc  # transmission rpc API
 dyntestfolder = 'TESTS'
 
 
-__version__ = "2.0alfa"
+__version__ = "2.0"
 __author__ = "pablo33"
 
 
@@ -1221,7 +1221,7 @@ def SendtoTransmission():
 			TRhash = trobject.hashString
 			con.execute ("UPDATE tw_inputs SET status='Added',  hashstring = ? , trname=? WHERE id=?", (TRhash, TRname,str(Id)))
 			SpoolUserMessages(con, 2, TRid = Id)
-	con.commit()
+		con.commit()
 	con.close()
 	return
 
@@ -1577,11 +1577,14 @@ def Retrievefilesdict ( Fullfilepath, Filetype):
 				itemdict = {'name': name , 'size': size}
 				CollectionDictionary[regcounter] = itemdict			
 				regcounter += 1
-	else:
+	elif Filetype == '.file':
 		itempath = os.path.dirname(Fullfilepath)
 		itemdict = {'name': os.path.basename(Fullfilepath)}
 		itemdict['size'] = os.path.getsize(Fullfilepath)
 		CollectionDictionary = {regcounter : itemdict}
+
+	else:
+		logging.critical ('Unknown entry-type, cannot continue, returning an empty dictionary of files.')
 
 	return CollectionDictionary
 
@@ -1787,19 +1790,25 @@ def DeliverFiles():
 	cursor1.execute ("SELECT id, trname, fullfilepath, dwfolder, filetype from tw_inputs WHERE status = 'Completed' and deliverstatus = 'Added'")
 	for Id, Trname, Fullfilepath, Dwfolder, Filetype in cursor1:
 		cursor2 = con.cursor()
-		cursor2.execute ("SELECT nreg, originalfile, destfile from files WHERE trid = %s and wanted = 1 and status = 'Added' "%Id)
-		for Nreg, originalfile, destfile in cursor2:
-			mode = 'c'
-			if Filetype in ('.file','.folder'):
-				mode = 'm'  # It's a Telegram input and need to be moved
+		cursor2.execute ("SELECT nreg, originalfile, destfile, wanted from files WHERE trid = %s and status = 'Added' "%Id)
+		for Nreg, originalfile, destfile, Wanted in cursor2:
 			origin = addslash (Dwfolder) + originalfile
-			status = copyfile (origin, destfile, mode = mode)
-			if Filetype == '.folder':
-				CleanEmptyFolders (Fullfilepath)
+			if Wanted == 1:
+				mode = 'c'
+				if Filetype in ('.file','.folder'):
+					mode = 'm'  # It's a Telegram input and need to be moved
+				status = copyfile (origin, destfile, mode = mode)
+			elif Filetype in ('.file', '.folder'):
+				os.remove (origin)
+				status = 'Deleted'
+			else:
+				continue
 			con.execute ("UPDATE files SET status = ? WHERE nreg = ?",(status,Nreg))
 		con.execute ("UPDATE tw_inputs SET deliverstatus = 'Delivered' WHERE id = %s"%Id)
+		if Filetype == '.folder':
+			CleanEmptyFolders (Fullfilepath)
 		SpoolUserMessages(con, 7, TRid = Id)
-	con.commit()
+		con.commit()
 	con.close()
 	return
 
@@ -1989,10 +1998,9 @@ def Telegramfd (Tfolder):
 		entrytype = None
 		if os.path.isdir (entry):
 			if folderinuse (entry):
-				logging.info("Detected folder job %s was not processed because some of their content was in use." %entry)
+				logging.info("Detected incoming folder job %s, it was not processed because some of their content was in use." %entry)
 				continue
-			else:
-				entrytype = '.folder'
+			entrytype = '.folder'
 		elif os.path.isfile (entry):
 			if os.path.splitext(entry)[1].lower() in ('.rar','.zip','.7z'):
 				logging.info("Detected job %s was not processed because it is a compressed file." %entry)
@@ -2004,6 +2012,8 @@ def Telegramfd (Tfolder):
 				entrytype = '.file'
 		if entrytype != None:
 			Itemlist += [(entry,entrytype),]
+		else:
+			logging.warning ('This job was discarded: %s'%entry)
 	return Itemlist
 
 def PreProcessReadyTelegramInputs ():
@@ -2022,19 +2032,19 @@ def PreProcessReadyTelegramInputs ():
 	return
 
 def RetrieveTelegramInputfiles():
-	""" Retrieve the input files and do the Pre-deliver process, only for thelegram inputs.
+	""" Retrieve the input files and do the Pre-deliver process,
+		only for telegram inputs.
 		"""
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, fullfilepath, filetype, dwfolder FROM tw_inputs WHERE filesretrieved IS NULL and status = 'Added' AND trname IS NULL")
+	cursor.execute ("SELECT id, fullfilepath, filetype, dwfolder FROM tw_inputs WHERE filesretrieved IS NULL and status = 'Added' AND (filetype = '.file' OR filetype = '.folder')")
 	cursorFreeze = list()
 	for entry in cursor:
 		cursorFreeze.append(entry)
 	for DBid, Fullfilepath, Filetype, Dwfolder in cursorFreeze:
 		filesdict = Retrievefilesdict (Fullfilepath, Filetype)
 		if len(filesdict) == 0:
-			print ("Thereis no files for this entry ....")
-			continue
+			logging.warning ("Thereis no files for this entry: %s"%Fullfilepath)
 		AddFilesToDB (con, DBid, filesdict, 'Telegram')
 		cursor.execute ("UPDATE tW_inputs SET status = 'Completed' WHERE id = %s"%DBid)
 		con.commit ()
@@ -2100,11 +2110,7 @@ if __name__ == '__main__':
 			RetrieveTorrentFiles (tc)
 			RetentionPService (tc)
 
-
-		
 		MsgService ()
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
 		time.sleep (s)
-
-

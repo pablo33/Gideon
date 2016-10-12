@@ -514,7 +514,7 @@ class TestPack3 (unittest.TestCase):
 		)
 
 		for testvalue, goal in known_values:
-			MD.CleanEmptyFolders(testvalue)
+			MD.CleanEmptyFolders (testvalue)
 			result = os.path.exists (testvalue)
 			print (testvalue)
 			self.assertEqual (goal,result)
