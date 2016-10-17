@@ -1248,13 +1248,13 @@ def TrackManualTorrents(tc):
 		con.close()
 	return
 
-def TrackDeletedTorrents(tc):
+def TrackDeletedTorrents (tc):
 	''' Check if 'Added' torrents in DB are still in Transmission.
-		If an entry is not present, it will be mark as 'Deleted'
+		If an entry is not present at transmission service, it will be mark as 'Deleted'
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE (status = 'Added' or status = 'Completed') and trname IS NOT NULL")
+	cursor.execute ("SELECT id, hashstring from tw_inputs WHERE (status = 'Added' or status = 'Completed') and (filetype='.magnet' OR filetype = '.torrent')")
 	for Id, HashString in cursor:
 		if len(tc.info(HashString)) == 0:
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (Id,))
@@ -1269,7 +1269,7 @@ def TrackFinishedTorrents (tc):
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, hashstring, fullfilepath, filetype from tw_inputs WHERE status = 'Added' and trname IS NOT NULL")
+	cursor.execute ("SELECT id, hashstring, fullfilepath, filetype from tw_inputs WHERE status = 'Added' and (filetype='.magnet' OR filetype = '.torrent')")
 	for DBid, HashString, Fullfilepath, Filetype in cursor:
 		trr = tc.get_torrent(HashString)
 		if trr.status in ['seeding','stopped'] and trr.progress >= 100:
