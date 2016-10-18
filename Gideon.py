@@ -1943,19 +1943,20 @@ def RetentionPService(tc):
 	cursor = con.cursor()
 	dellist = ['',]
 	for trr in tc.get_torrents():
-		DBid, Deliverstatus = cursor.execute ("SELECT id, deliverstatus from tw_inputs WHERE TRname = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trr.name,)).fetchone()
+		DBid, Deliverstatus = cursor.execute ("SELECT id, deliverstatus from tw_inputs WHERE hashstring = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trr.hashString,)).fetchone()
 		if DBid == None:
 			logging.warning('Active torrent is not being tracked on DB: %s'%trr.name)
 			continue
 		elif trr.seed_ratio_mode == 'unlimited' or (trr.seed_ratio_mode == 'global' and not tc.session.seedRatioLimited):
 			# Retention policy does not apply to torrents that seeds forever.
-			print ("Retention policy does not apply to torrents that seeds forever.")
+			print ("Retention policy does not apply to torrents that seeds forever: %s"%trr.name)
 			continue
 		elif trr.doneDate == 0:
-			# Retention policy does not apply to Manual added torrents with already existent files
+			print ("Retention policy does not apply to Manual added torrents with already existent files: %s"%trr.name)
 			continue
 		elif Deliverstatus == None:
-			#Torrent has no Case Selected, you can stablish a retention policy for this torrents.
+			print ("Retention policy does not apply to Torrents that has no match Case: %s"%trr.name)
+			#you can stablish a retention policy for this torrents, or delete them manually.
 			continue
 		elif Deliverstatus == 'Delivered':
 			# This torrents have been delivered to another location. You can delete them due to a retention policy defined here:
