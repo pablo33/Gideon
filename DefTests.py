@@ -445,8 +445,10 @@ class TestPack3 (unittest.TestCase):
 
 
 	def test_fileinuse (self):
-		""" returns None if file is not beign used, or returns applications PIDs if it is beign used. 
-			"""
+		""" Scans a folder for files.
+			Returns True if any file is in use (is being writted)
+			Otherwise returns False
+			"""		
 		# open a file:
 		testfilepath = os.path.join (self.testfolder, "fileinuse.txt")
 		f = open(testfilepath,"a")  #opens file with name of "test.txt"
@@ -456,6 +458,7 @@ class TestPack3 (unittest.TestCase):
 		f.close()
 		self.assertEqual (MD.fileinuse(testfilepath), False)  # Cheks a file that it is closed.
 		self.assertEqual (MD.folderinuse(self.testfolder), False)
+
 
 	def test_Telegramfd (self):
 		""" Checks a folder content and returns its pointers to be added to process.

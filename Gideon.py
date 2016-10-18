@@ -183,15 +183,29 @@ def folderinuse (folder):
 			Otherwise returns False
 		(DefTest in TestPack3)
 		"""
-	folder = addslash(folder)
-	folderlist = lsdirectorytree (folder)
-	for a in folderlist:
-		filelist = [(folder + i) for i in os.listdir(a)]
-		for entry in filelist:
-			if os.path.isfile (entry):
-				if fileinuse (entry):
-					return True
+	tmpset=set()
+	contents1=None
+	for loop in [1,2]:
+		folderlist = lsdirectorytree (folder)
+		for i in folderlist:
+			tmpset.add(i)
+		for a in folderlist:
+			filelist = [os.path.join(folder,i) for i in os.listdir(a)]
+			for entry in filelist:
+				if os.path.isfile (entry):
+					tmpset.add (entry)
+					if fileinuse (entry):
+						return True
+		print (loop, contents1, tmpset, sep="\n")
+		if contents1 == None:
+			contents1 = tmpset.copy()
+			tmpset = set()
+			time.sleep (8)
+			continue
+		elif contents1 != tmpset:
+			return True
 	return False
+
 
 
 
