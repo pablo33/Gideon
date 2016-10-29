@@ -1285,6 +1285,9 @@ def TrackFinishedTorrents (tc):
 	cursor = con.cursor()
 	cursor.execute ("SELECT id, hashstring, fullfilepath, filetype from tw_inputs WHERE status = 'Added' and (filetype='.magnet' OR filetype = '.torrent')")
 	for DBid, HashString, Fullfilepath, Filetype in cursor:
+		if HashString == None:
+			logging.warning ('An entry has been added to Transmission Service and has not a HashString yet.')
+			continue
 		trr = tc.get_torrent(HashString)
 		if trr.status in ['seeding','stopped'] and trr.progress >= 100:
 			con.execute ("UPDATE tw_inputs SET status='Completed', dwfolder = ? WHERE id = ?", (trr.downloadDir ,DBid))
@@ -1466,6 +1469,8 @@ def gettrrpendingTXT (con):
 	cursor2 = con.execute ("SELECT id, trname FROM tw_inputs WHERE status = 'Added' ORDER BY added_date")
 	filelisttxt = "Torrents pending downloading:\n"
 	for entry in cursor2:
+		if Trname == None:
+			Trname = 'WARNING, Torrent without a valid NAME!'
 		filelisttxt += "\t"+str(entry[0])+"\t"+entry[1]+"\n"
 	return filelisttxt
 
