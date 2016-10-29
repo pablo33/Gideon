@@ -1224,7 +1224,8 @@ def connectTR():
 def SendtoTransmission():
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready' and ( filetype = '.magnet' or filetype = '.torrent') ").fetchone())[0]
+	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready' and ( filetype = '.magnet' or filetype = '.torrent')").fetchone())[0]
+	print ('¿Hello?', nfound)
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
 		tc = connectTR ()
@@ -1233,6 +1234,7 @@ def SendtoTransmission():
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
 			TRhash = trobject.hashString
+			print ('Added a net torrent',Fullfilepath, TRname, TRhash)
 			con.execute ("UPDATE tw_inputs SET status='Added',  hashstring = ? , trname=? WHERE id=?", (TRhash, TRname,str(Id)))
 			SpoolUserMessages(con, 2, TRid = Id)
 		con.commit()
@@ -2041,7 +2043,7 @@ def PreProcessReadyTelegramInputs ():
 		now the input is ready to retrieve and pre-asign the files."""
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	cursor.execute ("SELECT id, fullfilepath, filetype from tw_inputs WHERE status = 'Ready' and trname IS NULL")
+	cursor.execute ("SELECT id, fullfilepath, filetype from tw_inputs WHERE status = 'Ready' AND (filetype = '.file' OR filetype = '.folder')")
 	for DBid, Fullfilepath, Filetype in cursor:
 		Basedir = os.path.dirname(Fullfilepath)
 		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (Basedir,DBid))
