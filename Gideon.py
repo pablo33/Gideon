@@ -1964,7 +1964,13 @@ def RetentionPService(tc):
 	cursor = con.cursor()
 	dellist = ['',]
 	for trr in tc.get_torrents():
-		DBid, Deliverstatus = cursor.execute ("SELECT id, deliverstatus from tw_inputs WHERE hashstring = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trr.hashString,)).fetchone()
+		try:
+			DBid, Deliverstatus = cursor.execute ("SELECT id, deliverstatus from tw_inputs WHERE hashstring = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trr.hashString,)).fetchone()
+		except TypeError:
+			msg = 'This torrent is not beign tracked at Database, it may be queued: %s,%s'%(trr.hashString, trr.name)
+			logging.warning (msg)
+			print (msg)
+			continue
 		if DBid == None:
 			logging.warning('Active torrent is not being tracked on DB: %s'%trr.name)
 			continue
