@@ -1225,7 +1225,6 @@ def SendtoTransmission():
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
 	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready' and ( filetype = '.magnet' or filetype = '.torrent')").fetchone())[0]
-	print ('¿Hello?', nfound)
 	if nfound > 0:
 		logging.info (str(nfound) + 'new torrent entries have been found.')
 		tc = connectTR ()
@@ -1452,6 +1451,7 @@ def mailpreasignedtorrents (con):
 			logging.critical ('unknown job type, cannot continue')
 			continue
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
+
 		msgbody = "A new download job has been preasigned: \n\
 			Job Name: %s \n\
 			Job Type = %s \n\
@@ -1481,12 +1481,18 @@ def getfiledeliverlistTXT (con,Trid):
 	filelisttxt = "List of files: \n"
 	nonwantedfilestxt = ""
 	for entry in cursor2:
-		if entry[0] == 1:
-			filelisttxt += "\t"+entry[3]+"\t("+str(entry[1])+")\n"
+		Wanted   = entry[0]
+		Size     = entry[1]
+		Originalfile = entry[2]
+		Destfile = entry[3]
+		if Destfile == None:
+			Destfile = Originalfile
+		if Wanted == 1:
+			filelisttxt += "\t"+Destfile+"\t("+str(Size)+")\n"
 		else:
 			if nonwantedfilestxt == "":
 				nonwantedfilestxt = "List of nonwanted files: \n"
-			nonwantedfilestxt += "\t" + os.path.basename(entry[2])+"\t("+str(entry[1])+")\n"
+			nonwantedfilestxt += "\t" + os.path.basename(Originalfile)+"\t("+str(Size)+")\n"
 	
 	return filelisttxt, nonwantedfilestxt
 
@@ -1629,8 +1635,11 @@ def AddFilesToDB (con, DBid, filesdict, inputtype):
 	matrix = addfoldersmatrix (matrix,folders,7,8)
 	# Selecting Case and processing torrent files.
 	Caso, Psecuence = Selectcase (matrix, inputtype)
+	Deliverstatus = 'Added'
+	if Caso == 0:
+		Deliverstatus = None  # Torrents with no case are not delivered
 	ProcessSecuence (con, DBid, Psecuence)
-	params = len(filesdict), 'Added' ,DBid
+	params = len(filesdict), Deliverstatus ,DBid
 	con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
 	params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
 	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
@@ -1808,7 +1817,7 @@ def DeliverFiles():
 		'''
 	con = sqlite3.connect (dbpath)
 	cursor1 = con.cursor()
-	cursor1.execute ("SELECT id, trname, fullfilepath, dwfolder, filetype from tw_inputs WHERE status = 'Completed' and deliverstatus = 'Added'")
+	cursor1.execute ("SELECT id, trname, fullfilepath, dwfolder, filetype from tw_inputs WHERE status = 'Completed' and deliverstatus = 'Added' ")
 	for Id, Trname, Fullfilepath, Dwfolder, Filetype in cursor1:
 		cursor2 = con.cursor()
 		cursor2.execute ("SELECT nreg, originalfile, destfile, wanted from files WHERE trid = %s and status = 'Added' "%Id)
