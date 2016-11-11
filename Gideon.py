@@ -402,7 +402,7 @@ TRpassword = GideonConfig.TRpassword
 MaxseedingDays = GideonConfig.MaxseedingDays
 mail_topic_recipients = GideonConfig.mail_topic_recipients
 
-minmatch = 15  # Points to match files and cover names
+minmatch = 15  # Points to match files and cover names, the more points the more strict must be a match
 players = ['mplayer','vlc']
 
 
