@@ -157,9 +157,9 @@ def lsdirectorytree(directory = (os.getenv('HOME'))):
 		for a in newdirectories:
 			# checking for items (child directories)
 			# print ('Checking directory', a)
-			añadir = addchilddirectory (a)
+			anadir = addchilddirectory (a)
 			#adding found items to moredirectories
-			for b in añadir:
+			for b in anadir:
 				moredirectories.append (b)
 		#adding found items to dirlist
 		for a in moredirectories:
@@ -169,13 +169,13 @@ def lsdirectorytree(directory = (os.getenv('HOME'))):
 def addchilddirectory (directoriy):
 	""" Returns a list of child directories
 	Usage: addchilddirectory(directory with absolute path)"""
-	paraañadir = []
+	paraanadir = []
 	ficheros = os.listdir (directoriy)
 	for a in ficheros:
 		item = directoriy+'/'+a
 		if os.path.isdir(item):
-			paraañadir.append (item)
-	return paraañadir
+			paraanadir.append (item)
+	return paraanadir
 
 def folderinuse (folder):
 	""" Scans a folder for files.
@@ -1351,17 +1351,18 @@ def mailRPolicytorrents(con):
 	return
 
 def mailaddedtorrents(con):
+	lines = list()
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND trname IS NOT NULL")
-	for Nreg, Trid, Trname in cursor:
-		msg = """A new torrent has been sent to Transmission Service for Downloading:
-	Torrent Name:
-	%s
-	
-	It will be tracked as nº:%s in Database.""" %(Trname,Trid)
-		STmail ('Added to Transmission ' + Trname, msg, topic=1)
+	cursor.execute ("SELECT nreg, trid, trname, filetype FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND trname IS NOT NULL")
+	for Nreg, Trid, Trname, Filetype in cursor:
+		lines.append ("JobID=(%s), %s,Job name: %s" %(str(Trid), Filetype[1,], Trname))
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
+	if len (lines) > 0:
+		msg = "New jobs have been added to process:\n"
+		for l in lines:
+			msg += "\n"+l
+		STmail ('New Jobs added to Gideon:', msg, topic=1)
 	return
 
 def mailStartedSevice(con):
@@ -1471,6 +1472,7 @@ def gettrrpendingTXT (con):
 	cursor2 = con.execute ("SELECT id, trname FROM tw_inputs WHERE status = 'Added' ORDER BY added_date")
 	filelisttxt = "Torrents pending downloading:\n"
 	for entry in cursor2:
+		Trname = entry[1]
 		if Trname == None:
 			Trname = 'WARNING, Torrent without a valid NAME!'
 		filelisttxt += "\t"+str(entry[0])+"\t"+entry[1]+"\n"
