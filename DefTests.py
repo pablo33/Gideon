@@ -521,10 +521,28 @@ class TestPack3 (unittest.TestCase):
 			result = os.path.exists (testvalue)
 			print (testvalue)
 			self.assertEqual (goal,result)
-			
 
+class test_Utils_Functions (unittest.TestCase):
+	"""Testing inputs and outputts """
 
-		
+	def test_toHumanSizeReadable (self):
+
+		known_values=(
+			(500,'500 bytes'),
+			(0,'0 bytes'),
+			(945, '945 bytes'),
+			(356900, '357 Kb'),
+			(500000, '500 Kb'),
+			(356345333, '356.3 Mb'),
+			(1345333, '1.3 Mb'),
+			(988345333, '1.0 Gb'),
+			(1233987654, '1.2 Gb'),
+			)
+
+		for Vinput, expected in known_values:
+			result = MD.toHumanSizeReadable (Vinput)
+			#print (Vinput,">>",result)
+			self.assertEqual (expected, result)			
 
 
 #####TESTS########

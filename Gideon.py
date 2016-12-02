@@ -206,7 +206,25 @@ def folderinuse (folder):
 			return True
 	return False
 
+def toHumanSizeReadable (size, units = ''):
+	if type(size) != int:
+		raise NotIntegerError(str(size) + 'is not an integer')
 
+	sep = " "
+
+	if size < 1000 or units.upper() == 'B':
+		hsr = str(size)+sep+'bytes'
+
+	elif size < 900000 or units.upper() == 'KB':
+		hsr = "%.0f"%(size/1000)+sep+'Kb'
+
+	elif size < 900000000 or units.upper() == 'MB':
+		hsr = "%.1f"%(size/1000000)+sep+'Mb'
+
+	else:
+		hsr = "%.1f"%(size/1000000000)+sep+'Gb'
+
+	return hsr
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)
@@ -295,7 +313,7 @@ loginlevel = "INFO"
 MaxseedingDays = None
 #MaxseedingDays = 30
 
-# Seconds to wait until hot folders are scanned for new items.
+# Seconds to wait for another cicle.
 s = 60
 
 # Command line to start Transmission
@@ -1353,9 +1371,9 @@ def mailRPolicytorrents(con):
 def mailaddedtorrents(con):
 	lines = list()
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname, filetype FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND trname IS NOT NULL")
+	cursor.execute ("SELECT nreg, trid, trname, filetype FROM msg_inputs JOIN tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND trname IS NOT NULL")
 	for Nreg, Trid, Trname, Filetype in cursor:
-		lines.append ("JobID=(%s), %s,Job name: %s" %(str(Trid), Filetype[1,], Trname))
+		lines.append ("(%s), %s,Job name: %s" %(str(Trid), Filetype[1,], Trname))
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	if len (lines) > 0:
@@ -1370,7 +1388,6 @@ def mailStartedSevice(con):
 	ncount = cursor.execute ("SELECT count (nreg) FROM msg_inputs WHERE topic = 9 and status = 'Ready'").fetchone()[0]
 	if ncount > 0:
 		msgtrrlst = gettrrpendingTXT (con)
-
 		msg = """Torrent Service has just Started due to incomplete downloads:
 		
 		%s
@@ -1490,7 +1507,7 @@ def getfiledeliverlistTXT (con,Trid):
 		if Destfile == None:
 			Destfile = Originalfile
 		if Wanted == 1:
-			filelisttxt += "\t"+Destfile+"\t("+str(Size)+")\n"
+			filelisttxt += "\t"+Destfile+"\t("+toHumanSizeReadable(Size)+")\n"
 		else:
 			if nonwantedfilestxt == "":
 				nonwantedfilestxt = "List of nonwanted files: \n"
@@ -1506,7 +1523,7 @@ def getfileoriginlistTXT (con,Trid):
 	cursor2 = con.execute ("SELECT wanted, size, originalfile FROM files WHERE trid = %s ORDER BY originalfile "%Trid)
 	filelisttxt = "List of files: \n"
 	for entry in cursor2:
-		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+str(entry[1])+")\n"
+		filelisttxt += "\t"+Dwfolder+entry[2]+"\t("+toHumanSizeReadable(entry[1])+")\n"
 	return filelisttxt
 
 def getactivitylogTXT (con,Trid):
