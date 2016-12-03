@@ -685,8 +685,8 @@ def readdict(inifile,var,sep):
 		for line in f:
 			a,b = split(line[:-1],"=")
 			if strip(a) == var:
-				logging.debug("Found "+var+" definition line")
-				logging.debug("Splitting: "+line[:-1])
+				#logging.debug("Found "+var+" definition line")
+				#logging.debug("Splitting: "+line[:-1])
 				lt1, lt2 = split(b,sep)				
 				#Clean empty starting and end spaces
 				lt1, lt2 = strip(lt1), strip(lt2)
@@ -705,7 +705,7 @@ def readparameters(inifile,param="="):
 		for line in f:
 			if param in line:
 				a,b = split(line[:-1],"=")
-				logging.debug("Found: %s %s %s" %(a,param,b))
+				#logging.debug("Found: %s %s %s" %(a,param,b))
 				mydict [strip(a)] = strip(b)
 	# cleaning empty entry
 	mydict.pop("",None)
@@ -813,7 +813,7 @@ def dotreplacement(a,lim):
 	if a != '':
 		leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
 		while True :
-			logging.debug(a)
+			#logging.debug(a)
 			st = a.find(lim[0])
 			if a[0] == lim[0]:
 				a = lim[1]+a[1:]
@@ -876,7 +876,7 @@ def sigcapfinder(filename):
 		break
 	if count != 0:
 		base = base [0:-count]		
-		logging.debug("namebase has changed to "+base)
+		#logging.debug("namebase has changed to "+base)
 	if base == "" or len(base) < 5:
 			logging.warning("filename made of simbols or very short, returning same filename")
 			return filename
@@ -937,7 +937,7 @@ def clearfilename(filename):
 		input: filename without extension, please
 		output: filename without extension, of course
 		"""
-	logging.debug("# Cleaning filename: "+filename)
+	logging.info("# Cleaning filename: "+filename)
 	filenametmp = filename
 
 	
@@ -981,7 +981,8 @@ def clearfilename(filename):
 
 	#8 Replacing little words to lowerCase
 	filenametmp = littlewords (filenametmp)
-	
+
+	logging.info("# Final Filename   : "+ filenametmp)
 	return filenametmp
 
 # Main Functions -------------------------
