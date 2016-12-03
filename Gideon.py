@@ -207,6 +207,12 @@ def folderinuse (folder):
 	return False
 
 def toHumanSizeReadable (size, units = ''):
+	''' this function gets an integer representing bytes and returns a
+		human friendly readable text Kb, Mb, Gb, Tb
+
+		You can force the output by explicity introducing a units argument
+		or leave the code guess the better fit.
+		'''
 	if type(size) != int:
 		raise NotIntegerError(str(size) + 'is not an integer')
 
@@ -1511,7 +1517,7 @@ def getfiledeliverlistTXT (con,Trid):
 		else:
 			if nonwantedfilestxt == "":
 				nonwantedfilestxt = "List of nonwanted files: \n"
-			nonwantedfilestxt += "\t" + os.path.basename(Originalfile)+"\t("+str(Size)+")\n"
+			nonwantedfilestxt += "\t" + os.path.basename(Originalfile)+"\t("+toHumanSizeReadable(Size)+")\n"
 	
 	return filelisttxt, nonwantedfilestxt
 
