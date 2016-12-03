@@ -23,8 +23,10 @@
 
 # Standard library module import
 import os, sys, shutil, logging, datetime, time, smtplib, re
+from collections import namedtuple
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
+
 import sqlite3  # for sqlite3 Database management
 
 # Specific library module import
@@ -231,6 +233,20 @@ def toHumanSizeReadable (size, units = ''):
 		hsr = "%.1f"%(size/1000000000)+sep+'Gb'
 
 	return hsr
+
+_ntuple_diskusage = namedtuple('usage', 'total used free')
+
+def disk_usage(path):
+	"""Return disk usage statistics about the given path.
+
+	Returned valus is a named tuple with attributes 'total', 'used' and
+	'free', which are the amount of total, used and free space, in bytes.
+	"""
+	st = os.statvfs(path)
+	free = st.f_bavail * st.f_frsize
+	total = st.f_blocks * st.f_frsize
+	used = (st.f_blocks - st.f_bfree) * st.f_frsize
+	return _ntuple_diskusage(total, used, free)
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)

@@ -36,6 +36,5 @@ This programs needs to run the following programs in your system:
 Remember to set up _GideonConfig.py_ first with your paths and preferences.  
 Python3 is required to run the code.  
 Tested on ubuntu-linux, it is sure that it will not work properly in windows  
-it.  
 
 Obviously this software comes without any guaranty, so use by your own risk.
