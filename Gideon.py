@@ -234,7 +234,6 @@ def toHumanSizeReadable (size, units = ''):
 
 	return hsr
 
-
 LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set()}
 def LogOnce (field, ID, msg='', action = 'log'):
 	''' This function enables the log or print once events driven by an unique ID and field.
@@ -271,25 +270,6 @@ def LogOnce (field, ID, msg='', action = 'log'):
 
 		LogOnceDict[fd] = actual
 	return
-
-'''
-_ntuple_diskusage = namedtuple('usage', 'total used free')
-
-def disk_usage(path):
-	"""Return disk usage statistics about the given path.
-
-	Returned valus is a named tuple with attributes 'total', 'used' and
-	'free', which are the amount of total, used and free space, in bytes.
-	"""
-	st = os.statvfs(path)
-	free = st.f_bavail * st.f_frsize
-	total = st.f_blocks * st.f_frsize
-	used = (st.f_blocks - st.f_bfree) * st.f_frsize
-	return _ntuple_diskusage(total, used, free)
-'''
-
-# shutil.disk_usage("/")
-
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)
@@ -377,6 +357,10 @@ loginlevel = "INFO"
 # Retention Policy: None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
 MaxseedingDays = None
 #MaxseedingDays = 30
+# Minimum free space in bytes to maintain at torrent Download drive. Can be 0 or a number of bytes
+# Gideon will remove delivered torrents if system is going low on space.
+MinSpaceAtTorrentDWfolder = None
+#MinSpaceAtTorrentDWfolder = 20000000000  # is 20Gb
 
 # Seconds to wait for another cicle.
 s = 60
@@ -483,6 +467,7 @@ TRmachine = GideonConfig.TRmachine
 TRuser = GideonConfig.TRuser
 TRpassword = GideonConfig.TRpassword
 MaxseedingDays = GideonConfig.MaxseedingDays
+MinSpaceAtTorrentDWfolder = GideonConfig.MinSpaceAtTorrentDWfolder
 mail_topic_recipients = GideonConfig.mail_topic_recipients
 
 minmatch = 15  # Points to match files and cover names, the more points the more strict must be a match
@@ -2057,6 +2042,7 @@ def RetentionPService(tc):
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
 	dellist = ['',]
+	MinimunSpaceRemoveList = list()
 	for trr in tc.get_torrents():
 		try:
 			DBid, Deliverstatus = cursor.execute ("SELECT id, deliverstatus from tw_inputs WHERE hashstring = ? and (status = 'Ready' or status = 'Added' or status = 'Completed') ", (trr.hashString,)).fetchone()
@@ -2074,7 +2060,7 @@ def RetentionPService(tc):
 			LogOnce('RPSF',DBid,"Retention policy does not apply to torrents that seeds forever: %s"%trr.name,'Print')
 			continue
 		elif trr.doneDate == 0:
-			LogOnce('RPMT',DBid,"Retention policy does not apply to Manual added torrents with already existent files: %s"%trr.name,'Print')
+			LogOnce('RPMT',DBid,"Retention policy does not apply to Active torrents: %s"%trr.name,'Print')
 			continue
 		elif Deliverstatus == None:
 			LogOnce('RPNMC',DBid,"Retention policy does not apply to Torrents that has no match Case: %s"%trr.name,'Print')
@@ -2099,6 +2085,10 @@ def RetentionPService(tc):
 				print (trr.id)
 				print ('\n')
 				'''
+			else:
+				MinimunSpaceRemoveList.append((trr.id, DBid))
+				#Added identifiers if some torrent must to be deleted due to low space
+
 		LogOnce (['RPSF', 'RPMT', 'RPNMC'], DBid, action = 'Reset')
 
 	dellist.remove('')
@@ -2107,6 +2097,30 @@ def RetentionPService(tc):
 		logging.info ('\tTorrent %s in DB has been deleted from Transmission Service.'%DBid)
 		con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
 	con.commit()
+	while shutil.disk_usage ("/").free < MinSpaceAtTorrentDWfolder:
+		if len(MinimunSpaceRemoveList) == 0:
+			logging.info ('Download dir is running into low space: %s available'%toHumanSizeReadable(shutil.disk_usage ("/").free))
+			break
+
+		candidate_idtuple = tuple()
+		maxpoint = 0
+		for trr_id, DBid in MinimunSpaceRemoveList:
+			trr = tc.get_torrent(trr_id)
+			sizepoints = (trr.sizeWhenDone / (0.1* MinSpaceAtTorrentDWfolder)) *100*0.4
+			timepoints = ((now.day - trr.date_done.day)/MaxseedingDays)*100*0.4
+			progresspoints = (trr.progress-100)*0.2
+			points = sizepoints + timepoints + progresspoints  # evaluate points in order to Size and days remaining seeding
+			print (sizepoints, timepoints, progresspoints, "=", points)
+			if points > maxpoint:
+				candidate_idtuple = (trr_id, DBid)
+
+		trr_id, DBid = candidate_idtuple
+		print ('this torrent has to be deleted in ordder to gain free space', '(',DBid,')' ,trr.name )
+		MinimunSpaceRemoveList.remove ((trr_id,DBid))
+		#tc.remove_torrent(trr_id, delete_data=True, timeout=None)
+		#logging.info ('\tTorrent %s in DB has been deleted from Transmission Service.'%DBid)
+		#con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
+		con.commit()
 	con.close()
 	return
 
