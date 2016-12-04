@@ -234,6 +234,45 @@ def toHumanSizeReadable (size, units = ''):
 
 	return hsr
 
+
+LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set()}
+def LogOnce (field, ID, msg='', action = 'log'):
+	''' This function enables the log or print once events driven by an unique ID and field.
+		a global var must to be defined with the fiels that you want to control.
+		usage:
+			field: must be one of the defined events at LogOnceDict.
+			ID:    given an event, is the unique identifier for the item.
+			msg:   is the customizable msg for the logging or the print outtput.
+			action:is the action, should be 'log', 'print' or 'reset'.
+		'''
+	action = action.upper()
+
+	if type(field) != list:
+		field = [field,]
+
+	for fd in field:
+		if fd not in LogOnceDict:
+			logging.warning ('field %s is not part of the logging once messages'%fd)
+			continue
+		elif action not in ['RESET', 'LOG', 'PRINT']:
+			logging.warning ('%s is not a valid action for logging once messages'%fd)
+			continue
+
+		actual = LogOnceDict[fd]
+		if action == 'RESET':
+			actual.discard(ID)
+
+		elif action in ('LOG', 'PRINT'):
+			if not ID in actual:
+				logging.info (msg)
+				if action == 'PRINT':
+					print (msg)
+				actual.add(ID)
+
+		LogOnceDict[fd] = actual
+	return
+
+'''
 _ntuple_diskusage = namedtuple('usage', 'total used free')
 
 def disk_usage(path):
@@ -247,6 +286,10 @@ def disk_usage(path):
 	total = st.f_blocks * st.f_frsize
 	used = (st.f_blocks - st.f_bfree) * st.f_frsize
 	return _ntuple_diskusage(total, used, free)
+'''
+
+# shutil.disk_usage("/")
+
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)
@@ -2025,17 +2068,19 @@ def RetentionPService(tc):
 		if DBid == None:
 			logging.warning('Active torrent is not being tracked on DB: %s'%trr.name)
 			continue
+
+		# DBid exists, it means that the torrent is beign tracked on the DataBase
 		elif trr.seed_ratio_mode == 'unlimited' or (trr.seed_ratio_mode == 'global' and not tc.session.seedRatioLimited):
-			# Retention policy does not apply to torrents that seeds forever.
-			print ("Retention policy does not apply to torrents that seeds forever: %s"%trr.name)
+			LogOnce('RPSF',DBid,"Retention policy does not apply to torrents that seeds forever: %s"%trr.name,'Print')
 			continue
 		elif trr.doneDate == 0:
-			print ("Retention policy does not apply to Manual added torrents with already existent files: %s"%trr.name)
+			LogOnce('RPMT',DBid,"Retention policy does not apply to Manual added torrents with already existent files: %s"%trr.name,'Print')
 			continue
 		elif Deliverstatus == None:
-			print ("Retention policy does not apply to Torrents that has no match Case: %s"%trr.name)
+			LogOnce('RPNMC',DBid,"Retention policy does not apply to Torrents that has no match Case: %s"%trr.name,'Print')
 			#you can stablish a retention policy for this torrents, or delete them manually.
 			continue
+
 		elif Deliverstatus == 'Delivered':
 			# This torrents have been delivered to another location. You can delete them due to a retention policy defined here:
 			if trr.isFinished or (trr.status in ['seeding','stopped'] and trr.progress >= 100 and now > (trr.date_done + MaxseedingDays_dt)):
@@ -2054,6 +2099,8 @@ def RetentionPService(tc):
 				print (trr.id)
 				print ('\n')
 				'''
+		LogOnce (['RPSF', 'RPMT', 'RPNMC'], DBid, action = 'Reset')
+
 	dellist.remove('')
 	for trr_id, DBid in dellist:
 		tc.remove_torrent(trr_id, delete_data=True, timeout=None)
