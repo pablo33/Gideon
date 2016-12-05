@@ -2106,16 +2106,17 @@ def RetentionPService(tc):
 		maxpoint = 0
 		for trr_id, DBid in MinimunSpaceRemoveList:
 			trr = tc.get_torrent(trr_id)
+			print ('\n',trr_id, trr.name)
 			sizepoints = (trr.sizeWhenDone / (0.1* MinSpaceAtTorrentDWfolder)) *100*0.4
-			timepoints = ((now.day - trr.date_done.day)/MaxseedingDays)*100*0.4
+			timepoints = ((now.day - trr.doneDate)/MaxseedingDays)*100*0.4
 			progresspoints = (trr.progress-100)*0.2
 			points = sizepoints + timepoints + progresspoints  # evaluate points in order to Size and days remaining seeding
 			print (sizepoints, timepoints, progresspoints, "=", points)
 			if points > maxpoint:
-				candidate_idtuple = (trr_id, DBid)
+				candidate_idtuple = (trr_id, DBid, trr.name)
 
-		trr_id, DBid = candidate_idtuple
-		print ('this torrent has to be deleted in ordder to gain free space', '(',DBid,')' ,trr.name )
+		trr_id, DBid, trr_name = candidate_idtuple
+		print ('this torrent has to be deleted in ordder to gain free space', '(',DBid,')' ,trr_name )
 		MinimunSpaceRemoveList.remove ((trr_id,DBid))
 		#tc.remove_torrent(trr_id, delete_data=True, timeout=None)
 		#logging.info ('\tTorrent %s in DB has been deleted from Transmission Service.'%DBid)
