@@ -413,8 +413,6 @@ tohour = ":".join([str(now.hour),str(now.minute)])
 userpath = os.path.join(os.getenv('HOME'),".Gideon")
 userconfig = os.path.join(userpath,"GideonConfig.py")
 usertrash = os.path.join(os.getenv('HOME'),'.local/share/Trash/files')
-if not itemcheck(usertrash) == 'folder':
-	usertrash = False
 Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
 Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
 if __name__ == '__main__':
@@ -497,8 +495,8 @@ Msgtopics = {
 	9 : 'Transmission has been launched',
 	10:	'Torrent Deleted due to a retention Policy',
 	11:	'Cover assigned to a moviefile',
-}
-
+	12: 'System is running under low disk space',
+	}
 Codemimes = {
 	'video' : 1,
 	'audio' : 2,
@@ -506,11 +504,13 @@ Codemimes = {
 	'compressed' : 4,
 	'image' : 5,
 	'other' : 6,
-}
+	}
 
 
 # (1.6) Prequisites:
 #=============
+if not itemcheck(usertrash) == 'folder':
+	usertrash = False
 
 if itemcheck (TransmissionInbox) != 'folder' :
 	print ('\tHotfolder does not exist: %s'%TransmissionInbox)
@@ -660,17 +660,6 @@ def Extractcmovieinfo(filename):
 	mydict = readparameters(info_file,"=")
 	return mydict, info_file
 
-def removeitems(items):
-	""" Removes a list of items (files)
-		items can be absolute or relative path
-		input: List of items,  (/path/to/file.ext)
-		output: none
-		"""
-	logging.info("## removing items....")
-	for a in items:
-		logging.debug("Deleting:"+a)
-		os.remove(a)
-		logging.info("Deleted:"+a)
 
 # ========================================
 # ===  Def Definition ====================
@@ -1815,7 +1804,7 @@ Psecuensedict = {
 	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
 	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
 	4 : ['assign Telegram destination'],
-}
+	}
 
 Casos = {
 	0 : "There is no available case for this matrix",
@@ -1823,7 +1812,7 @@ Casos = {
 	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
 	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
 	4 : "Telegram downloaded file with no Case",
-}
+	}
 
 def Selectcase (matrix, inputtype):
 	""" Selects a case to deliver the torrent files and an operational behaviour for files.
@@ -2047,7 +2036,7 @@ def RetentionPService(tc):
 	MaxseedingDays_dt = datetime.timedelta(days=MaxseedingDays)
 	con = sqlite3.connect (dbpath)
 	cursor = con.cursor()
-	dellist = ['',]
+	timedellist = list ()
 	MinimunSpaceRemoveList = list()
 	for trr in tc.get_torrents():
 		try:
@@ -2070,14 +2059,14 @@ def RetentionPService(tc):
 			continue
 		elif Deliverstatus == None:
 			LogOnce('RPNMC',DBid,"Retention policy does not apply to Torrents that has no match Case: %s"%trr.name,'Print')
-			#you can stablish a retention policy for this torrents, or delete them manually.
+			#you can stablish a retention policy for this torrents here, or delete them manually.
 			continue
 
 		elif Deliverstatus == 'Delivered':
 			# This torrents have been delivered to another location. You can delete them due to a retention policy defined here:
 			if trr.isFinished or (trr.status in ['seeding','stopped'] and trr.progress >= 100 and now > (trr.date_done + MaxseedingDays_dt)):
-				logging.info ('Torrent %s in DB is going to be deleted due to a retention policy: (%s)'%(DBid, trr.name))
-				dellist.append ((trr.id, DBid))
+				logging.info ('Torrent %s in DB is going to be deleted due to a time retention policy: (%s)'%(DBid, trr.name))
+				timedellist.append ((trr.id, DBid))
 				'''
 				print ('trr.isFinished:',trr.isFinished)
 				print ('trr.date_active:',trr.date_active)
@@ -2091,13 +2080,13 @@ def RetentionPService(tc):
 				print ('\n')
 				'''
 			else:
+				#The next lisst of identifiers (MinimunSpaceRemoveList) is used 
+				# in case of some torrent must to be deleted due to free space
 				MinimunSpaceRemoveList.append((trr.id, DBid))
-				#Added identifiers if some torrent must to be deleted due to low space
 
 		LogOnce (['RPSF', 'RPMT', 'RPNMC'], DBid, action = 'Reset')
 
-	dellist.remove('')
-	for trr_id, DBid in dellist:
+	for trr_id, DBid in timedellist:
 		Removetorrent (tc, con, trr_id, DBid, sendtoTrash=False)
 		
 	Dwdir = tc.get_session().download_dir
@@ -2105,8 +2094,7 @@ def RetentionPService(tc):
 		if len(MinimunSpaceRemoveList) == 0:
 			freetextspace = toHumanSizeReadable(shutil.disk_usage (Dwdir).free)
 			msgx = 'Download dir is running into low disk space: %s available'%freetextspace
-			notify = LogOnce ('RILS',freetextspace, msg = msgx, action='Print')
-			if notify:
+			if LogOnce ('RILS',freetextspace, msg = msgx, action='Print'):
 				STmail ('System is running into low space', msgx, topic=12)
 			break
 		else:
@@ -2230,19 +2218,24 @@ def Removetorrent (tc, con, trr_id, DBid, sendtoTrash=True):
 	torrentname = tc.get_torrent(trr_id).name
 	tc.remove_torrent(trr_id, delete_data=True, timeout=None)
 	con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
-	con.commit()
 	print ('Torrent deleted: '+ torrentname)
 	logging.info ('\tTorrent %s in DB has been deleted from Transmission Service: %s'%(DBid,torrentname))
 	SpoolUserMessages(con, 10, TRid = DBid)
-	if not sendtoTrash:
+	con.commit()
+	if not sendtoTrash and usertrash != False:
 		packtodelete = os.path.join(usertrash, torrentname)
+		indextodelete = os.path.join(usertrash, '../info',torrentname+'.trashinfo')
+		deleteindex = True
+
 		if itemcheck (packtodelete) == 'folder':
 			shutil.rmtree (packtodelete)
 		elif itemcheck (packtodelete) == 'file':
 			os.remove (packtodelete)
 		else:
+			deleteindex = False
 			logging.warning('I could not delete this pack from the Trash folder:' + packtodelete)
-
+		if itemcheck (indextodelete) == 'file' and deleteindex == True:
+			os.remove (indextodelete)
 	return
 
 
