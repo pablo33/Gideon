@@ -234,7 +234,7 @@ def toHumanSizeReadable (size, units = ''):
 
 	return hsr
 
-LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set()}
+LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set(), 'RILS':set() }
 def LogOnce (field, ID, msg='', action = 'log'):
 	''' This function enables the log or print once events driven by an unique ID and field.
 		a global var must to be defined with the fiels that you want to control.
@@ -245,6 +245,7 @@ def LogOnce (field, ID, msg='', action = 'log'):
 			action:is the action, should be 'log', 'print' or 'reset'.
 		'''
 	action = action.upper()
+	actionstatus = False
 
 	if type(field) != list:
 		field = [field,]
@@ -267,9 +268,10 @@ def LogOnce (field, ID, msg='', action = 'log'):
 				if action == 'PRINT':
 					print (msg)
 				actual.add(ID)
+				actionstatus = True
 
 		LogOnceDict[fd] = actual
-	return
+	return actionstatus
 
 
 # .. Default Videodest.ini file definition (in case there isn't one)
@@ -332,7 +334,7 @@ mailpassw = 'yourPa$$wordhere'		# your email password.
 # Asociate msg topics here by number. (note that only topics marked OK will are enabled)
 
 mail_topic_recipients = {
-	'adminemail@gmx.es' 		: set(range (1,11)),
+	'adminemail@gmx.es' 		: set(range (1,100)),
 	'user1@email.com' : set([7,]),
 	'user2@email.com' : set([6,7,10,]),	
 	}
@@ -349,6 +351,7 @@ mail_topic_recipients = {
 #OK	9 : 'Transmission has been launched',
 #OK	10:	'Torrent Deleted due to a retention Policy',
 #	11:	'Cover assigned to a moviefile',
+#	12: 'System is running into low disk space'
 
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
@@ -362,7 +365,7 @@ MaxseedingDays = None
 MinSpaceAtTorrentDWfolder = None
 #MinSpaceAtTorrentDWfolder = 20000000000  # is 20Gb
 
-# Seconds to wait for another cicle.
+# Seconds for Gideon sleep-cycle.
 s = 60
 
 # Command line to start Transmission
@@ -409,6 +412,9 @@ tohour = ":".join([str(now.hour),str(now.minute)])
 
 userpath = os.path.join(os.getenv('HOME'),".Gideon")
 userconfig = os.path.join(userpath,"GideonConfig.py")
+usertrash = os.path.join(os.getenv('HOME'),'.local/share/Trash/files')
+if not itemcheck(usertrash) == 'folder':
+	usertrash = False
 Torrentinbox = os.path.join(userpath,"Torrentinbox")  # Place to manage incoming torrents files
 Availablecoversfd = os.path.join(userpath,"Covers")  # Place to store available covers
 if __name__ == '__main__':
@@ -1287,7 +1293,7 @@ def connectTR():
 		launchTR (cmd, 5)
 	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
 	logging.debug('A Transmission rpc session has started')
-	print ('Started rpc session')
+	print ('\n\n===========================','Started rpc session', sep='\n')
 	return tc
 
 def SendtoTransmission():
@@ -1302,7 +1308,7 @@ def SendtoTransmission():
 			trobject = tc.add_torrent (Fullfilepath)
 			TRname = trobject.name
 			TRhash = trobject.hashString
-			print ('Added a net torrent',Fullfilepath, TRname, TRhash)
+			print ('Added a new torrent \n',Fullfilepath, TRname, 'Hash: '+ TRhash, sep='\n\t')
 			con.execute ("UPDATE tw_inputs SET status='Added',  hashstring = ? , trname=? WHERE id=?", (TRhash, TRname,str(Id)))
 			SpoolUserMessages(con, 2, TRid = Id)
 		con.commit()
@@ -1424,7 +1430,7 @@ def mailaddedtorrents(con):
 	cursor = con.cursor ()
 	cursor.execute ("SELECT nreg, trid, trname, filetype FROM msg_inputs JOIN tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 1 AND trname IS NOT NULL")
 	for Nreg, Trid, Trname, Filetype in cursor:
-		lines.append ("(%s), %s,Job name: %s" %(str(Trid), Filetype[1,], Trname))
+		lines.append ("(%s), %s,Job name: %s" %(Trid, Filetype[1:], Trname))
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
 	con.commit()
 	if len (lines) > 0:
@@ -2060,7 +2066,7 @@ def RetentionPService(tc):
 			LogOnce('RPSF',DBid,"Retention policy does not apply to torrents that seeds forever: %s"%trr.name,'Print')
 			continue
 		elif trr.doneDate == 0:
-			LogOnce('RPMT',DBid,"Retention policy does not apply to Active torrents: %s"%trr.name,'Print')
+			LogOnce('RPMT',DBid,"Retention policy does not apply to unfinished torrents: %s"%trr.name,'Print')
 			continue
 		elif Deliverstatus == None:
 			LogOnce('RPNMC',DBid,"Retention policy does not apply to Torrents that has no match Case: %s"%trr.name,'Print')
@@ -2071,7 +2077,6 @@ def RetentionPService(tc):
 			# This torrents have been delivered to another location. You can delete them due to a retention policy defined here:
 			if trr.isFinished or (trr.status in ['seeding','stopped'] and trr.progress >= 100 and now > (trr.date_done + MaxseedingDays_dt)):
 				logging.info ('Torrent %s in DB is going to be deleted due to a retention policy: (%s)'%(DBid, trr.name))
-				SpoolUserMessages(con, 10, TRid = DBid)
 				dellist.append ((trr.id, DBid))
 				'''
 				print ('trr.isFinished:',trr.isFinished)
@@ -2093,35 +2098,38 @@ def RetentionPService(tc):
 
 	dellist.remove('')
 	for trr_id, DBid in dellist:
-		tc.remove_torrent(trr_id, delete_data=True, timeout=None)
-		logging.info ('\tTorrent %s in DB has been deleted from Transmission Service.'%DBid)
-		con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
-	con.commit()
-	while shutil.disk_usage ("/").free < MinSpaceAtTorrentDWfolder:
+		Removetorrent (tc, con, trr_id, DBid, sendtoTrash=False)
+		
+	Dwdir = tc.get_session().download_dir
+	while shutil.disk_usage (Dwdir).free < MinSpaceAtTorrentDWfolder:
 		if len(MinimunSpaceRemoveList) == 0:
-			logging.info ('Download dir is running into low space: %s available'%toHumanSizeReadable(shutil.disk_usage ("/").free))
+			freetextspace = toHumanSizeReadable(shutil.disk_usage (Dwdir).free)
+			msgx = 'Download dir is running into low disk space: %s available'%freetextspace
+			notify = LogOnce ('RILS',freetextspace, msg = msgx, action='Print')
+			if notify:
+				STmail ('System is running into low space', msgx, topic=12)
 			break
+		else:
+			# LogOnce ('RILS',1, action = 'Reset')
+			LogOnceDict ['RILS'] = set()
 
 		candidate_idtuple = tuple()
 		maxpoint = 0
 		for trr_id, DBid in MinimunSpaceRemoveList:
 			trr = tc.get_torrent(trr_id)
-			print ('\n',trr_id, trr.name)
-			sizepoints = (trr.sizeWhenDone / (0.1* MinSpaceAtTorrentDWfolder)) *100*0.4
-			timepoints = ((now.day - trr.doneDate)/MaxseedingDays)*100*0.4
-			progresspoints = (trr.progress-100)*0.2
+			sizepoints = (trr.sizeWhenDone / MinSpaceAtTorrentDWfolder) *100 * 3
+			timepoints = ((now - trr.date_done).days /MaxseedingDays) *10
+			progresspoints = trr.ratio *3
 			points = sizepoints + timepoints + progresspoints  # evaluate points in order to Size and days remaining seeding
-			print (sizepoints, timepoints, progresspoints, "=", points)
 			if points > maxpoint:
 				candidate_idtuple = (trr_id, DBid, trr.name)
+				maxpoint = points
 
 		trr_id, DBid, trr_name = candidate_idtuple
-		print ('this torrent has to be deleted in ordder to gain free space', '(',DBid,')' ,trr_name )
 		MinimunSpaceRemoveList.remove ((trr_id,DBid))
-		#tc.remove_torrent(trr_id, delete_data=True, timeout=None)
-		#logging.info ('\tTorrent %s in DB has been deleted from Transmission Service.'%DBid)
-		#con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
-		con.commit()
+		Removetorrent (tc, con, trr_id, DBid, sendtoTrash=False)
+		print ('\tthis torrent has been deleted in ordder to gain free space (%s)'%DBid)
+		logging.info ('\tTorrent (%s) in DB has been deleted from Transmission Service for gain free space.'%DBid)
 	con.close()
 	return
 
@@ -2212,6 +2220,29 @@ def CleanEmptyFolders (upperfolder):
 					logging.debug ("\tadded next level to re-scan")			
 		foldercollection = foldercollectionnext
 		foldercollectionnext = set()
+	return
+
+def Removetorrent (tc, con, trr_id, DBid, sendtoTrash=True):
+	'''given an transmission's torrent id, DBid
+	it deletes the torrent from transmission service, it sets the entry in DB as Deleted
+	and if complete=True and there is a known usertrash, it deletes from the HD
+		'''
+	torrentname = tc.get_torrent(trr_id).name
+	tc.remove_torrent(trr_id, delete_data=True, timeout=None)
+	con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = %s"%DBid)
+	con.commit()
+	print ('Torrent deleted: '+ torrentname)
+	logging.info ('\tTorrent %s in DB has been deleted from Transmission Service: %s'%(DBid,torrentname))
+	SpoolUserMessages(con, 10, TRid = DBid)
+	if not sendtoTrash:
+		packtodelete = os.path.join(usertrash, torrentname)
+		if itemcheck (packtodelete) == 'folder':
+			shutil.rmtree (packtodelete)
+		elif itemcheck (packtodelete) == 'file':
+			os.remove (packtodelete)
+		else:
+			logging.warning('I could not delete this pack from the Trash folder:' + packtodelete)
+
 	return
 
 
