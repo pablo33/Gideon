@@ -2139,12 +2139,16 @@ def Telegramfd (Tfolder):
 				continue
 			entrytype = '.folder'
 		elif os.path.isfile (entry):
-			if os.path.splitext(entry)[1].lower() in ('.rar','.zip','.7z'):
-				logging.info("Detected job %s was not processed because it is a compressed file." %entry)
+			extension = os.path.splitext(entry)[1].lower()
+			if extension in ('.zip','.7z'):
+				logging.info("Detected job %s was not processed because it is not a rar compressed file." %entry)
 				continue
-			if fileinuse (entry) == True:
+			elif fileinuse (entry) == True:
 				logging.info("Detected job %s was not processed because it were open by an application." %entry)
 				continue
+			elif extension == '.rar':
+				logging.info ("Detected a .rar job:")
+				entrytype = extension
 			else:
 				entrytype = '.file'
 		if entrytype != None:

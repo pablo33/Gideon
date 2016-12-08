@@ -478,6 +478,7 @@ class TestPack3 (unittest.TestCase):
 			('TESTS/Test3/Telegram Desktop/Printer output.pdf', '.file'),
 			('TESTS/Test3/Telegram Desktop/This is a Zero avi file.avi', '.file'),
 			('TESTS/Test3/Telegram Desktop/File not in use.CBR', '.file'),
+			('TESTS/Test3/Telegram Desktop/This is a dummy rar file.rar', '.rar'),
 			])
 
 		Entries = MD.Telegramfd (self.hotfolder)
