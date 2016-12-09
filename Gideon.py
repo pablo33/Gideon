@@ -42,11 +42,12 @@ except:
 	RarSupport = False
 else:
 	if rarfile.UNRAR_TOOL == False:
+		logging.warning ('No unrar tool available. RarSupport is unavailable')
+		print ('No unrar tool is found. Please install unrar. I will not process Rar files.')
 		RarSupport = False
 	else:
 		logging.info ('RarSupport is active.')
-		print ('Rar support is active')
-		RarSupport == True
+		RarSupport = True
 
 
 
@@ -2146,7 +2147,7 @@ def Telegramfd (Tfolder):
 		It will treat folders and files as inputs.
 		compressed files will be ignored, as they sometimes are multifile and have passwords.
 		"""
-	Itemlist = []
+	Itemlist = list()
 	filelist = [os.path.join(Tfolder,i) for i in os.listdir(Tfolder)]
 	for entry in filelist:
 		entrytype = None
