@@ -34,6 +34,23 @@ import transmissionrpc  # transmission rpc API
 dyntestfolder = 'TESTS'
 
 
+# importing rarfile utility rarinit()
+try:
+	import rarfile
+except:
+	logging.info ('Rarfile library is not present. I will not process Rar files')
+	RarSupport = False
+else:
+	if rarfile.UNRAR_TOOL == False:
+		RarSupport = False
+	else:
+		logging.info ('RarSupport is active.')
+		print ('Rar support is active')
+		RarSupport == True
+
+
+
+
 __version__ = "2.0"
 __author__ = "pablo33"
 
@@ -2166,8 +2183,6 @@ def PreProcessReadyTelegramInputs ():
 	for DBid, Fullfilepath, Filetype in cursor:
 		Basedir = os.path.dirname(Fullfilepath)
 		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (Basedir,DBid))
-		# Here goes the code for Compressed files.
-		# SpoolUserMessages(con, 5, TRid = DBid)  ##  Create a new Message
 	con.commit()
 	con.close()
 	return
@@ -2260,6 +2275,10 @@ if __name__ == '__main__':
 			Hotfolderinputs = Telegramfd (Telegraminbox)
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
+			#if rarsupport == True:
+			#	PreProcessReadyRARInputs ()
+			#	UncompressRARFiles ()
+
 			PreProcessReadyTelegramInputs ()
 			RetrieveTelegramInputfiles ()
 
