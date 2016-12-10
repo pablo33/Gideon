@@ -19,6 +19,13 @@
 	Logs are stored in a single Gideon.log file.
 
 	You need to set up GideonConfig.py first. o run this program for the first time.
+
+	Notes about rar file support:
+	For rar support you need to install or copy rarfile.py into the same foder as Gideon.py
+	rarfile is a Python module for Rar archive reading. Licensed under ISC license.
+	Copyright (c) 2005-2016 Marko Kreen <markokr@gmail.com>
+	https://github.com/markokr/rarfile
+
 	'''
 
 # Standard library module import
@@ -2264,13 +2271,14 @@ def PreProcessReadyRARInputs():
 	cursor = con.cursor()
 	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
 	rarentrydict = dict()
-	CompleteDBids = list()
 	for DBid, Fullfilepath in cursor:
 		if itemcheck (Fullfilepath) != 'file':
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (DBid,))
 			logging.warning ("RAR File at entry (%s) have been removed."%DBid)
-		rarentrydict[Fullfilepath] = DBid
+		else:
+			rarentrydict[Fullfilepath] = DBid
 
+	CompleteDBids = list()
 	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
 	for DBid, entry in cursor:
 		try:
