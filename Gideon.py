@@ -38,15 +38,14 @@ dyntestfolder = 'TESTS'
 try:
 	import rarfile
 except:
-	logging.info ('Rarfile library is not present. I will not process Rar files')
+	print ('Rarfile library is not present. I will not process Rar files')
 	RarSupport = False
 else:
 	if rarfile.UNRAR_TOOL == False:
-		logging.warning ('No unrar tool available. RarSupport is unavailable')
 		print ('No unrar tool is found. Please install unrar. I will not process Rar files.')
 		RarSupport = False
 	else:
-		logging.info ('RarSupport is active.')
+		print ('RarSupport is active.')
 		RarSupport = True
 
 
@@ -252,7 +251,7 @@ def toHumanSizeReadable (size, units = ''):
 
 	return hsr
 
-LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set(), 'RILS':set() }
+LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set(), 'RILS':set(), 'CSVC':set(), 'DRARJob':set() }
 def LogOnce (field, ID, msg='', action = 'log'):
 	''' This function enables the log or print once events driven by an unique ID and field.
 		a global var must to be defined with the fiels that you want to control.
@@ -470,9 +469,9 @@ logging.basicConfig(
 print ("logging to:", logging_file)
 
 # (1.4) Starting log file
-logging.debug("======================================================")
-logging.debug("================ Starting a new sesion ===============")
-logging.debug("======================================================")
+logging.info("======================================================")
+logging.info("================ Starting a new sesion ===============")
+logging.info("======================================================")
 
 
 # (1.5) Setting main variables
@@ -1291,7 +1290,7 @@ def addinputs (entrieslist):
 
 def launchTR (cmdline, seconds=0):
 	os.system(cmdline)
-	logging.info ('Transmission have been launched.')
+	logging.info ('Transmission has been launched.')
 	time.sleep(seconds)
 	return
 
@@ -1550,7 +1549,7 @@ def mailpreasignedtorrents (con):
 	return
 
 def gettrrpendingTXT (con):
-	cursor2 = con.execute ("SELECT id, trname FROM tw_inputs WHERE status = 'Added' ORDER BY added_date")
+	cursor2 = con.execute ("SELECT id, trname FROM tw_inputs WHERE status = 'Added' AND (filetype = '.torrent' OR filetype = '.magnet') ORDER BY added_date")
 	filelisttxt = "Torrents pending downloading:\n"
 	for entry in cursor2:
 		Trname = entry[1]
@@ -2016,7 +2015,7 @@ def CoverService (Fmovie_Folder, Availablecoversfd, inivideodest):
 			for i in subset:
 				filemovieset.add(i)
 		else:
-			logging.warning('(coverservice):Folder %s does not exist.'%folder2scan)
+			LogOnce ('CSVC', folder2scan, msg='(coverservice):Folder %s does not exist.'%folder2scan, action='print')
 	coverperformer (filemovieset, Availablecoversfd)		
 
 def coverperformer(filemovieset,Availablecoversfd):
@@ -2165,7 +2164,7 @@ def Telegramfd (Tfolder):
 				logging.info("Detected job %s was not processed because it were open by an application." %entry)
 				continue
 			elif extension == '.rar':
-				logging.info ("Detected a .rar job:")
+				LogOnce ('DRARJob', entry, msg="Detected a .rar job:"+ entry, action = 'log')
 				entrytype = extension
 			else:
 				entrytype = '.file'
@@ -2258,6 +2257,58 @@ def Removetorrent (tc, con, trr_id, DBid, sendtoTrash=True):
 			os.remove (indextodelete)
 	return
 
+def PreProcessReadyRARInputs():
+	''' Checks 'Ready' .rar files at DB and set them to 'Added' if all rar's volume files are available.
+		'''
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
+	rarentrydict = dict()
+	CompleteDBids = list()
+	for DBid, Fullfilepath in cursor:
+		rarentrydict[Fullfilepath] = DBid
+
+	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
+	for DBid, entry in cursor:
+		try:
+			rf = rarfile.RarFile(entry)
+		except rarfile.NeedFirstVolume:
+			logging.debug ('Skipping a non start rar volume:%s'%entry)
+			continue
+		else:
+			basedir = os.path.dirname(entry)
+			toaddvolumelist_id = list()
+			toaddflag = True
+			print ('')
+			print ('Checking entry', entry)
+			print ('volumelist', rf.volumelist())
+			for vfile in rf.volumelist():
+				pointer = os.path.join(basedir,vfile)
+				if pointer in rarentrydict:
+					toaddvolumelist_id.append (rarentrydict[pointer])
+					print ('this entry exists', pointer, '(',rarentrydict[pointer],')')
+				else:
+					toaddflag = False
+					break
+			if toaddflag == True:
+				##  Check rar file, because rf.volumelist is not the expected complete volume list, just the actual files founded by order.
+				## I need to check the rar file.
+				try:
+					rf.testrar()
+				except rarfile.RarCRCError:
+					logging.warning ('Rar file has errors or it is incomplete:'+ entry)
+				else:
+					print ('\ntoaddvolumelist_id = ', toaddvolumelist_id)
+					for i in toaddvolumelist_id:
+						CompleteDBids.append (i)
+					print ('CompleteDBids = ', CompleteDBids)
+					a = input ('Continue')
+
+	for DBid in CompleteDBids:
+		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (basedir,DBid))
+	con.commit()
+	con.close()
+	return CompleteDBids
 
 
 # ========================================
@@ -2276,8 +2327,8 @@ if __name__ == '__main__':
 			Hotfolderinputs = Telegramfd (Telegraminbox)
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
-			#if rarsupport == True:
-			#	PreProcessReadyRARInputs ()
+			if RarSupport == True:
+				PreProcessReadyRARInputs ()
 			#	UncompressRARFiles ()
 
 			PreProcessReadyTelegramInputs ()
