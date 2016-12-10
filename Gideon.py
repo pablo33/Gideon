@@ -2266,6 +2266,9 @@ def PreProcessReadyRARInputs():
 	rarentrydict = dict()
 	CompleteDBids = list()
 	for DBid, Fullfilepath in cursor:
+		if itemcheck (Fullfilepath) != 'file':
+			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (DBid,))
+			logging.warning ("RAR File at entry (%s) have been removed."%DBid)
 		rarentrydict[Fullfilepath] = DBid
 
 	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
@@ -2279,14 +2282,11 @@ def PreProcessReadyRARInputs():
 			basedir = os.path.dirname(entry)
 			toaddvolumelist_id = list()
 			toaddflag = True
-			print ('')
-			print ('Checking entry', entry)
-			print ('volumelist', rf.volumelist())
 			for vfile in rf.volumelist():
 				pointer = os.path.join(basedir,vfile)
 				if pointer in rarentrydict:
 					toaddvolumelist_id.append (rarentrydict[pointer])
-					print ('this entry exists', pointer, '(',rarentrydict[pointer],')')
+					#print ('this entry exists and have been already downloaded', pointer, '(',rarentrydict[pointer],')')
 				else:
 					toaddflag = False
 					break
@@ -2298,11 +2298,8 @@ def PreProcessReadyRARInputs():
 				except rarfile.RarCRCError:
 					logging.warning ('Rar file has errors or it is incomplete:'+ entry)
 				else:
-					print ('\ntoaddvolumelist_id = ', toaddvolumelist_id)
 					for i in toaddvolumelist_id:
 						CompleteDBids.append (i)
-					print ('CompleteDBids = ', CompleteDBids)
-					a = input ('Continue')
 
 	for DBid in CompleteDBids:
 		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (basedir,DBid))
@@ -2328,6 +2325,7 @@ if __name__ == '__main__':
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
 			if RarSupport == True:
+				# TrackDeletedRARfiles ()  ....  TO DO >> deleted rar files at DB, could raise in error in PreProcessReadyRARInputs()
 				PreProcessReadyRARInputs ()
 			#	UncompressRARFiles ()
 
