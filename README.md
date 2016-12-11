@@ -16,7 +16,7 @@ It starts transmission service if new .torrents are detected into a specified fo
 It starts transmission service if there are pending downloads.  
 It scans a hot-folder for files and process them.  
 It avoids file copying processes while playing movies.  
-It deletes delivered torrents from transmission service due to a retention period of time, seed limit reached, or low free space in disk.
+It deletes delivered torrents due to a retention period of time.
 
 
 **Integration with freevo 1.9x**  
@@ -28,13 +28,8 @@ It can detect chapter-numbers at the end of the file/s, and rename them as nxnn 
 ** 3rd party software: **
 This programs needs to run the following programs in your system:  
 
- *  Transmission, with rpc API for python3
- *  For rar support you need have installed rar/unrar utilities and install or copy rarfile.py into the same foder as Gideon.py  
-	rarfile is a Python module for Rar archive reading. Licensed under ISC license.  
-	Copyright (c) 2005-2016 Marko Kreen <markokr@gmail.com>  
-	<https://github.com/markokr/rarfile>  
-
- *  And as an option: Dropbox, Telegram, Drive, or some filesync desktop client to use as hot-folder.  
+ * Transmission, with rpc API for python3
+ * And as an option: Dropbox, Telegram, Drive, or some filesync desktop client  
 
  ** Notes: **  
 

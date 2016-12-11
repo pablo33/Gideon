@@ -57,8 +57,6 @@ else:
 		print ('RarSupport is active.')
 		RarSupport = True
 
-exit()
-
 
 __version__ = "2.0"
 __author__ = "pablo33"
@@ -260,7 +258,7 @@ def toHumanSizeReadable (size, units = ''):
 
 	return hsr
 
-LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set(), 'RILS':set(), 'CSVC':set(), 'DRARJob':set() }
+LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set(), 'RILS':set(), 'CSVC':set(), 'DRARJob':set(), 'RFNP':set() }
 def LogOnce (field, ID, msg='', action = 'log'):
 	''' This function enables the log or print once events driven by an unique ID and field.
 		a global var must to be defined with the fiels that you want to control.
@@ -2281,6 +2279,7 @@ def PreProcessReadyRARInputs():
 			rarentrydict[Fullfilepath] = DBid
 
 	CompleteDBids = list()
+	headerrars = list()
 	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
 	for DBid, entry in cursor:
 		try:
@@ -2289,6 +2288,7 @@ def PreProcessReadyRARInputs():
 			logging.debug ('Skipping a non start rar volume:%s'%entry)
 			continue
 		else:
+			headerrars.append (DBid)
 			basedir = os.path.dirname(entry)
 			toaddvolumelist_id = list()
 			toaddflag = True
@@ -2296,27 +2296,60 @@ def PreProcessReadyRARInputs():
 				pointer = os.path.join(basedir,vfile)
 				if pointer in rarentrydict:
 					toaddvolumelist_id.append (rarentrydict[pointer])
-					#print ('this entry exists and have been already downloaded', pointer, '(',rarentrydict[pointer],')')
 				else:
 					toaddflag = False
 					break
 			if toaddflag == True:
-				##  Check rar file, because rf.volumelist is not the expected complete volume list, just the actual files founded by order.
+				##  Check rar file, because rf.volumelist is not the expected complete volume list, just the actual files found in folder by order.
 				## I need to check the rar file.
-				try:
-					rf.testrar()
-				except rarfile.RarCRCError:
-					logging.warning ('Rar file has errors or it is incomplete:'+ entry)
-				else:
-					for i in toaddvolumelist_id:
-						CompleteDBids.append (i)
+				if not rf.needs_password():
+					try:
+						rf.testrar()
+					except rarfile.RarCRCError:
+						logging.warning ('Rar file has errors or it is incomplete:'+ entry)
+					else:
+						for i in toaddvolumelist_id:
+							CompleteDBids.append (i)
 
 	for DBid in CompleteDBids:
-		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (basedir,DBid))
+		dwfolder = None
+		if DBid in headerrars:
+			dwfolder = basedir
+		con.execute ("UPDATE tw_inputs SET status='Added', dwfolder = ? WHERE id = ?", (dwfolder,DBid))
 	con.commit()
 	con.close()
 	return CompleteDBids
 
+def UncompressRARFiles():
+	''' Checks 'Added' rar files at DB and decompress them.
+		Finally, mark them as status:Completed / deliverstatus:Delivered
+		and delete them from HD
+		'''
+	con = sqlite3.connect (dbpath)
+	cursor = con.cursor()
+	cursor.execute ("SELECT id, fullfilepath, dwfolder from tw_inputs WHERE status = 'Added' AND dwfolder is not null AND filetype = '.rar'")
+	for DBid, Fullfilepath, Dwfolder in cursor:
+		rf = rarfile.RarFile (Fullfilepath)
+		if rf. needs_password():
+			# send e-mail 
+			logging.info ('(%s) This RAR file needs password to be decompressed:%s'%(DBid,Fullfilepath))
+			remove = False
+
+		else:
+			print ('Decompressing:','(',DBid,')',Fullfilepath)
+			rf.extractall(path=Dwfolder, pwd=None)
+			remove = True
+		for vfile in rf.volumelist():
+			con.execute ("UPDATE tw_inputs SET status='Completed', deliverstatus='Delivered' WHERE fullfilepath = ? AND status = 'Added'", (vfile,))
+			if remove:
+				os.remove (vfile)
+			else:
+				shutil.move (vfile, os.path.join(TelegramNoCasedest,os.path.basename(vfile)))
+				print (vfile, os.path.join(TelegramNoCasedest,os.path.basename(vfile)))
+				exit
+	con.commit()
+	con.close()
+	return
 
 # ========================================
 # 			== MAIN PROCESS  ==
@@ -2335,9 +2368,9 @@ if __name__ == '__main__':
 			if len (Hotfolderinputs) > 0:
 				addinputs (Hotfolderinputs)
 			if RarSupport == True:
-				# TrackDeletedRARfiles ()  ....  TO DO >> deleted rar files at DB, could raise in error in PreProcessReadyRARInputs()
 				PreProcessReadyRARInputs ()
-			#	UncompressRARFiles ()
+				if getappstatus (['mplayer','vlc']) == False:
+					UncompressRARFiles ()
 
 			PreProcessReadyTelegramInputs ()
 			RetrieveTelegramInputfiles ()
