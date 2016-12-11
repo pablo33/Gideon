@@ -222,7 +222,6 @@ def folderinuse (folder):
 					tmpset.add (entry)
 					if fileinuse (entry):
 						return True
-		print (loop, contents1, tmpset, sep="\n")
 		if contents1 == None:
 			contents1 = tmpset.copy()
 			tmpset = set()
@@ -1306,7 +1305,6 @@ def connectTR():
 		launchTR (cmd, 5)
 	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
 	logging.debug('A Transmission rpc session has started')
-	print ('\n\n===========================','Started rpc session', sep='\n')
 	return tc
 
 def SendtoTransmission():
@@ -2275,6 +2273,7 @@ def PreProcessReadyRARInputs():
 		if itemcheck (Fullfilepath) != 'file':
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (DBid,))
 			logging.warning ("RAR File at entry (%s) have been removed."%DBid)
+			LogOnce ('RFNP', DBid, action = 'Reset')
 		else:
 			rarentrydict[Fullfilepath] = DBid
 
@@ -2310,6 +2309,10 @@ def PreProcessReadyRARInputs():
 					else:
 						for i in toaddvolumelist_id:
 							CompleteDBids.append (i)
+				else:
+					msg = '(%s) This rar file needs password: %s'%(DBid,entry)
+					LogOnce ('RFNP', DBid, msg = msg, action='Print')
+
 
 	for DBid in CompleteDBids:
 		dwfolder = None
@@ -2394,4 +2397,5 @@ if __name__ == '__main__':
 		MsgService ()
 
 		logging.debug("# Done!, next check at "+ str (datetime.datetime.now()+datetime.timedelta(seconds=s)))
+		print ('\n'+'='*20)
 		time.sleep (s)
