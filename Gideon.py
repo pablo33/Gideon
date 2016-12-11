@@ -38,7 +38,7 @@ import sqlite3  # for sqlite3 Database management
 
 # Specific library module import
 import transmissionrpc  # transmission rpc API
-dyntestfolder = 'TESTS'
+dyntestfolder = 'TESTS'  # local path for Deftests
 
 
 # importing rarfile utility rarinit()
@@ -48,14 +48,16 @@ except:
 	print ('Rarfile library is not present. I will not process Rar files')
 	RarSupport = False
 else:
-	if rarfile.UNRAR_TOOL == False:
-		print ('No unrar tool is found. Please install unrar. I will not process Rar files.')
+	#if rarfile.UNRAR_TOOL == False:
+	if os.system('unrar') != 0:
+		print ('No unrar tool is found. I will not process Rar files.')
+		print ('You can install it by typing $sudo apt-get install unrar')
 		RarSupport = False
 	else:
 		print ('RarSupport is active.')
 		RarSupport = True
 
-
+exit()
 
 
 __version__ = "2.0"
