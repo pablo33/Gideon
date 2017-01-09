@@ -341,10 +341,13 @@ __author__ = "pablo33"
 # Setting variables, default paths to store processed files.
 Fmovie_Folder = "/home/user/movies/"  # Place to store processed movies
 Faudio_Folder = "/home/user/audio/"  # Place to store processed music
-TransmissionInbox = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
-Telegraminbox = None  #  "/home/user/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
+Fbooks_Folder = "/home/user/Calibre_inbox/"  # Place to store processed e-books
+Fcomic_Folder = "/home/user/Comix/"  # Place to store processed e-books
 TelegramNoCasedest = "/home/user/Downloads/"  # Destination file where telegram files goes if no Case is found.
 
+# Incomming folders, default paths to fetch files from
+TransmissionInbox = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+Telegraminbox = None  #  "/home/user/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
 
 # mail config (this example is for a gmx account, with SSL autentication)
 mailmachine = 'mail.gmx.com'		# your server machine
@@ -380,7 +383,7 @@ mail_topic_recipients = {
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "INFO"
 
-# Retention Policy: None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
+# Retention Policy (only aplicable to transmission) : None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
 MaxseedingDays = None
 #MaxseedingDays = 30
 # Minimum free space in bytes to maintain at torrent Download drive. Can be 0 or a number of bytes
@@ -405,6 +408,8 @@ chapteridentifier = ('Cap', 'cap', 'episodio')
 ext = {
 	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
 	"audio":['mp3', 'ogg', 'wav', 'm4a', 'wma', 'aac', 'flac', 'mka', 'ac3'],
+	"ebook":['mobi','epub'],
+	"comic":['cbr'],
 	"compressed":['rar','zip', '7z'],
 	"notwanted":['txt','url','lnk','DS_Store', 'nfo', 'info'],
 	"image":['jpg','png','gif'],
@@ -483,9 +488,12 @@ logging.info("======================================================")
 # (1.5) Setting main variables
 Fmovie_Folder = addslash(GideonConfig.Fmovie_Folder)  # Default place to store movies
 Faudio_Folder = addslash(GideonConfig.Faudio_Folder)  # Default place to store music
+Fbooks_Folder = addslash(GideonConfig.Fbooks_Folder)  # Default place to store books
+Fcomic_Folder = addslash(GideonConfig.Fcomic_Folder)  # Default place to store Comics
+TelegramNoCasedest = addslash (GideonConfig.TelegramNoCasedest)  # Telegram files with no Case goes here, preserving the file/folder structure
+
 TransmissionInbox = addslash (GideonConfig.TransmissionInbox)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
 Telegraminbox = addslash (GideonConfig.Telegraminbox)  # Hotfolder to retrieve Telegram Downloaded files or whatever other files
-TelegramNoCasedest = addslash (GideonConfig.TelegramNoCasedest)  # Telegram files with no Case goes here, preserving the file/folder structure
 
 s =  GideonConfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 cmd  = GideonConfig.cmd # Command line to lauch transmission
@@ -527,6 +535,8 @@ Codemimes = {
 	'compressed' : 4,
 	'image' : 5,
 	'other' : 6,
+	'ebook' : 7,
+	'comic' : 8,
 	}
 
 
@@ -619,6 +629,8 @@ else:
 		ncompressed int ,\
 		nimagefiles int ,\
 		nother int ,\
+		nbooks int ,\
+		ncomics int ,\
 		nfolders int ,\
 		folderlevels int \
 		)")
@@ -1145,7 +1157,7 @@ def getaliaspaths (textfile):
 def fileclasify (filename):
 	""" Classify a file
 		input: file
-		output: 'other' (default), 'audio', 'video', 'movie', 'compressed', 'image'
+		output: 'other' (default), 'audio', 'video', 'movie', 'compressed', 'image', 'ebook', 'comic'
 		
 		DefTest OK"""
 	global GideonConfig
@@ -1155,9 +1167,11 @@ def fileclasify (filename):
 		logging.warning('File has no extension: %s'%filename)
 		return 'other'
 	extwd = str (ext [1])
-	extwd = extwd [1:]
+	extwd = extwd [1:].lower()
 	if extwd in GideonConfig.ext['video']: return 'video'
 	elif extwd in GideonConfig.ext['audio']: return 'audio'
+	elif extwd in GideonConfig.ext['ebook']: return 'ebook'
+	elif extwd in GideonConfig.ext['comic']: return 'comic'
 	elif extwd in GideonConfig.ext['compressed']: return 'compressed'
 	elif extwd in GideonConfig.ext['notwanted']: return 'notwanted'
 	elif extwd in GideonConfig.ext['image']: return 'image'
@@ -1709,7 +1723,7 @@ def AddFilesToDB (con, DBid, filesdict, inputtype):
 		inform the matrix into the database,
 		it applies the process secuence and inform the destination of the files.
 	'''
-	matrix = [0,0,0,0,0,0,0,0,0]
+	matrix = [0,0,0,0,0,0,0,0,0,0,0]
 	folders = set()
 	for key in filesdict:
 		Size = filesdict.get(key)['size']
@@ -1719,7 +1733,7 @@ def AddFilesToDB (con, DBid, filesdict, inputtype):
 		con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
 		matrix = addmatrix (matrix, Mime)
 		folders.add (os.path.dirname(Originalfile))
-	matrix = addfoldersmatrix (matrix,folders,7,8)
+	matrix = addfoldersmatrix (matrix,folders,9,10)
 	# Selecting Case and processing torrent files.
 	Caso, Psecuence = Selectcase (matrix, inputtype)
 	Deliverstatus = 'Added'
@@ -1728,8 +1742,8 @@ def AddFilesToDB (con, DBid, filesdict, inputtype):
 	ProcessSecuence (con, DBid, Psecuence)
 	params = len(filesdict), Deliverstatus ,DBid
 	con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
-	params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8]
-	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
+	params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],matrix[9],matrix[10]
+	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nbooks,ncomics,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 	con.commit()
 	return 
 
@@ -1752,6 +1766,22 @@ def ProcessSecuence(con, Id, Psecuence):
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
+
+		elif process == 'assign Comics destination':
+			for entry in cursor2:
+				params = (Fcomic_Folder + entry[2],
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+		elif process == 'assign e-books destination':
+			for entry in cursor2:
+				params = (Fbooks_Folder + entry[2],
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+
 		elif process == 'assign Telegram destination':
 			for entry in cursor2:
 				params = (TelegramNoCasedest+entry[2],
@@ -1826,6 +1856,8 @@ Psecuensedict = {
 	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
 	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
 	4 : ['assign Telegram destination'],
+	5 : ['assign Comics destination'],
+	6 : ['assign e-books destination'],
 	}
 
 Casos = {
@@ -1834,6 +1866,8 @@ Casos = {
 	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
 	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
 	4 : "Telegram downloaded file with no Case",
+	5 : "(Comic) It has only one file and is a comic extension",
+	6 : "(ebook) It has only one file and is a e-book extension",
 	}
 
 def Selectcase (matrix, inputtype):
@@ -1849,19 +1883,27 @@ def Selectcase (matrix, inputtype):
 		[4] ncompressed
 		[5] nimagefiles
 		[6] nother
-		[7] nfolders
-		[8] folderlevels
+		[7] nebook
+		[8] ncomic
+		[9] nfolders
+		[10] folderlevels
 
 		DefTest OK"""
 	# Selectig case of only one video file:
-	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[5]+matrix[6])==0 and matrix[8]==1:
+	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[5]+matrix[6])==0 and matrix[10]==1:
 		NCase = 1
 
-	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[8]==1:
+	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[10]==1:
 		NCase = 2
 
-	elif matrix[0] >= 1 and matrix[2]>0 and (matrix[1]+matrix[6])==0 and matrix[7]==1 and matrix[8]==1:
+	elif matrix[0] >= 1 and matrix[2]>0 and (matrix[1]+matrix[6])==0 and matrix[9]==1 and matrix[10]==1:
 		NCase = 3
+
+	elif matrix[0] == 1 and matrix[8] == 1:
+		NCase = 5
+
+	elif matrix[0] == 1 and matrix[7] == 1:
+		NCase = 6
 
 	elif inputtype == 'Telegram':
 		NCase = 4
@@ -2337,7 +2379,6 @@ def UncompressRARFiles():
 			# send e-mail 
 			logging.info ('(%s) This RAR file needs password to be decompressed:%s'%(DBid,Fullfilepath))
 			remove = False
-
 		else:
 			print ('Decompressing:','(',DBid,')',Fullfilepath)
 			rf.extractall(path=Dwfolder, pwd=None)

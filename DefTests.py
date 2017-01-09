@@ -237,15 +237,18 @@ class Selectcase (unittest.TestCase):
 		[8] folderlevels
 		"""
 	known_values = (
-		([0,0,0,0,0,0,0,  0,0], None , 0),
-		([1,1,0,0,0,0,0,  1,1], None , 1),
-		([60,1,0,55,0,4,0,  1,1], None, 2),
-		([25,0,13,0,0,1,0,  1,1], None, 3),
-		([26,0,13,1,0,1,0,  1,1], None, 3),
-		([26,0,13,1,0,1,0,  1,1], 'Telegram', 3),
-		([27,0,13,1,0,1,1,  1,1], None, 0),
-		([27,0,13,1,0,1,1,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
-		([4,0,0,3,1,0,0,  1,1], None, 0),  # Compressed file
+		([0,0,0,0,0,0,0,0,0,  0,0], None , 0),
+		([1,1,0,0,0,0,0,0,0,  1,1], None , 1),
+		([60,1,0,55,0,4,0,0,0,  1,1], None, 2),
+		([25,0,13,0,0,1,0,0,0,  1,1], None, 3),
+		([26,0,13,1,0,1,0,0,0,  1,1], None, 3),
+		([26,0,13,1,0,1,0,0,0,  1,1], 'Telegram', 3),
+		([27,0,13,1,0,1,1,0,0,  1,1], None, 0),
+		([27,0,13,1,0,1,1,0,0,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
+		([4,0,0,3,1,0,0,0,0, 1,1], None, 0),  # Compressed file
+		([1,0,0,0,0,0,0,1,0, 1,1], 'Telegram', 6),  # e-book file
+		([1,0,0,0,0,0,0,1,0, 1,1], None, 6),  # e-book file
+		([1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
 		)
 	def test_Selectcase (self):
 		for example, inputtype, pattern in self.known_values:
@@ -291,12 +294,14 @@ class addmatrix (unittest.TestCase):
 		each type has a position into the matrix
 		"""
 	known_values = (
-		(([0,0,0,0,0,0,0],'audio'), [1,0,1,0,0,0,0] ),
-		(([32,1,2,3,4,5,6],'video'), [33,2,2,3,4,5,6] ),
-		(([100,0,0,0,0,0,8],'audio'), [101,0,1,0,0,0,8] ),
-		(([6,0,0,0,0,0,0],'compressed'), [7,0,0,0,1,0,0] ),
-		(([88,0,1,0,0,9,0],'image'), [89,0,1,0,0,10,0] ),
-		(([154,0,1,0,0,0,55],'other'), [155,0,1,0,0,0,56] ),
+		(([0,0,0,0,0,0,0,0,0],'audio'), [1,0,1,0,0,0,0,0,0] ),
+		(([32,1,2,3,4,5,6,0,0],'video'), [33,2,2,3,4,5,6,0,0] ),
+		(([100,0,0,0,0,0,8,0,0],'audio'), [101,0,1,0,0,0,8,0,0] ),
+		(([6,0,0,0,0,0,0,0,0],'compressed'), [7,0,0,0,1,0,0,0,0] ),
+		(([88,0,1,0,0,9,0,0,0],'image'), [89,0,1,0,0,10,0,0,0] ),
+		(([154,0,1,0,0,0,55,0,0],'other'), [155,0,1,0,0,0,56,0,0] ),
+		(([33,0,0,0,0,0,88,0,0],'ebook'), [34,0,0,0,0,0,88,1,0] ),
+		(([34,0,0,0,0,0,89,0,4],'comic'), [35,0,0,0,0,0,89,0,5] ),
 		)
 	def test_addmatrix (self):
 		for example, pattern in self.known_values:
@@ -306,23 +311,23 @@ class addmatrix (unittest.TestCase):
 class addfoldersmatrix (unittest.TestCase):
 
 	known_values = (
-		(([0,0,0,0,0,0,0,0,0],set(['only one path'])), [0,0,0,0,0,0,0,1,1] ),
-		(([0,0,0,45,0,0,0,0,0],set(['two levels/of path'])), [0,0,0,45,0,0,0,1,2] ),
-		(([0,0,0,0,0,0,0,0,0],set([
+		(([0,0,0,0,0,0,0,0,0,0,0],set(['only one path'])), [0,0,0,0,0,0,0,0,0,1,1] ),
+		(([0,0,0,0,0,45,0,0,0,0,0],set(['two levels/of path'])), [0,0,0,0,0,45,0,0,0,1,2] ),
+		(([0,0,0,0,0,0,0,0,0,0,0],set([
 										'two levels/of path',
-										'one level'])), [0,0,0,0,0,0,0,2,2] ),
-		(([0,0,0,0,0,0,0,0,0],set([
+										'one level'])), [0,0,0,0,0,0,0,0,0,2,2] ),
+		(([0,0,0,0,0,0,0,0,0,0,0],set([
 										'two levels/of path',
 										'two levels/another level',
-										'one level'])), [0,0,0,0,0,0,0,3,2] ),
-		(([33,0,0,0,0,0,0,0,0],set([
+										'one level'])), [0,0,0,0,0,0,0,0,0,3,2] ),
+		(([33,0,0,0,0,0,0,0,0,0,0],set([
 										'three levels/of/path',
 										'two levels/another level',
-										'one level'])), [33,0,0,0,0,0,0,3,3] ),
+										'one level'])), [33,0,0,0,0,0,0,0,0,3,3] ),
 		)
 	def test_addmatrix (self):
 		for example, pattern in self.known_values:
-			result = MD.addfoldersmatrix (example[0],example[1],7,8)
+			result = MD.addfoldersmatrix (example[0],example[1],9,10)
 			self.assertEqual (pattern, result)
 
 class fileclasify (unittest.TestCase):
@@ -335,6 +340,10 @@ class fileclasify (unittest.TestCase):
 		("filename.jpg", 'image' ),
 		("filename.rar", 'compressed' ),
 		("filename.xxx", 'other' ),
+		("filename.epub", 'ebook' ),
+		("filename.MOBI", 'ebook' ),
+		("filename.mobi", 'ebook' ),
+		("filename.cbr", 'comic' ),
 		)
 	def test_addmatrix (self):
 		for example, target in self.known_values:
