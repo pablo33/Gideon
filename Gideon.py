@@ -1406,7 +1406,7 @@ def SpoolUserMessages(con, Topic, TRid=None):
 
 def STmail (title, msg, topic=0):
 	msgfrom = GideonConfig.mailsender
-	msgto = ":".join(getrecipients(topic, mail_topic_recipients))
+	msgto = ",".join(getrecipients(topic, mail_topic_recipients))
 	msgsubject = title
 	textfile = msg
 	if msgto != '':
