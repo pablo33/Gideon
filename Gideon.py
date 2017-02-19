@@ -1061,29 +1061,44 @@ def clearfilename(filename):
 
 # Main Functions -------------------------
 
-def copyfile(origin,dest,mode="c"):
+def copyfile(origin,dest,mode="c", replace=True):
 	""" Copy or moves file to another place
-		input: file origin (full/relative patn and name)
-		input: file destination (full/relative path an name)
-		input: mode: "c" for copy, "m" for move (default "c")
+		origin: file origin (full/relative patn and name)
+		dest: file destination (full/relative path an name)
+		mode: "c" for copy, "m" for move (default "c")
+		replace: True for replace existing file or False to skip. (default True)
 
-		if a file already exists, nothing is done.
-		return True if success, or False if it didn't success
+		return
+		'Missed' if origin does not exists or is not a file.
+		'Skipped' if destination file already exists and replace = False (only checks the filename)
+		'Copied' if file was copied
+		'Moved' if file was moved
 		"""
-	if itemcheck(origin) == "":
-		logging.debug("\tOrigin file does not exists. Nothing to do!")
+	
+	if itemcheck(origin) != "file":
+		logging.debug("\tOrigin file does not exists or is not a file. Nothing to do!")
 		return 'Missed'
-	if itemcheck(dest) == "":
-		makepaths ([os.path.dirname(dest),])
-		if mode == "c":
-			shutil.copy(origin,dest)
-			return 'Copied'
-		if mode == "m":
-			shutil.move(origin,dest)
-			return 'Moved'
-	else:
+
+	destnature = itemcheck(dest)
+	if destnature != "file" and destnature != "" :
+		logging.warning ('Destination pointer is not a file, cannot continue copying')
+		return 'Skipped'
+	if destnature == 'file':
 		logging.debug("\tDestination file already exists")
-		return 'Exists'
+		if replace:
+			logging.info ('\tReplacing file.')
+			os.remove (dest)
+		else:
+			logging.info ('\tFile has not been replaced.')
+			return 'Skipped'
+	else:
+		makepaths ([os.path.dirname(dest),])
+	if mode == "c":
+		shutil.copy(origin,dest)
+		return 'Copied'
+	if mode == "m":
+		shutil.move(origin,dest)
+		return 'Moved'
 
 def matchfilm(filmname,lista):
 	''' Selects a item from a list with the best match.
