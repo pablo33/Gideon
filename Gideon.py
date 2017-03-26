@@ -1572,6 +1572,7 @@ def mailpreasignedtorrents (con):
 		if NCase in (1,2):  ## Cases 1 and 2 only has one video file.
 			fullfilepath = con.execute ("SELECT destfile FROM files WHERE trid=%s and wanted = 1 and mime = 'video' "%Trid).fetchone()[0]
 			filename = os.path.splitext(os.path.basename (fullfilepath))[0]
+			groupingtitle = filename
 			if chapid (filename) != '':
 				groupingtitle = filename [:-2]
 		else:
