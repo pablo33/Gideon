@@ -45,12 +45,12 @@ dyntestfolder = 'TESTS'  # local path for Deftests
 try:
 	import rarfile
 except:
-	print ('Rarfile library is not present. I will not process Rar files')
+	print ('Rarfile library is not present. Gideon will not process Rar files')
 	RarSupport = False
 else:
 	#if rarfile.UNRAR_TOOL == False:
 	if os.system('unrar') != 0:
-		print ('No unrar tool is found. I will not process Rar files.')
+		print ('No unrar tool is found. Gideon will not process Rar files.')
 		print ('You can install it by typing $sudo apt-get install unrar')
 		RarSupport = False
 	else:
@@ -1551,11 +1551,13 @@ def mailpreasignedtorrents (con):
 	''' e-mail preasigned torrents, this is to inform what is going to download and
 	How it is going to be process and delivered once it is completed.
 	It corresponds with topic nº6 in DB, "List of files has been retrieved and preasigned"
-	It should send one e-mail for each torrent file.
+	It should send one e-mail for each torrent file, but in case of series it should group all chapters into one.
 	The body should have "torrent ID in database for further information." >> Trid = ...
 	'''
+	
+	msggroupingdict = dict()  # Dictionary of Messages. It will group the same messages for the same series-series
 	cursor = con.cursor ()
-	cursor.execute ("SELECT nreg, trid, trname, fullfilepath, filetype FROM msg_inputs join tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 6")
+	cursor.execute ("SELECT nreg, trid, trname, fullfilepath, filetype FROM msg_inputs JOIN tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' and msg_inputs.topic = 6")
 	for r in cursor:
 		Nreg, Trid, Trname, Fullfilepath, Filetype = r[0], r[1], r[2], r[3], r[4]
 		if Filetype in ('.torrent','.magnet'):
@@ -1563,22 +1565,35 @@ def mailpreasignedtorrents (con):
 		elif Filetype in ('.file', '.folder'):
 			Jobname = os.path.basename (Fullfilepath)
 		else:
-			logging.critical ('unknown job type, cannot continue')
+			logging.critical ('unknown job type, Skipping...')
 			continue
 		NCase = con.execute ("SELECT caso FROM pattern WHERE trid=%s"%Trid).fetchone()[0]
 
+		if NCase in (1,2):  ## Cases 1 and 2 only has one video file.
+			fullfilepath = con.execute ("SELECT destfile FROM files WHERE trid=%s and wanted = 1 and mime = 'video' "%Trid).fetchone()[0]
+			filename = os.path.splitext(os.path.basename (fullfilepath))[0]
+			if chapid (filename) != '':
+				groupingtitle = filename [:-2]
+		else:
+			groupingtitle = Jobname
+
+		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 		msgbody = "A new download job has been preasigned: \n\
 			Job Name: %s \n\
 			Job Type = %s \n\
 			trid = %s \n\
 			Case = %s \n\n \
 		Predeliver:\n"%(Jobname, Filetype[1:],Trid, Casos[NCase])
-
-		filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 		msgbody += filelisttxt + "\n"
 		msgbody += nonwantedfilestxt + "\n"
-		STmail ('Predelivered status for: '+ Jobname + '(' + Filetype[1:] + ')' ,msgbody, topic = 6 )
+		
+		if groupingtitle in msggroupingdict:
+			msgbody = msggroupingdict[groupingtitle] + '\n\n' + msgbody
+		msggroupingdict [groupingtitle] = msgbody
+
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
+	for job in msggroupingdict:
+		STmail ('Predelivered status for: '+ job, msggroupingdict [job], topic = 6 )
 	con.commit()
 	return
 
