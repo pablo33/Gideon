@@ -232,9 +232,11 @@ class Selectcase (unittest.TestCase):
 		[4] ncompressed
 		[5] nimagefiles
 		[6] nother
+		[7] nebook
+		[8] ncomic
 
-		[7] nfolders
-		[8] folderlevels
+		[9] nfolders
+		[10] folderlevels
 		"""
 	known_values = (
 		([0,0,0,0,0,0,0,0,0,  0,0], None , 0),
@@ -249,6 +251,8 @@ class Selectcase (unittest.TestCase):
 		([1,0,0,0,0,0,0,1,0, 1,1], 'Telegram', 6),  # e-book file
 		([1,0,0,0,0,0,0,1,0, 1,1], None, 6),  # e-book file
 		([1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
+		([61,0,61,0,0,0,0,0,0, 6,2], None, 7),  # Audio files in a discography
+		([313,0,226,0,0,87,0,0,0, 37,4], None, 7),  # Audio files in a discography
 		)
 	def test_Selectcase (self):
 		for example, inputtype, pattern in self.known_values:

@@ -412,7 +412,7 @@ ext = {
 	"comic":['cbr'],
 	"compressed":['rar','zip', '7z'],
 	"notwanted":['txt','url','lnk','DS_Store', 'nfo', 'info'],
-	"image":['jpg','png','gif'],
+	"image":['jpg','png','gif','jpeg'],
 }
 
 # List of prohibited words. This words will be deleted from files and folder-names
@@ -1792,7 +1792,7 @@ def ProcessSecuence(con, Id, Psecuence):
 			continue
 		elif process == 'assign audio destination':
 			for entry in cursor2:
-				params = (Faudio_Folder+entry[3],
+				params = (Faudio_Folder+entry[2],
 					entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
@@ -1889,6 +1889,7 @@ Psecuensedict = {
 	4 : ['assign Telegram destination'],
 	5 : ['assign Comics destination'],
 	6 : ['assign e-books destination'],
+	7 : ['assign audio destination'],
 	}
 
 Casos = {
@@ -1899,6 +1900,7 @@ Casos = {
 	4 : "Telegram downloaded file with no Case",
 	5 : "(Comic) It has only one file and is a comic extension",
 	6 : "(ebook) It has only one file and is a e-book extension",
+	7 : "(audio) Contains one or more audio files, may contain some image files, and more that one level of folders.",
 	}
 
 def Selectcase (matrix, inputtype):
@@ -1929,6 +1931,9 @@ def Selectcase (matrix, inputtype):
 
 	elif matrix[0] >= 1 and matrix[2]>0 and (matrix[1]+matrix[6])==0 and matrix[9]==1 and matrix[10]==1:
 		NCase = 3
+
+	elif matrix[0] >= 1 and matrix[1] == 0 and matrix[2] >= 1 and (matrix[4] + matrix[6] + matrix[7] + matrix[8]) == 0 and matrix[9]>=1 and matrix[10] > 1:
+		NCase = 7
 
 	elif matrix[0] == 1 and matrix[8] == 1:
 		NCase = 5
