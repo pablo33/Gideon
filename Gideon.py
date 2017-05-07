@@ -1889,7 +1889,7 @@ Psecuensedict = {
 	4 : ['assign Telegram destination'],
 	5 : ['assign Comics destination'],
 	6 : ['assign e-books destination'],
-	7 : ['assign audio destination'],
+	7 : ['assign audio destination','cleanfilenames'],
 	}
 
 Casos = {
