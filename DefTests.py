@@ -600,11 +600,13 @@ class namefilmcleaner (unittest.TestCase):
 			('my.', '. ','my'),
 			('my..', '. ','my'),
 			('my.abc.[defg].another text', '. ','my abc [defg] another text'),
-			('lots of points......6 points', '. ','lots of points......6 points'),
-			('lots of points.......7 points', '. ','lots of points.......7 points'),
-			('lots of points...ax.....points.hey.', '. ','lots of points...ax.....points.hey'),
+			('lots of points......6 points', '. ','lots of points .....6 points'),
+			('lots of points.......7 points', '. ','lots of points ......7 points'),
+			('lots of points...ax.....points.hey.', '. ','lots of points ..ax.....points.hey'),
 			('No point is there', '. ','No point is there'),
 			('One final point is here.', '. ','One final point is here'),
+			('Hey temporada 1 capitulo 1.www_.Somedominio.com', '_.','Hey temporada 1 capitulo 1.www..Somedominio.com'),
+			('Mar.Gente.Of_.A.H.I.L.D.N-4x16.HDTV_.XviD_.www_.SomeDominio.com_', '_.','Mar.Gente.Of..A.H.I.L.D.N-4x16.HDTV..XviD..www..SomeDominio.com'),
 			('', '. ',''),
 			])
 
@@ -685,6 +687,19 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.littlewords(i1)
 			self.assertEqual(result,expectedstring)
 
+	def test_clearfilename (self):
+		''' Process several filters for filename cleaning
+		input: filename without extension, please
+		output: filename without extension, of course
+			'''
+		wanted_values = ([
+			('Change temporada 1 capitulo 1.www_.somedomain.com','Change Temporada 1 Capitulo 1 Somedomain'),
+			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16 Somedomain')
+			])
+
+		for i1,expectedstring in wanted_values:
+			result = MD2.clearfilename(i1)
+			self.assertEqual(result,expectedstring)
 
 
 if __name__ == '__main__':

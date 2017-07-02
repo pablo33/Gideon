@@ -885,7 +885,7 @@ def dotreplacement(a,lim):
 		output: "String to process" (procesed string)
 	DefTest >> OK'''
 	if a != '':
-		leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ-+*()[]_"
+		leters = "1234567890abcdefghijklmnñopqrstuvwxyzABCDEFGHIJKLMNÑOPQRSTUVWXYZ+*()[]_.-"
 		while True :
 			#logging.debug(a)
 			st = a.find(lim[0])
@@ -1010,15 +1010,18 @@ def clearfilename(filename):
 	""" Process several filters for filename cleaning
 		input: filename without extension, please
 		output: filename without extension, of course
+		
+		DefTest >> OK
 		"""
 	logging.info("# Cleaning filename: "+filename)
 	filenametmp = filename
 
 	
 	#1 replacing dots, underscores & half  between leters.
-	filenametmp = dotreplacement(filenametmp, ". ")
+	filenametmp = filenametmp.replace('_.','.')
 	filenametmp = dotreplacement(filenametmp, "_ ")
 	filenametmp = dotreplacement(filenametmp, "- ")
+	filenametmp = dotreplacement(filenametmp, ". ")
 
 	#2 trimming brackets
 	filenametmp = trimbetween(filenametmp, "[]")
