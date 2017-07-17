@@ -378,6 +378,7 @@ mail_topic_recipients = {
 #OK	10:	'Torrent Deleted due to a retention Policy',
 #	11:	'Cover assigned to a moviefile',
 #	12: 'System is running into low disk space'
+#OK	13: 'Error by adding a Torrent file to Transmission Service'
 
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
@@ -527,6 +528,7 @@ Msgtopics = {
 	10:	'Torrent Deleted due to a retention Policy',
 	11:	'Cover assigned to a moviefile',
 	12: 'System is running under low disk space',
+	13: 'Error by adding a Torrent file to Transmission Service',
 	}
 Codemimes = {
 	'video' : 1,
@@ -1348,12 +1350,19 @@ def SendtoTransmission():
 		tc = connectTR ()
 		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE status = 'Ready'  and ( filetype = '.magnet' or filetype = '.torrent')")
 		for Id, Fullfilepath in cursor:
-			trobject = tc.add_torrent (Fullfilepath)
-			TRname = trobject.name
-			TRhash = trobject.hashString
-			print ('Added a new torrent \n',Fullfilepath, TRname, 'Hash: '+ TRhash, sep='\n\t')
-			con.execute ("UPDATE tw_inputs SET status='Added',  hashstring = ? , trname=? WHERE id=?", (TRhash, TRname,str(Id)))
-			SpoolUserMessages(con, 2, TRid = Id)
+			try:
+				trobject = tc.add_torrent (Fullfilepath)
+				TRname = trobject.name
+				TRhash = trobject.hashString
+				print ('Added a new torrent \n',Fullfilepath, TRname, 'Hash: '+ TRhash, sep='\n\t')
+				con.execute ("UPDATE tw_inputs SET status='Added',  hashstring = ? , trname=? WHERE id=?", (TRhash, TRname,str(Id)))
+				SpoolUserMessages(con, 2, TRid = Id)
+			except transmissionrpc.error.TransmissionError:
+				print ('Transmission ERROR adding an incomming job!:%s'%Fullfilepath)
+				con.execute ("UPDATE tw_inputs SET status='Error' WHERE id=%s"%(str(Id)))
+				logging.warning ('This torrent file has raised an Error: %s'%Fullfilepath)
+				print ('Spooling error message')
+				SpoolUserMessages(con, 13, TRid = Id)
 		con.commit()
 	con.close()
 	return
@@ -1436,6 +1445,7 @@ def STmail (title, msg, topic=0):
 def MsgService():
 	con = sqlite3.connect (dbpath)
 	mailStartedSevice (con)
+	mailErrors (con)
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
 	#mailnocasetorrents (con)  #  TO DO ----  8
@@ -1475,13 +1485,35 @@ def mailaddedtorrents(con):
 	for Nreg, Trid, Trname, Filetype in cursor:
 		lines.append ("(%s), %s,Job name: %s" %(Trid, Filetype[1:], Trname))
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
-	con.commit()
 	if len (lines) > 0:
 		msg = "New jobs have been added to process:\n"
 		for l in lines:
 			msg += "\n"+l
-		STmail ('New Jobs added to Gideon:', msg, topic=1)
+		subject = 'New Jobs added to Gideon: '
+		if len (lines) == 1:
+			subject += Trname
+		STmail (subject, msg, topic=1)
+		con.commit()
 	return
+
+def mailErrors(con):
+	lines = list()
+	cursor = con.cursor ()
+	cursor.execute ("SELECT nreg, trid,fullfilepath FROM msg_inputs JOIN tw_inputs ON msg_inputs.trid = tw_inputs.id WHERE msg_inputs.status = 'Ready' AND msg_inputs.topic = 13 ")
+	for Nreg, Trid, Fullfilepath in cursor:
+		lines.append ("(%s): %s" %(Trid, Fullfilepath))
+		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = ?", (Nreg,))
+	if len (lines) > 0:
+		msg = "There have been errors adding this torrent files:\n"
+		for l in lines:
+			msg += "\n"+l
+		subject = 'Errors adding new Jobs to Gideon: '
+		if len (lines) == 1:
+			subject += os.path.splitext(os.path.basename(Fullfilepath))[0]
+		STmail (subject, msg, topic=13)
+		con.commit()
+	return
+
 
 def mailStartedSevice(con):
 	cursor = con.cursor ()
