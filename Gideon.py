@@ -911,19 +911,26 @@ def prohibitedwords(a,lista):
 		outputt: "string without this words".
 	DefTest >> OK'''
 
-	for pw in lista:
-		# words in the middle
-		x = a.upper().find(" "+pw.upper()+" ")
-		if x >= 0:
-			a = a[:x]+a[x+len(pw)+1:]
-		# words at the end
-		if len (pw)+1 < len (a):
-			if a.upper().endswith(" "+pw.upper()):
-				a = a[:-len(pw)-1]
-		# words at the begining
-		if len (pw)+1 < len (a):
-			if a.upper().startswith(pw.upper()+" "):
-				a = a[len(pw)+1:]
+	delimiters = ('','()','[]','{}','__','··')
+	for limit in delimiters:
+		if limit != '':
+			st,end = limit[0],limit[1]
+		else:
+			st,end = '',''
+		for pw in lista:
+			# words in the middle
+			nww = st + pw + end
+			x = a.upper().find (" " + nww.upper() + " ")
+			if x >= 0:
+				a = a[:x] + a[x+len(nww)+1:]
+			# words at the end
+			if len (nww)+1 < len (a):
+				if a.upper().endswith ( " " + nww.upper()):
+					a = a[:-len(nww)-1]
+			# words at the begining
+			if len (nww) + 1 < len (a):
+				if a.upper().startswith(nww.upper() + " "):
+					a = a[len(nww) + 1 :]
 	return a
 
 def sigcapfinder(filename):

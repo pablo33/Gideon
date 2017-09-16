@@ -622,8 +622,10 @@ class namefilmcleaner (unittest.TestCase):
 			outputt: "string without this words".
 		'''
 		wanted_values = ([
-			('my test to delete some words', ['test','words'],'my to delete some'),
-			('my.test.to delete some words', ['test','words'],'my.test.to delete some'),
+			('1my test to delete some words', ['test','words'],'1my to delete some'),
+			('2my.test.to delete some words', ['test','words'],'2my.test.to delete some'),
+			('3my.test.to delete some final url Www.DivxTotal.com', ['www.divxtotal.com','words'],'3my.test.to delete some final url'),
+			('4my.test.to delete (some) [nonwanted] words enclosed', ['some','nonwanted'],'4my.test.to delete words enclosed'),
 			('my', ['test','my'],'my'),
 			(' my ', ['test','my'],' '),
 			('', ['test','my'],''),
@@ -694,7 +696,9 @@ class namefilmcleaner (unittest.TestCase):
 			'''
 		wanted_values = ([
 			('Change temporada 1 capitulo 1.www_.somedomain.com','Change Temporada 1 Capitulo 1 Somedomain'),
-			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16 Somedomain')
+			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16 Somedomain'),
+			('08 Z. La ciudad perdida DVDRip www.DivxTotaL.com','08 Z. la Ciudad Perdida'),
+			('Savva. El corazón del guerrero (microHD) (EliteTorrent.net)','Savva. el Corazón del Guerrero'),
 			])
 
 		for i1,expectedstring in wanted_values:
