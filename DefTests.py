@@ -239,25 +239,41 @@ class Selectcase (unittest.TestCase):
 		[10] folderlevels
 		"""
 	known_values = (
-		([0,0,0,0,0,0,0,0,0,  0,0], None , 0),
-		([1,1,0,0,0,0,0,0,0,  1,1], None , 1),
-		([60,1,0,55,0,4,0,0,0,  1,1], None, 2),
-		([25,0,13,0,0,1,0,0,0,  1,1], None, 3),
-		([26,0,13,1,0,1,0,0,0,  1,1], None, 3),
-		([26,0,13,1,0,1,0,0,0,  1,1], 'Telegram', 3),
-		([27,0,13,1,0,1,1,0,0,  1,1], None, 0),
-		([27,0,13,1,0,1,1,0,0,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
-		([4,0,0,3,1,0,0,0,0, 1,1], None, 0),  # Compressed file
-		([1,0,0,0,0,0,0,1,0, 1,1], 'Telegram', 6),  # e-book file
-		([1,0,0,0,0,0,0,1,0, 1,1], None, 6),  # e-book file
-		([1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
-		([61,0,61,0,0,0,0,0,0, 6,2], None, 7),  # Audio files in a discography
-		([313,0,226,0,0,87,0,0,0, 37,4], None, 7),  # Audio files in a discography
+		(1,[0,0,0,0,0,0,0,0,0,  0,0], None , 0),
+		(2,[1,1,0,0,0,0,0,0,0,  1,1], None , 1),
+		(3,[60,1,0,55,0,4,0,0,0,  1,1], None, 2),
+		(4,[25,0,13,0,0,1,0,0,0,  1,1], None, 3),
+		(5,[26,0,13,1,0,1,0,0,0,  1,1], None, 3),
+		(6,[26,0,13,1,0,1,0,0,0,  1,1], 'Telegram', 3),
+		(7,[27,0,13,1,0,1,1,0,0,  1,1], None, 0),
+		(8,[27,0,13,1,0,1,1,0,0,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
+		(9,[4,0,0,3,1,0,0,0,0, 1,1], None, 0),  # Compressed file
+		(10,[1,0,0,0,0,0,0,1,0, 1,1], 'Telegram', 6),  # e-book file
+		(11,[1,0,0,0,0,0,0,1,0, 1,1], None, 6),  # e-book file
+		(12,[1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
+		(13,[61,0,61,0,0,0,0,0,0, 6,2], None, 7),  # Audio files in a discography
+		(14,[313,0,226,0,0,87,0,0,0, 37,4], None, 7),  # Audio files in a discography
 		)
 	def test_Selectcase (self):
-		for example, inputtype, pattern in self.known_values:
-			result = MD.Selectcase (example, inputtype)
-			self.assertEqual (pattern, result[0])
+		for testID, example, inputtype, target in self.known_values:
+			M = MD.Matrix(testID)
+
+			M.nfiles = example[0]
+			M.nvideos = example[1]
+			M.naudios = example[2]
+			M.nnotwanted = example[3]
+			M.ncompressed = example[4]
+			M.nimagefiles = example[5]
+			M.nother = example[6]
+			M.nbooks = example[7]
+			M.ncomics = example[8]
+			
+			M.nfolders = example[9]
+			M.folderlevels = example[10]
+
+			print (testID,end='-')
+			result = MD.Selectcase (M, inputtype)
+			self.assertEqual (target, result[0])
 
 class itemcheck_text_values (unittest.TestCase):
 	'''testing itemcheck function'''
@@ -292,47 +308,6 @@ class getappstatus (unittest.TestCase):
 			result = MD.getappstatus (process)
 			self.assertEqual (status, result)
 
-class addmatrix (unittest.TestCase):
-	""" Adds +1 on matrix [0]
-		Adds +1 on matrix by mime type dict.
-		each type has a position into the matrix
-		"""
-	known_values = (
-		(([0,0,0,0,0,0,0,0,0],'audio'), [1,0,1,0,0,0,0,0,0] ),
-		(([32,1,2,3,4,5,6,0,0],'video'), [33,2,2,3,4,5,6,0,0] ),
-		(([100,0,0,0,0,0,8,0,0],'audio'), [101,0,1,0,0,0,8,0,0] ),
-		(([6,0,0,0,0,0,0,0,0],'compressed'), [7,0,0,0,1,0,0,0,0] ),
-		(([88,0,1,0,0,9,0,0,0],'image'), [89,0,1,0,0,10,0,0,0] ),
-		(([154,0,1,0,0,0,55,0,0],'other'), [155,0,1,0,0,0,56,0,0] ),
-		(([33,0,0,0,0,0,88,0,0],'ebook'), [34,0,0,0,0,0,88,1,0] ),
-		(([34,0,0,0,0,0,89,0,4],'comic'), [35,0,0,0,0,0,89,0,5] ),
-		)
-	def test_addmatrix (self):
-		for example, pattern in self.known_values:
-			result = MD.addmatrix (example[0],example[1])
-			self.assertEqual (pattern, result)
-
-class addfoldersmatrix (unittest.TestCase):
-
-	known_values = (
-		(([0,0,0,0,0,0,0,0,0,0,0],set(['only one path'])), [0,0,0,0,0,0,0,0,0,1,1] ),
-		(([0,0,0,0,0,45,0,0,0,0,0],set(['two levels/of path'])), [0,0,0,0,0,45,0,0,0,1,2] ),
-		(([0,0,0,0,0,0,0,0,0,0,0],set([
-										'two levels/of path',
-										'one level'])), [0,0,0,0,0,0,0,0,0,2,2] ),
-		(([0,0,0,0,0,0,0,0,0,0,0],set([
-										'two levels/of path',
-										'two levels/another level',
-										'one level'])), [0,0,0,0,0,0,0,0,0,3,2] ),
-		(([33,0,0,0,0,0,0,0,0,0,0],set([
-										'three levels/of/path',
-										'two levels/another level',
-										'one level'])), [33,0,0,0,0,0,0,0,0,3,3] ),
-		)
-	def test_addmatrix (self):
-		for example, pattern in self.known_values:
-			result = MD.addfoldersmatrix (example[0],example[1],9,10)
-			self.assertEqual (pattern, result)
 
 class fileclasify (unittest.TestCase):
 	""" Tipify a file by its extension

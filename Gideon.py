@@ -1789,33 +1789,79 @@ def Retrievefilesdict ( Fullfilepath, Filetype):
 
 	return CollectionDictionary
 
-def AddFilesToDB (con, DBid, filesdict, inputtype):
+class Matrix :
+	""" Matrix generation for the set of downloaded files 
+		it identifies de downloaded item in ordert to perform deliver actions """
+	def __init__(self,TRid):
+		self.TRid = TRid
+		self.nfiles = 0
+		self.nvideos = 0
+		self.naudios = 0
+		self.nnotwanted = 0
+		self.ncompressed = 0
+		self.nimagefiles = 0
+		self.nother = 0
+		self.nbooks = 0
+		self.ncomics = 0
+		self.nfolders = 0
+		self.folderlevels = 0
+		self.folders_Set = set ()
+
+	def __addfolder__ (self,item):
+		self.folders_Set.add (os.path.dirname(item))
+		self.nfolders = len (self.folders_Set)
+		nlev = 1 + item.count('/')
+		if self.folderlevels < nlev:
+			self.folderlevels = nlev
+		print (os.path.dirname(item))
+		print (self.folders_Set)
+		print ('folderlevels', self.folderlevels)
+
+	def addfile (self,item):
+		self.nfiles += 1
+		mime = fileclasify (item)
+		if mime == 'video' : self.nvideos += 1
+		elif mime == 'audio' : self.naudios += 1
+		elif mime == 'ebook' : self.nbooks += 1
+		elif mime == 'comic' : self.ncomics += 1
+		elif mime == 'compressed' :self.ncompressed += 1
+		elif mime == 'notwanted' : self.nnotwanted += 1
+		elif mime == 'image' : self.nimagefiles += 1
+		else: self.nother += 1
+		self.__addfolder__(item)
+
+# =====================
+
+
+def AddFilesToDB (con, TRid, filesdict, inputtype):
 	''' Given a downloaded entry and its files-dict,
 		it informs those files in the Data Base,
 		it gets the matrix,
 		inform the matrix into the database,
 		it applies the process secuence and inform the destination of the files.
 	'''
-	matrix = [0,0,0,0,0,0,0,0,0,0,0]
-	folders = set()
+	#-# matrix = [0,0,0,0,0,0,0,0,0,0,0]
+	Tmtx = Matrix (TRid)
+	#-# folders = set()
 	for key in filesdict:
 		Size = filesdict.get(key)['size']
 		Originalfile = filesdict.get(key)['name']
 		Mime = fileclasify(Originalfile)
-		params = DBid, Size, Originalfile, Mime
+		params = TRid, Size, Originalfile, Mime
 		con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
-		matrix = addmatrix (matrix, Mime)
-		folders.add (os.path.dirname(Originalfile))
-	matrix = addfoldersmatrix (matrix,folders,9,10)
+		#-# matrix = addmatrix (matrix, Mime)
+		Tmtx.addfile(Originalfile)
+		#-# folders.add (os.path.dirname(Originalfile))
+	#-# matrix = addfoldersmatrix (matrix,folders,9,10)
 	# Selecting Case and processing torrent files.
-	Caso, Psecuence = Selectcase (matrix, inputtype)
+	Caso, Psecuence = Selectcase (Tmtx, inputtype)
 	Deliverstatus = 'Added'
 	if Caso == 0:
 		Deliverstatus = None  # Torrents with no case are not delivered
-	ProcessSecuence (con, DBid, Psecuence)
-	params = len(filesdict), Deliverstatus ,DBid
+	ProcessSecuence (con, TRid, Psecuence)
+	params = len(filesdict), Deliverstatus ,TRid
 	con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
-	params = DBid, 'Added', Caso, str(Psecuence),  matrix[0],matrix[1],matrix[2],matrix[3],matrix[4],matrix[5],matrix[6],matrix[7],matrix[8],matrix[9],matrix[10]
+	params = TRid, 'Added', Caso, str(Psecuence),   Tmtx.nfiles, Tmtx.nvideos, Tmtx.naudios, Tmtx.nnotwanted, Tmtx.ncompressed, Tmtx.nimagefiles, Tmtx.nother, Tmtx.nbooks, Tmtx.ncomics, Tmtx.nfolders, Tmtx.folderlevels
 	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nbooks,ncomics,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 	con.commit()
 	return 
@@ -1958,29 +2004,29 @@ def Selectcase (matrix, inputtype):
 		[4] ncompressed
 		[5] nimagefiles
 		[6] nother
-		[7] nebook
-		[8] ncomic
+		[7] nbooks
+		[8] ncomics
 		[9] nfolders
 		[10] folderlevels
 
 		DefTest OK"""
 	# Selectig case of only one video file:
-	if matrix[0] >= 1 and matrix[1] == 1 and (matrix[2]+matrix[4]+matrix[5]+matrix[6])==0 and matrix[10]==1:
+	if matrix.nfiles >= 1 and matrix.nvideos == 1 and (matrix.naudios+matrix.ncompressed+matrix.nimagefiles+matrix.nother)==0 and matrix.folderlevels==1:
 		NCase = 1
 
-	elif matrix[0] > 1 and matrix[1]==1 and (matrix[2]+matrix[4])==0 and matrix[6]==0 and matrix[10]==1:
+	elif matrix.nfiles > 1 and matrix.nvideos==1 and (matrix.naudios+matrix.ncompressed)==0 and matrix.nother==0 and matrix.folderlevels==1:
 		NCase = 2
 
-	elif matrix[0] >= 1 and matrix[2]>0 and (matrix[1]+matrix[6])==0 and matrix[9]==1 and matrix[10]==1:
+	elif matrix.nfiles >= 1 and matrix.naudios>0 and (matrix.nvideos+matrix.nother)==0 and matrix.nfolders==1 and matrix.folderlevels==1:
 		NCase = 3
 
-	elif matrix[0] >= 1 and matrix[1] == 0 and matrix[2] >= 1 and (matrix[4] + matrix[6] + matrix[7] + matrix[8]) == 0 and matrix[9]>=1 and matrix[10] > 1:
+	elif matrix.nfiles >= 1 and matrix.nvideos == 0 and matrix.naudios >= 1 and (matrix.ncompressed + matrix.nother + matrix.nbooks + matrix.ncomics) == 0 and matrix.nfolders>=1 and matrix.folderlevels > 1:
 		NCase = 7
 
-	elif matrix[0] == 1 and matrix[8] == 1:
+	elif matrix.nfiles == 1 and matrix.ncomics == 1:
 		NCase = 5
 
-	elif matrix[0] == 1 and matrix[7] == 1:
+	elif matrix.nfiles == 1 and matrix.nbooks == 1:
 		NCase = 6
 
 	elif inputtype == 'Telegram':
@@ -1993,29 +2039,7 @@ def Selectcase (matrix, inputtype):
 	
 	return NCase, Psecuensedict[NCase]
 
-def addmatrix(matrix, mime):
-	""" Adds +1 on matrix [0]
-		Adds +1 on matrix by mime type dict.
-		Deftest OK"""
-	matrix [0] += 1
-	matrix [Codemimes[mime]] += 1
-	return matrix
 
-def addfoldersmatrix (matrix, folders, posnfolders, posfolderlevels):
-	""" Given a info matrix and a set of relative _folders_,
-		it returns in the given positions:
-			number of diferent folders (counts the elements that are into the set())
-			depth of level path.
-		returns the matrix.
-		Deftest OK"""
-	matrix [posnfolders] = len(folders)
-	levels = 0
-	for a in folders:
-		nlev = 1 + a.count('/')
-		if nlev > levels:
-			levels = nlev
-	matrix [posfolderlevels] = levels
-	return matrix
 
 def DeliverFiles():
 	''' Check for 'Completed' entries and _deliverstatus_ = 'Added' in tw_inputs DB.
