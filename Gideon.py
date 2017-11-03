@@ -5,26 +5,31 @@
 	
 	Program main functions:
 
-	Checks contents of Torrent.spoolfile
-	Checks contents of downloaded torrents,
-	Stores downloaded files due to its nature and contents at pre configured folder/s.
-	Renames files by cleans filenames.
-	It can find and select the most suitable cover from a folder and match to its videofile, so Freevo can read it as its cover.
-	It can detect chapter-numbers at the end of the file/s, rename then as nxnn so Freevo can group videofiles as chapters.
-	Scans videofiles properties and stores their information into a log file. (You'l need to install mplayer).
-	As videofiles can be scanned, they can be stored at a tmp-folder, placed this entry into a queue and send a warning e-mail. (Useful if your Hardware freezes playing videos and you need to recompress them, usually into a xVid codec)
-	It can process this queue of videofiles and recompress automatically to a given codec without loosing its final deliver path. Youl'l need avidemux to do that.
-	It can send e-mails to notify some processes. You'l need to config your mail account.
+	Checks contents of a folder to send this files to transmission,
+	Checks contents of torrents added to transmission (everithing),
+	Make a copy and store downloaded files due to its nature and contents at pre configured folder/s.
+	Renames filenames clening them (Useful for HTPC storages).
+	It can find and select the most suitable poster from a folder and match to its videofile, so Freevo/kodi can read it as its cover/poster.
+	It can detect chapter-numbers at the end of the file/s, rename then as nxnn so Freevo/kodi can detect them as videofiles of a chapter-series.
+	It can send e-mails to notify some events. You'l need to config your mail account.
+	It deletes copied and processed torrents, so you'll forget about delete them manually from Transmission.
+	It checks empty space at Transmission download filesystem and perform a delete trash, torrents, to free disk space.
 
 	Logs are stored in a single Gideon.log file.
 
-	You need to set up GideonConfig.py first. o run this program for the first time.
+	You need to set up GideonConfig.py first to run this program for the first time.
 
 	Notes about rar file support:
 	For rar support you need to install or copy rarfile.py into the same foder as Gideon.py
 	rarfile is a Python module for Rar archive reading. Licensed under ISC license.
 	Copyright (c) 2005-2016 Marko Kreen <markokr@gmail.com>
 	https://github.com/markokr/rarfile
+
+	Note about trasnmissionrpc:
+	This module helps using Python to connect to a Transmission JSON-RPC service.
+	transmissionrpc is compatible with Transmission 1.31 and later.
+	transmissionrpc is licensed under the MIT licenseself.
+	https://pythonhosted.org/transmissionrpc/
 
 	'''
 
@@ -488,6 +493,7 @@ logging.info("======================================================")
 
 # (1.5) Setting main variables
 Fmovie_Folder = addslash(GideonConfig.Fmovie_Folder)  # Default place to store movies
+Fseries_Folder = addslash(GideonConfig.Fseries_Folder)  # Default place to store music
 Faudio_Folder = addslash(GideonConfig.Faudio_Folder)  # Default place to store music
 Fbooks_Folder = addslash(GideonConfig.Fbooks_Folder)  # Default place to store books
 Fcomic_Folder = addslash(GideonConfig.Fcomic_Folder)  # Default place to store Comics
@@ -1840,19 +1846,14 @@ def AddFilesToDB (con, TRid, filesdict, inputtype):
 		inform the matrix into the database,
 		it applies the process secuence and inform the destination of the files.
 	'''
-	#-# matrix = [0,0,0,0,0,0,0,0,0,0,0]
 	Tmtx = Matrix (TRid)
-	#-# folders = set()
 	for key in filesdict:
 		Size = filesdict.get(key)['size']
 		Originalfile = filesdict.get(key)['name']
 		Mime = fileclasify(Originalfile)
 		params = TRid, Size, Originalfile, Mime
 		con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
-		#-# matrix = addmatrix (matrix, Mime)
 		Tmtx.addfile(Originalfile)
-		#-# folders.add (os.path.dirname(Originalfile))
-	#-# matrix = addfoldersmatrix (matrix,folders,9,10)
 	# Selecting Case and processing torrent files.
 	Caso, Psecuence = Selectcase (Tmtx, inputtype)
 	Deliverstatus = 'Added'
