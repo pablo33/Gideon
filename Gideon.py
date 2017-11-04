@@ -38,25 +38,23 @@ import os, sys, shutil, logging, datetime, time, smtplib, re
 from collections import namedtuple
 from email.mime.text import MIMEText  # for e-mail compose support
 from subprocess import check_output  # Checks if transmission is active or not
-
 import sqlite3  # for sqlite3 Database management
 
 # Specific library module import
 import transmissionrpc  # transmission rpc API
 dyntestfolder = 'TESTS'  # local path for Deftests
 
-
 # importing rarfile utility rarinit()
 try:
 	import rarfile
 except:
-	print ('Rarfile library is not present. Gideon will not process Rar files')
+	print ('Rarfile library is not present. Gideon will not process Rar files.')
 	RarSupport = False
 else:
 	#if rarfile.UNRAR_TOOL == False:
 	if os.system('unrar') != 0:
 		print ('No unrar tool is found. Gideon will not process Rar files.')
-		print ('You can install it by typing $sudo apt-get install unrar')
+		print ('You can install it by typing $sudo apt-get install unrar.')
 		RarSupport = False
 	else:
 		print ('RarSupport is active.')
@@ -64,7 +62,7 @@ else:
 
 
 __version__ = "2.0"
-__author__ = "pablo33"
+__author__  = "pablo33"
 
 
 # ===================================
@@ -184,7 +182,7 @@ def lsdirectorytree(directory = (os.getenv('HOME'))):
 		newdirectories = moredirectories
 		#reset flag to 0; we assume from start, that there aren't child directories
 		moredirectories = []
-		# print ('\n\n\n','nueva iteración', moredirectories)
+		# print ('\n\n\n','new iteration', moredirectories)
 		for a in newdirectories:
 			# checking for items (child directories)
 			# print ('Checking directory', a)
@@ -264,7 +262,7 @@ def toHumanSizeReadable (size, units = ''):
 
 LogOnceDict = {'RPSF':set(), 'RPMT':set(), 'RPNMC':set(), 'RILS':set(), 'CSVC':set(), 'DRARJob':set(), 'RFNP':set() }
 def LogOnce (field, ID, msg='', action = 'log'):
-	''' This function enables the log or print once events driven by an unique ID and field.
+	''' This function enables the log or print only one time, the same repetitive event, it is driven by an unique ID and field.
 		a global var must to be defined with the fiels that you want to control.
 		usage:
 			field: must be one of the defined events at LogOnceDict.
@@ -304,19 +302,19 @@ def LogOnce (field, ID, msg='', action = 'log'):
 
 # .. Default Videodest.ini file definition (in case there isn't one)
 startVideodestINIfile = """
-# Put this file into Dropbox/TRinbox
+# Put this file into the defined inbox folder for ,torrent files  ("TransmissionInbox" (at GideonConfig.py))
 #	
 #	define a destination with some words to automatically store file-movies to the right place.
 #	
-#	Those paths are relative to Videodest default path (defined in Fmovie_Folder var (at GideonConfig.py))
+#	Those paths are relative to "Videodest" default path (defined in Fmovie_Folder var (at GideonConfig.py))
 #	
 
 __version__ = 1.1
-__date__ = "11/04/2015"
+__date__ = "03/11/2017"
 
 # You can define alias for common destinations, to substitute text 
-alias=Series        ,    /series/
-alias=Sinfantiles   ,    /Series infantiles/
+alias=terror        ,		/terror movies/
+alias=anime			,		/anime movies/
 
 # Define destinations:
 #	guess a title to match the filemovie then,
@@ -325,9 +323,9 @@ alias=Sinfantiles   ,    /Series infantiles/
 #  Those are examples, please replace them and follow the structure.
 #  Please, do not include comments at the end of alias or dest lines. This is not an python file.
 #  
-dest = star wars rebels, <Sinfantiles>
-dest = Sleepy Hollow temporada 2, <Series>Sleepy Hollow Temp 2
-dest = Sleepy Hollow temporada 1, <Series>Sleepy Hollow Temp 1
+dest = the addams family, <terror>
+dest = ghost in the shell, <anime>future
+dest = star wars, /saga starwars/
 
 # EOF
 """
@@ -338,36 +336,37 @@ DefaultConfigFile = """
 ''' Config file of Gideon
 	'''
 
-__version__ = 2.0
-__date__ = "26/07/2016"
+__version__ = 2.1
+__date__ = "04/11/2017"
 __author__ = "pablo33"
 
 
 # Setting variables, default paths to store processed files.
-Fmovie_Folder = "/home/user/movies/"  # Place to store processed movies
-Faudio_Folder = "/home/user/audio/"  # Place to store processed music
+Fmovie_Folder = "/home/user/Videos/movies/"  # Place to store processed movies
+Fseries_Folder = "/home/user/Videos/series/"  # Place to store processed movies
+Faudio_Folder = "/home/user/Music/"  # Place to store processed music
 Fbooks_Folder = "/home/user/Calibre_inbox/"  # Place to store processed e-books
-Fcomic_Folder = "/home/user/Comix/"  # Place to store processed e-books
+Fcomic_Folder = "/home/user/Documents/Comix/"  # Place to store processed Comics
 TelegramNoCasedest = "/home/user/Downloads/"  # Destination file where telegram files goes if no Case is found.
 
 # Incomming folders, default paths to fetch files from
-TransmissionInbox = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers. (this files will be moved to Torrentinbox folder) Note that you should install Dropboxbox service if you want deposit files there.
+TransmissionInbox = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers/posters. (this files will be moved to Torrentinbox folder).
 Telegraminbox = None  #  "/home/user/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
 
 # mail config (this example is for a gmx account, with SSL autentication)
-mailmachine = 'mail.gmx.com'		# your server machine
-mailsender = 'youremail@here.com'	# your sender email account
+mailmachine = 'mail.gmx.com'		# your mail service machine
+mailsender = 'your_email@here.com'	# your sender email account
 mailpassw = 'yourPa$$wordhere'		# your email password.
 
 # Notifications config:
-# Recipients to send info: you can add as many as you want and assign different topics to e-mail them,
+# Recipients to send info: you can add as many recipients as you want and assign different topics to e-mail them,
 # you can write more than one e-mail recipient into one string by separating them by colons (:)
-# Asociate msg topics here by number. (note that only topics marked OK will are enabled)
+# Asociate msg topics by a code-number. (note that only topics marked OK are enabled)
 
 mail_topic_recipients = {
 	'adminemail@gmx.es' 		: set(range (1,100)),
-	'user1@email.com' : set([7,]),
-	'user2@email.com' : set([6,7,10,]),	
+	'user1@email.com' 			: set([7,]),
+	'user2@email.com' 			: set([6,7,10,]),	
 	}
 
 #Msgtopics:
@@ -383,7 +382,7 @@ mail_topic_recipients = {
 #OK	10:	'Torrent Deleted due to a retention Policy',
 #	11:	'Cover assigned to a moviefile',
 #	12: 'System is running into low disk space'
-#OK	13: 'Error by adding a Torrent file to Transmission Service'
+#OK	13: 'Error adding a Torrent file to Transmission Service'
 
 
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
@@ -392,7 +391,7 @@ loginlevel = "INFO"
 # Retention Policy (only aplicable to transmission) : None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
 MaxseedingDays = None
 #MaxseedingDays = 30
-# Minimum free space in bytes to maintain at torrent Download drive. Can be 0 or a number of bytes
+# Minimum free space in bytes at torrent Download drive. Can be 0 or a number of bytes
 # Gideon will remove delivered torrents if system is going low on space.
 MinSpaceAtTorrentDWfolder = None
 #MinSpaceAtTorrentDWfolder = 20000000000  # is 20Gb
@@ -400,7 +399,7 @@ MinSpaceAtTorrentDWfolder = None
 # Seconds for Gideon sleep-cycle.
 s = 60
 
-# Command line to start Transmission
+# Command line to start Transmission and how to connect to transmissionrpc Service.
 cmd  = "/usr/bin/transmission-gtk -m &"
 TRmachine = 'localhost'
 TRuser = 'yourconfigureduser'
@@ -408,14 +407,14 @@ TRpassword = 'yourconfiguredpassword'
 
 
 # Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
-chapteridentifier = ('Cap', 'cap', 'episodio') 
+chapteridentifier = ('Cap', 'cap', 'episodio', 'Chapter') 
 
 # How to typify items
 ext = {
-	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'bin', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
+	"video":['mkv','avi', 'mpg', 'mpeg', 'wmv', 'rm', 'divx', 'ogm', 'vob', 'asf', 'mkv','m2v', 'm2p', 'mp4', 'viv', 'nuv', 'mov', 'iso', 'nsv', 'ogg', 'ts', 'flv'],
 	"audio":['mp3', 'ogg', 'wav', 'm4a', 'wma', 'aac', 'flac', 'mka', 'ac3'],
-	"ebook":['mobi','epub'],
-	"comic":['cbr'],
+	"ebook":['mobi','epub','azw3'],
+	"comic":['cbr','cbz','pdf'],
 	"compressed":['rar','zip', '7z'],
 	"notwanted":['txt','url','lnk','DS_Store', 'nfo', 'info'],
 	"image":['jpg','png','gif','jpeg'],
@@ -493,7 +492,7 @@ logging.info("======================================================")
 
 # (1.5) Setting main variables
 Fmovie_Folder = addslash(GideonConfig.Fmovie_Folder)  # Default place to store movies
-Fseries_Folder = addslash(GideonConfig.Fseries_Folder)  # Default place to store music
+Fseries_Folder = addslash(GideonConfig.Fseries_Folder)  # Default place to store series
 Faudio_Folder = addslash(GideonConfig.Faudio_Folder)  # Default place to store music
 Fbooks_Folder = addslash(GideonConfig.Fbooks_Folder)  # Default place to store books
 Fcomic_Folder = addslash(GideonConfig.Fcomic_Folder)  # Default place to store Comics
@@ -512,15 +511,18 @@ MaxseedingDays = GideonConfig.MaxseedingDays
 MinSpaceAtTorrentDWfolder = GideonConfig.MinSpaceAtTorrentDWfolder
 mail_topic_recipients = GideonConfig.mail_topic_recipients
 
-minmatch = 15  # Points to match files and cover names, the more points the more strict must be a match
+minmatch = 15  # Points to match files and cover/posters names, the more points the more strict must be a match
 players = ['mplayer','vlc']
 
-
+''' Not used
 Msgtimming = {
 	'low': datetime.timedelta(seconds=3600),
 	'med':datetime.timedelta(seconds=600),
 	'high':datetime.timedelta(seconds=0)
 	}
+'''
+
+
 Msgtopics = {
 	1 : 'Added incoming torrent to process',
 	2 : 'Torrent has been added to Transmission for downloading',
@@ -536,6 +538,8 @@ Msgtopics = {
 	12: 'System is running under low disk space',
 	13: 'Error by adding a Torrent file to Transmission Service',
 	}
+
+'''  # Not used.
 Codemimes = {
 	'video' : 1,
 	'audio' : 2,
@@ -545,8 +549,9 @@ Codemimes = {
 	'other' : 6,
 	'ebook' : 7,
 	'comic' : 8,
+	'vserie': 9,
 	}
-
+'''
 
 # (1.6) Prequisites:
 #=============
@@ -581,15 +586,13 @@ if TransmissionInbox != None:
 
 
 
-
-
 # (1.7) Checking DB or creating it:
 #=============
 
 if itemcheck (dbpath) == "file":
 	logging.info ('Database found at %s'%(dbpath))
 else:
-	logging.info ('Database not found, creating an empty one')
+	logging.info ('Database not found, creating an empty one.')
 	con = sqlite3.connect (dbpath) # it creates one if it doesn't exists
 	cursor = con.cursor() # object to manage queries
 
@@ -632,6 +635,7 @@ else:
 		psecuence char,\
 		nfiles int ,\
 		nvideos int ,\
+		nvserie int ,\
 		naudios int ,\
 		nnotwanted int ,\
 		ncompressed int ,\
@@ -939,21 +943,21 @@ def prohibitedwords(a,lista):
 					a = a[len(nww) + 1 :]
 	return a
 
-def sigcapfinder(filename):
-	""" This little Function, scans for a chapter-counter at the end of the 
-		filename, it will delete any punctuation character at the end and 
+def Chapterfinder(filename):
+	""" This function, scans for a chapter-counter 
+		it will delete any punctuation character at the end and 
 		it will also try to find numbers at the end of the filename. 
 		If filename ends in three numbers, it'll change 'nnn' to 'nxnn'.
 		This not affects if filename ends in four or more numbers. 'nnnn' so they are treated as a 'year'
 		for example:
 
-		sigcapfinder("my title 123") returns>> "my title 1x23"
-		sigcapfinder("my title 123-[[[") returns>> "my title 1x23"
-		sigcapfinder("my title ending in a year 1985") returns "my title ending in a year 1985"
+		Chapterfinder("my title 123") returns a tuple>> "my title 1x23", '1x23'
+		Chapterfinder("my title 123-[[[") returns a tuple >> "my title 1x23", '1x23'
+		Chapterfinder("my title ending in a year 1985") returns a tuple >> "my title ending in a year 1985", None
 	DefTest >> OK	"""
 	if filename == "":
 		logging.warning("Empty filename to find chapter!")
-		return filename
+		return filename, None
 	base = filename
 	# chapter = 0 # for now, we assume there isn't any chapter in filename.
 	# we trim not wanted characters at the end:
@@ -968,21 +972,30 @@ def sigcapfinder(filename):
 		#logging.debug("namebase has changed to "+base)
 	if base == "" or len(base) < 5:
 			logging.warning("filename made of simbols or very short, returning same filename")
-			return filename
+			return filename, None
 	
-	# finding a final identifier, cleaning odd chars before capter
-	expr = '[-. ]\d[xX]\d{2}'
-	mo = re.search (expr, base[-5:])
+	# finding first chapter identifier, cleaning chars before capter
+	expr = '\d?\d[xX]\d{2}'
+	mo = re.search (expr, base)
 	try:
 		grupo = mo.group()
 	except:
 		pass
 	else:
-		base = base[:-5]+' '+base[-4:]
-		return base
+		Chap = mo.group().lower()
+		# Set the X to lower in filename
+		# Set a '.' if there is a title especification after chapter
+		beforechar, afterchar = ('' , '')
+		if mo.end() < len (base) and base[mo.end()] != '.':
+			afterchar = '.'
+		if mo.start() > 2 and base[mo.start()-1] != ' ':
+			beforechar = ' '
+		base = base[:mo.start()] + beforechar + Chap + afterchar + base[mo.end():]
+
+		return base, Chap
 
 
-	# finding 3 final numbers
+	# finding 3 final numbers if no chapter found before
 	expr = '[-. ]\d{3}'
 	mo = re.search (expr, base[-4:])
 	try:
@@ -990,8 +1003,12 @@ def sigcapfinder(filename):
 	except:
 		pass
 	else:
-		base = base[:-4]+' '+base[-3:-2]+'x'+base[-2:]
-	return base
+		Chap = base[-3:-2]+'x'+base[-2:]
+		base = base[:-4] + ' ' + Chap
+		return base, Chap
+	
+
+	return base, None
 
 def chapid(item):
 	''' Checks four last char$ of filename.
@@ -1066,7 +1083,7 @@ def clearfilename(filename):
 			break
 
 	#6 Finding and placing a Chapter-counter
-	filenametmp = sigcapfinder(filenametmp)
+	filenametmp = Chapterfinder(filenametmp)[0]
 
 	#7 Formatting as Title Type
 	filenametmp = filenametmp.title()
@@ -1194,20 +1211,23 @@ def fileclasify (filename):
 		
 		DefTest OK"""
 	global GideonConfig
-	ext = os.path.splitext(filename)
-	if str(ext[1]) in ['','.']:
+	file_split = os.path.splitext(filename)
+	if str(file_split[1]) in ['','.']:
 		print ('>>>>',filename)
 		logging.warning('File has no extension: %s'%filename)
 		return 'other'
-	extwd = str (ext [1])
-	extwd = extwd [1:].lower()
-	if extwd in GideonConfig.ext['video']: return 'video'
-	elif extwd in GideonConfig.ext['audio']: return 'audio'
-	elif extwd in GideonConfig.ext['ebook']: return 'ebook'
-	elif extwd in GideonConfig.ext['comic']: return 'comic'
-	elif extwd in GideonConfig.ext['compressed']: return 'compressed'
-	elif extwd in GideonConfig.ext['notwanted']: return 'notwanted'
-	elif extwd in GideonConfig.ext['image']: return 'image'
+	file_ext = str (file_split [1])
+	file_ext = file_ext [1:].lower()
+	if file_ext in GideonConfig.ext['video']:
+		if Chapterfinder (file_split[0])[1] != None:
+			return 'vserie'
+		return 'video'
+	elif file_ext in GideonConfig.ext['audio']: return 'audio'
+	elif file_ext in GideonConfig.ext['ebook']: return 'ebook'
+	elif file_ext in GideonConfig.ext['comic']: return 'comic'
+	elif file_ext in GideonConfig.ext['compressed']: return 'compressed'
+	elif file_ext in GideonConfig.ext['notwanted']: return 'notwanted'
+	elif file_ext in GideonConfig.ext['image']: return 'image'
 	return 'other'
 
 def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=''):
@@ -1802,6 +1822,7 @@ class Matrix :
 		self.TRid = TRid
 		self.nfiles = 0
 		self.nvideos = 0
+		self.nvseries = 0
 		self.naudios = 0
 		self.nnotwanted = 0
 		self.ncompressed = 0
@@ -1827,6 +1848,7 @@ class Matrix :
 		self.nfiles += 1
 		mime = fileclasify (item)
 		if mime == 'video' : self.nvideos += 1
+		elif mime == 'vserie' : self.nvseries += 1
 		elif mime == 'audio' : self.naudios += 1
 		elif mime == 'ebook' : self.nbooks += 1
 		elif mime == 'comic' : self.ncomics += 1

@@ -141,7 +141,6 @@ class TestPack2_CoverServiceA (unittest.TestCase):
 
 		known_filevalues = set ([
 			'TESTS/Test2/VideoFolder/subfolder/Secret Agent.avi',
-			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x.avi',
 			'TESTS/Test2/VideoFolder/JJ_This is a video of Jack Smith with no cover.avi',
 			])
 
@@ -166,6 +165,7 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 			'TESTS/Test2/Imagerepos',
 			'TESTS/Test2/Imagerepos/a picture for nothing.png',
 			'TESTS/Test2/Imagerepos/spare cover.png',
+			'TESTS/Test2/Imagerepos/Cover for serie of Grijander.png',
 			'TESTS/Test2/VideoFolder',
 			'TESTS/Test2/VideoFolder/AAThis is a video with a cover.jpg',
 			'TESTS/Test2/VideoFolder/AAThis is a video with a cover.mpeg',
@@ -178,7 +178,6 @@ class TestPack2_CoverServiceB (unittest.TestCase):
 			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x02.avi',
 			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x03.avi',
 			'TESTS/Test2/VideoFolder/subfolder/This is a serie with a cover 2x04.avi',
-			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x.png',
 			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x01.avi',
 			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x02.avi',
 			'TESTS/Test2/VideoFolder/This is a serie of Grijander with no cover 1x03.avi',
@@ -610,25 +609,29 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.prohibitedwords(i1,i2)
 			self.assertEqual(result,expectedstring)
 
-	def test_sigcapfinder (self):
-		""" This little Function, scans for a chapter-counter at the end of the 
-			filename, it will delete any punctuation character at the end and 
+	def test_Chapterfinder (self):
+		""" This little Function, scans for a chapter-counter, 
+			it will delete any punctuation characters if it is at the end of the filename (if any)
 			it will also try to find numbers at the end of the filename. 
 			If filename ends in three numbers, it'll change 'nnn' to 'nxnn'.
 			This not affects if filename ends in four or more numbers. 'nnnn' so they are treated as a 'year'
+			It will find expressions like nnxnn and return the chapter or None, in case it is not found.
 			"""
 		wanted_values = ([
-			('my title 0x23','my title 0x23'),
-			('my title 123','my title 1x23'),
-			('my title 234-[[[','my title 2x34'),
-			('my title ending in a year 1985','my title ending in a year 1985'),
-			('my title 3x45-.','my title 3x45'),
-			('my title Cap456-.','my title Cap456'),
+			('my title 0X23',				('my title 0x23','0x23')),
+			('1x35my title 3x33',			('1x35.my title 3x33','1x35')),
+			('My serie1x55my title',		('My serie 1x55.my title','1x55')),
+			('my title 123',				('my title 1x23','1x23')),
+			('my title 234-[[[',			('my title 2x34','2x34')),
+			('ending in a year 1985',		('ending in a year 1985',None)),
+			('my title 3x45-.',				('my title 3x45','3x45')),
+			('my title Cap456-.',			('my title Cap456',None)),
+			('my serie 2x33.and a subtitle',('my serie 2x33.and a subtitle','2x33'))
 			])
 
-		for i1,expectedstring in wanted_values:
-			result = MD2.sigcapfinder(i1)
-			self.assertEqual(result,expectedstring)
+		for i1,expectedtuple in wanted_values:
+			result = MD2.Chapterfinder(i1)
+			self.assertEqual(result,expectedtuple)
 
 	def test_chapid (self):
 		""" Checks four last char$ of filename.
@@ -671,7 +674,7 @@ class namefilmcleaner (unittest.TestCase):
 			'''
 		wanted_values = ([
 			('Change temporada 1 capitulo 1.www_.somedomain.com','Change Temporada 1 Capitulo 1 Somedomain'),
-			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16 Somedomain'),
+			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16. Somedomain'),
 			('08 Z. La ciudad perdida DVDRip www.DivxTotaL.com','08 Z. la Ciudad Perdida'),
 			('Savva. El corazón del guerrero (microHD) (EliteTorrent.net)','Savva. el Corazón del Guerrero'),
 			])
