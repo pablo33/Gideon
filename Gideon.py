@@ -635,7 +635,7 @@ else:
 		psecuence char,\
 		nfiles int ,\
 		nvideos int ,\
-		nvserie int ,\
+		nseries int ,\
 		naudios int ,\
 		nnotwanted int ,\
 		ncompressed int ,\
@@ -957,9 +957,8 @@ def Chapterfinder(filename):
 	DefTest >> OK	"""
 	if filename == "":
 		logging.warning("Empty filename to find chapter!")
-		return filename, None
+		return filename, None, None
 	base = filename
-	# chapter = 0 # for now, we assume there isn't any chapter in filename.
 	# we trim not wanted characters at the end:
 	count = 0
 	for a in base[::-1]:
@@ -972,27 +971,31 @@ def Chapterfinder(filename):
 		#logging.debug("namebase has changed to "+base)
 	if base == "" or len(base) < 5:
 			logging.warning("filename made of simbols or very short, returning same filename")
-			return filename, None
+			return filename, None, None
 	
 	# finding first chapter identifier, cleaning chars before capter
-	expr = '\d?\d[xX]\d{2}'
-	mo = re.search (expr, base)
-	try:
-		grupo = mo.group()
-	except:
-		pass
-	else:
-		Chap = mo.group().lower()
-		# Set the X to lower in filename
-		# Set a '.' if there is a title especification after chapter
-		beforechar, afterchar = ('' , '')
-		if mo.end() < len (base) and base[mo.end()] != '.':
-			afterchar = '.'
-		if mo.start() > 2 and base[mo.start()-1] != ' ':
-			beforechar = ' '
-		base = base[:mo.start()] + beforechar + Chap + afterchar + base[mo.end():]
-
-		return base, Chap
+	for expr in ('\d?\d[xX]\d{2}|[sS]\d?\d[._]?[eE]\d?\d','[eE][pP][_]?\d?\d'):
+		mo = re.search (expr, base)
+		try:
+			grupo = mo.group()
+		except:
+			pass
+		else:
+			Chap = mo.group().lower()
+			# Set the X to lower in filename
+			# Set a '.' if there is a title especification after chapter and skip spaces.
+			beforechar, afterchar = ('' , '')
+			if mo.end() < len (base) and base[mo.end()] != '.':
+				afterchar = '.'
+				if base[mo.end()] == ' ':
+					base = base[:mo.end()] + base[mo.end():].lstrip()
+			if mo.start() > 2 and base[mo.start()-1] != ' ':
+				beforechar = ' '
+			Seriename = base[:mo.start()]
+			base = Seriename + beforechar + Chap + afterchar + base[mo.end():]
+			Seriename = Seriename.strip()
+			if len (Seriename) < 3: Seriename = None
+			return base, Chap, Seriename
 
 
 	# finding 3 final numbers if no chapter found before
@@ -1004,11 +1007,13 @@ def Chapterfinder(filename):
 		pass
 	else:
 		Chap = base[-3:-2]+'x'+base[-2:]
-		base = base[:-4] + ' ' + Chap
-		return base, Chap
+		Seriename = base[:-4]
+		base = Seriename + ' ' + Chap
+		Seriename = Seriename.strip()
+		if len (Seriename) < 3: Seriename = None
+		return base, Chap, Seriename
 	
-
-	return base, None
+	return base, None, None
 
 def chapid(item):
 	''' Checks four last char$ of filename.
@@ -1822,7 +1827,7 @@ class Matrix :
 		self.TRid = TRid
 		self.nfiles = 0
 		self.nvideos = 0
-		self.nvseries = 0
+		self.nseries = 0
 		self.naudios = 0
 		self.nnotwanted = 0
 		self.ncompressed = 0
@@ -1840,15 +1845,12 @@ class Matrix :
 		nlev = 1 + item.count('/')
 		if self.folderlevels < nlev:
 			self.folderlevels = nlev
-		print (os.path.dirname(item))
-		print (self.folders_Set)
-		print ('folderlevels', self.folderlevels)
 
 	def addfile (self,item):
 		self.nfiles += 1
 		mime = fileclasify (item)
 		if mime == 'video' : self.nvideos += 1
-		elif mime == 'vserie' : self.nvseries += 1
+		elif mime == 'vserie' : self.nseries += 1
 		elif mime == 'audio' : self.naudios += 1
 		elif mime == 'ebook' : self.nbooks += 1
 		elif mime == 'comic' : self.ncomics += 1
@@ -1884,10 +1886,10 @@ def AddFilesToDB (con, TRid, filesdict, inputtype):
 	ProcessSecuence (con, TRid, Psecuence)
 	params = len(filesdict), Deliverstatus ,TRid
 	con.execute ("UPDATE tw_inputs SET filesretrieved=?, deliverstatus = ? WHERE id = ?",params)
-	params = TRid, 'Added', Caso, str(Psecuence),   Tmtx.nfiles, Tmtx.nvideos, Tmtx.naudios, Tmtx.nnotwanted, Tmtx.ncompressed, Tmtx.nimagefiles, Tmtx.nother, Tmtx.nbooks, Tmtx.ncomics, Tmtx.nfolders, Tmtx.folderlevels
-	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,naudios,nnotwanted,ncompressed,nimagefiles,nother,nbooks,ncomics,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
+	params = TRid, 'Added', Caso, str(Psecuence),   Tmtx.nfiles, Tmtx.nvideos, Tmtx.nseries, Tmtx.naudios, Tmtx.nnotwanted, Tmtx.ncompressed, Tmtx.nimagefiles, Tmtx.nother, Tmtx.nbooks, Tmtx.ncomics, Tmtx.nfolders, Tmtx.folderlevels
+	con.execute ("INSERT INTO pattern (trid,status,caso,psecuence,nfiles,nvideos,nseries,naudios,nnotwanted,ncompressed,nimagefiles,nother,nbooks,ncomics,nfolders,folderlevels) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",params)
 	con.commit()
-	return 
+	return
 
 def ProcessSecuence(con, Id, Psecuence):
 	global GideonConfig
@@ -1901,6 +1903,15 @@ def ProcessSecuence(con, Id, Psecuence):
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
+
+		elif process == 'assign serie destination':
+			for entry in cursor2:
+				params = (Fseries_Folder + entry[3],
+					entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+
 		elif process == 'assign audio destination':
 			for entry in cursor2:
 				params = (Faudio_Folder+entry[2],
@@ -1932,6 +1943,7 @@ def ProcessSecuence(con, Id, Psecuence):
 			con.commit()
 			continue
 		elif process == 'cleanfilenames':
+			# Gets destination path, extract filename, cleans it and set result path and cleaned filename as destination.
 			for entry in cursor2:
 				folder= os.path.dirname(entry[3])
 				filename, ext = os.path.splitext(os.path.basename(entry[3]))
@@ -1943,6 +1955,7 @@ def ProcessSecuence(con, Id, Psecuence):
 			con.commit()
 			continue
 		elif process == '(o)cleanDWfoldername':
+			#Clear the input folder name and set the result as destination at DB
 			for entry in cursor2:
 				folder= os.path.dirname(entry[2])
 				filename = os.path.basename(entry[2])
@@ -1964,6 +1977,17 @@ def ProcessSecuence(con, Id, Psecuence):
 			con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
+		elif process == 'assign folder seriename':
+			for entry in cursor2:
+				filename , ext  = (os.path.splitext(os.path.basename(entry[3])))
+				Seriename = Chapterfinder (filename)[2]
+				if Seriename != None:
+					newdest = addslash(Seriename) + entry[3]
+					params = (newdest, entry[0])
+					con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+					con.commit()
+			continue
+
 		elif process == 'deletenonwantedfiles':
 			for entry in cursor2:
 				if entry[1] == 'notwanted':
@@ -2001,17 +2025,20 @@ Psecuensedict = {
 	5 : ['assign Comics destination'],
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
+	8 : ['(o)cleanDWfoldername', 'cleanfilenames', 'deletenonwantedfiles','assign folder seriename','assign serie destination'],
+	9 : ['(o)cleanDWfoldername','cleanfilenames', 'deletenonwantedfiles','assign folder seriename','assign serie destination',],
 	}
 
 Casos = {
 	0 : "There is no available case for this matrix",
-	1 : "(video) Torrent is just one file and it is a video file. and it may have some NonWantedFiles.",
+	1 : "(video) Content is just one file and it is a video file. and it may have some NonWantedFiles.",
 	2 : "(video) Contains 1 video file and at least a image file, at the same level.",
 	3 : "(audio) Contains one or more audio files and at least a image file, at the same level.",
 	4 : "Telegram downloaded file with no Case",
 	5 : "(Comic) It has only one file and is a comic extension",
 	6 : "(ebook) It has only one file and is a e-book extension",
 	7 : "(audio) Contains one or more audio files, may contain some image files, and more that one level of folders.",
+	8 : "(serie) Content has one or more series chapters and it may have some NonWantedFiles.",
 	}
 
 def Selectcase (matrix, inputtype):
@@ -2019,18 +2046,19 @@ def Selectcase (matrix, inputtype):
 		operational behaviour is returned a a list of number of codes that operates on all the files of
 		the torrent.
 		If no case is matched, it returns None.
-		Actual Matrix represents:
-		[0] nfiles
-		[1] nvideos
-		[2] naudios
-		[3] nnotwanted
-		[4] ncompressed
-		[5] nimagefiles
-		[6] nother
-		[7] nbooks
-		[8] ncomics
-		[9] nfolders
-		[10] folderlevels
+		Actual Matrix properties:
+			nfiles > count of files
+			nvideos > count of videos.
+			nseries > count of video series files
+			naudios > count of audio files
+			nnotwanted > count of non wanted files
+			ncompressed > count of compressed files
+			nimagefiles > count of image files
+			nother > count of other files
+			nbooks > count of book files
+			ncomics > count of comic files
+			nfolders > count of folder entries
+			folderlevels > folder levels
 
 		DefTest OK"""
 	# Selectig case of only one video file:
@@ -2051,6 +2079,9 @@ def Selectcase (matrix, inputtype):
 
 	elif matrix.nfiles == 1 and matrix.nbooks == 1:
 		NCase = 6
+
+	elif matrix.nfiles >= 1 and matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos+matrix.nimagefiles)==0 :
+		NCase = 8
 
 	elif inputtype == 'Telegram':
 		NCase = 4

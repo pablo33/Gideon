@@ -618,15 +618,21 @@ class namefilmcleaner (unittest.TestCase):
 			It will find expressions like nnxnn and return the chapter or None, in case it is not found.
 			"""
 		wanted_values = ([
-			('my title 0X23',				('my title 0x23','0x23')),
-			('1x35my title 3x33',			('1x35.my title 3x33','1x35')),
-			('My serie1x55my title',		('My serie 1x55.my title','1x55')),
-			('my title 123',				('my title 1x23','1x23')),
-			('my title 234-[[[',			('my title 2x34','2x34')),
-			('ending in a year 1985',		('ending in a year 1985',None)),
-			('my title 3x45-.',				('my title 3x45','3x45')),
-			('my title Cap456-.',			('my title Cap456',None)),
-			('my serie 2x33.and a subtitle',('my serie 2x33.and a subtitle','2x33'))
+			('my title 0X23',				('my title 0x23', '0x23', 'my title')),
+			('1x35my title 3x33',			('1x35.my title 3x33', '1x35', None)),
+			('My serie1x55my title',		('My serie 1x55.my title', '1x55', 'My serie')),
+			('my title 123',				('my title 1x23', '1x23', 'my title')),
+			('my title 234-[[[',			('my title 2x34', '2x34', 'my title')),
+			('ending in a year 1985',		('ending in a year 1985',None, None)),
+			('my title 3x45-.',				('my title 3x45','3x45', 'my title')),
+			('my title Cap456-.',			('my title Cap456', None, None)),
+			('my serie 2x33.and a subtitle',('my serie 2x33.and a subtitle','2x33', 'my serie')),
+			('serie ep01',					('serie ep01','ep01', 'serie')),
+			('serie EP02',					('serie ep02','ep02', 'serie')),
+			('serie s2e1',					('serie s2e1','s2e1', 'serie')),
+			('serie s02E01',				('serie s02e01','s02e01', 'serie')),
+			('serie ep33 something',		('serie ep33.something','ep33', 'serie')),
+			('serie s33_e45',				('serie s33_e45','s33_e45', 'serie')),
 			])
 
 		for i1,expectedtuple in wanted_values:
@@ -674,7 +680,7 @@ class namefilmcleaner (unittest.TestCase):
 			'''
 		wanted_values = ([
 			('Change temporada 1 capitulo 1.www_.somedomain.com','Change Temporada 1 Capitulo 1 Somedomain'),
-			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16. Somedomain'),
+			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16.Somedomain'),
 			('08 Z. La ciudad perdida DVDRip www.DivxTotaL.com','08 Z. la Ciudad Perdida'),
 			('Savva. El corazón del guerrero (microHD) (EliteTorrent.net)','Savva. el Corazón del Guerrero'),
 			])
