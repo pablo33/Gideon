@@ -19,8 +19,6 @@ It avoids file copying processes while playing movies.
 It deletes delivered torrents due to a retention period of time.
 
 
-**Integration with freevo 1.9x**  
-
 It can find and select the most suitable cover from a repository folder and match to its videofile, so Freevo can read it as its cover.  
 It can detect chapter-numbers at the end of the file/s, and rename them as nxnn so Freevo can group videofiles as chapters.  
 
