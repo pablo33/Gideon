@@ -1,6 +1,10 @@
 #!/usr/bin/python3
 # -*- encoding: utf-8 -*-
 
+__version__ = "1.0"
+__author__  = "pablo33"
+
+
 ''' This program is intended to process torrents.
 	
 	Program main functions:
@@ -60,9 +64,6 @@ else:
 		print ('RarSupport is active.')
 		RarSupport = True
 
-
-__version__ = "2.0"
-__author__  = "pablo33"
 
 
 # ===================================
