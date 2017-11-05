@@ -388,7 +388,7 @@ mail_topic_recipients = {
 # The logging level, can be: "DEBUG","INFO","WARNING","ERROR","CRITICAL"
 loginlevel = "INFO"
 
-# Retention Policy (only aplicable to transmission) : None (deactivated) / max days after a torrent is completted. (it will also deleted if the torrent finished its seeding ratio)
+# Retention Policy (only aplicable to transmission) : None (deactivated) / max days after a torrent is completed. (it will also deleted if the torrent finished its seeding ratio)
 MaxseedingDays = None
 #MaxseedingDays = 30
 # Minimum free space in bytes at torrent Download drive. Can be 0 or a number of bytes
@@ -406,8 +406,9 @@ TRuser = 'yourconfigureduser'
 TRpassword = 'yourconfiguredpassword'
 
 
-# Chapter identifier, this prevents deleting in case it is found even it they are into braces "[ ]"
-chapteridentifier = ('Cap', 'cap', 'episodio', 'Chapter') 
+# Chapter and season wording identification 
+chapteridentifier = ('Cap', 'episodio', 'Chapter', 'Capítulo', 'capitulo', 'Chap')
+seasonidentifer = ('Temporada', 'Season', 'Temp')
 
 # How to typify items
 ext = {
@@ -510,6 +511,10 @@ TRpassword = GideonConfig.TRpassword
 MaxseedingDays = GideonConfig.MaxseedingDays
 MinSpaceAtTorrentDWfolder = GideonConfig.MinSpaceAtTorrentDWfolder
 mail_topic_recipients = GideonConfig.mail_topic_recipients
+
+chapteridentifier = GideonConfig.chapteridentifier
+seasonidentifer = GideonConfig.seasonidentifer
+
 
 minmatch = 15  # Points to match files and cover/posters names, the more points the more strict must be a match
 players = ['mplayer','vlc']
@@ -878,8 +883,8 @@ def trimbetween(a, lim):
 		else:
 			word = a[st+1:end]
 			trim = 1
-			# If there is a Chapter id. we do not want to loose it >> so trim = 0
-			for i in GideonConfig.chapteridentifier :
+			# If there is a Season or Chapter id. we do not want to loose it >> so trim = 0
+			for i in GideonConfig.chapteridentifier + GideonConfig.seasonidentifer :
 				if word.find(i) != -1 or word == i :
 					a = a[0:st]+"-"+word+"-"+a[end+1:]
 					trim = 0
@@ -958,11 +963,11 @@ def Chapterfinder(filename):
 	if filename == "":
 		logging.warning("Empty filename to find chapter!")
 		return filename, None, None
-	base = filename
+	base = clearfilename (filename)
 	# we trim not wanted characters at the end:
 	count = 0
 	for a in base[::-1]:
-		if a in '[]-:,*+_.':
+		if a in '[]-:,*+_. ':
 			count +=1
 			continue
 		break
@@ -974,7 +979,7 @@ def Chapterfinder(filename):
 			return filename, None, None
 	
 	# finding first chapter identifier, cleaning chars before capter
-	for expr in ('\d?\d[xX]\d{2}|[sS]\d?\d[._]?[eE]\d?\d','[eE][pP][_]?\d?\d'):
+	for expr in ('\d{1,2}[xX]\d{1,3}|[sS]\d{1,2}[._ ]?[eE]\d{1,3}','[eE][pP][_ ]?\d{1,3}'):
 		mo = re.search (expr, base)
 		try:
 			grupo = mo.group()
@@ -982,6 +987,7 @@ def Chapterfinder(filename):
 			pass
 		else:
 			Chap = mo.group().lower()
+			Chap = Chap.replace(' ','.')
 			# Set the X to lower in filename
 			# Set a '.' if there is a title especification after chapter and skip spaces.
 			beforechar, afterchar = ('' , '')
@@ -1012,7 +1018,60 @@ def Chapterfinder(filename):
 		Seriename = Seriename.strip()
 		if len (Seriename) < 3: Seriename = None
 		return base, Chap, Seriename
-	
+
+	# finding Seasons and Chapters as Wordings
+	inputbase = base
+	season = None
+	episode = None
+	seriename = ''
+	serieidpos = None
+	for seasonword in seasonidentifer:
+		expr = '%s[ _.-]?(?P<number>\d{1,3})'% (seasonword.lower())
+		mo = re.search (expr,base.lower())
+		try:
+			grupo = mo.group()
+		except:
+			pass
+		else:
+			season = mo.group('number')
+			lon = len (grupo)
+			st = mo.start()
+			serieidpos = st
+			base = base[:st] + base [st+lon:]
+			seriename = base[:st].strip()
+			break
+
+	for chapterword in chapteridentifier:
+		expr = '%s[ _.-]?(?P<number>\d{1,3})'%(chapterword.lower())
+		mo = re.search (expr,base.lower())
+		try:
+			grupo = mo.group()
+		except:
+			if season != None:
+				base = inputbase
+			pass
+		else:
+			episode = mo.group('number')
+			lon = len (grupo)
+			st = mo.start()
+			base = base[:st] + base [st+lon:]
+			if serieidpos != None:
+				if st > serieidpos: st = serieidpos
+			seriename = base[:st].strip()
+			break
+
+	if episode != None:
+		episodetxt = 'x'
+		if season == None:
+			episodetxt = 'ep'
+			seasonpart = ''
+		else:
+			seasonpart = '{0:01}'.format(int(season))
+		Chap =  seasonpart + episodetxt + '{0:02}'.format(int(episode))
+		base = seriename + ' ' + Chap
+		return base, Chap, seriename
+
+
 	return base, None, None
 
 def chapid(item):
@@ -1088,7 +1147,7 @@ def clearfilename(filename):
 			break
 
 	#6 Finding and placing a Chapter-counter
-	filenametmp = Chapterfinder(filenametmp)[0]
+	#filenametmp = Chapterfinder(filenametmp)[0]
 
 	#7 Formatting as Title Type
 	filenametmp = filenametmp.title()
@@ -1352,12 +1411,13 @@ def Dropfd(destfolder, lsextensions):
 def addinputs (entrieslist):
 	''' Add new torrent entries into a DB queue,
 	This queue is stored into the software database SQLite. > Table "TW_Inputs"
+	[('/home/pablo/.Gideon/Torrentinbox/Lazona 102 Avi.torrent', '.torrent')]
 		'''
 	if len (entrieslist) > 0:
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for Entry, Filetype in entrieslist:
-			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and (status = 'Ready' or status =  'Added' or deliverstatus = 'Added')", (Entry,)).fetchone()[0] == 0:
+			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Added' ", (Entry,)).fetchone()[0] == 0:
 				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
 				logging.info ('added incoming job to process: %s' %Entry)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
@@ -1487,7 +1547,7 @@ def MsgService():
 	mailaddedtorrents (con)
 	mailpreasignedtorrents (con)
 	#mailnocasetorrents (con)  #  TO DO ----  8
-	mailcomplettedjobs (con)
+	mailcompletedjobs (con)
 	mailRPolicytorrents (con)
 	con.close()
 	return
@@ -1569,7 +1629,7 @@ def mailStartedSevice(con):
 	con.commit()
 	return
 
-def mailcomplettedjobs(con):
+def mailcompletedjobs(con):
 	''' e-mail Completed torrents, this is to inform that a torrent have been processed
 	usually corresponds with the preasigned destinations.
 	It could contain other info of the torrent process.
@@ -1593,7 +1653,7 @@ def mailcomplettedjobs(con):
 			filelisttxt, nonwantedfilestxt = getfiledeliverlistTXT (con,Trid)
 			msgbody += filelisttxt + "\n"
 			msgbody += nonwantedfilestxt + "\n"
-			STmail ('Torrent completted and delivered: '+ Trname ,msgbody, topic=7)
+			STmail ('Torrent completed and delivered: '+ Trname ,msgbody, topic=7)
 		else:
 			msgbody = "A torrent has been Downloaded: \n\
 				Torrent Name: %s \n\
@@ -1604,7 +1664,7 @@ def mailcomplettedjobs(con):
 			filelisttxt = getfileoriginlistTXT (con,Trid)
 			msgbody += filelisttxt + "\n"
 			# msgbody += gettorrentstatisticsTXT ()
-			STmail ('Torrent is completted: '+ Trname ,msgbody, topic=7)
+			STmail ('Torrent is completed: '+ Trname ,msgbody, topic=7)
 		con.execute ("UPDATE msg_inputs SET status='Sent' WHERE nreg = %s"%Nreg)
 	con.commit()
 	return
@@ -1893,6 +1953,7 @@ def AddFilesToDB (con, TRid, filesdict, inputtype):
 
 def ProcessSecuence(con, Id, Psecuence):
 	global GideonConfig
+	print ('Processing:{}'.format(Id))
 	for process in Psecuence:
 		print ("\t",process,'...........')
 		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id)
@@ -1980,9 +2041,9 @@ def ProcessSecuence(con, Id, Psecuence):
 		elif process == 'assign folder seriename':
 			for entry in cursor2:
 				filename , ext  = (os.path.splitext(os.path.basename(entry[3])))
-				Seriename = Chapterfinder (filename)[2]
+				filename, Chap, Seriename = Chapterfinder (filename)
 				if Seriename != None:
-					newdest = addslash(Seriename) + entry[3]
+					newdest = addslash(Seriename) + filename + ext
 					params = (newdest, entry[0])
 					con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 					con.commit()
@@ -2026,7 +2087,6 @@ Psecuensedict = {
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
 	8 : ['(o)cleanDWfoldername', 'cleanfilenames', 'deletenonwantedfiles','assign folder seriename','assign serie destination'],
-	9 : ['(o)cleanDWfoldername','cleanfilenames', 'deletenonwantedfiles','assign folder seriename','assign serie destination',],
 	}
 
 Casos = {

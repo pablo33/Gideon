@@ -618,21 +618,31 @@ class namefilmcleaner (unittest.TestCase):
 			It will find expressions like nnxnn and return the chapter or None, in case it is not found.
 			"""
 		wanted_values = ([
-			('my title 0X23',				('my title 0x23', '0x23', 'my title')),
-			('1x35my title 3x33',			('1x35.my title 3x33', '1x35', None)),
-			('My serie1x55my title',		('My serie 1x55.my title', '1x55', 'My serie')),
-			('my title 123',				('my title 1x23', '1x23', 'my title')),
-			('my title 234-[[[',			('my title 2x34', '2x34', 'my title')),
-			('ending in a year 1985',		('ending in a year 1985',None, None)),
-			('my title 3x45-.',				('my title 3x45','3x45', 'my title')),
-			('my title Cap456-.',			('my title Cap456', None, None)),
-			('my serie 2x33.and a subtitle',('my serie 2x33.and a subtitle','2x33', 'my serie')),
-			('serie ep01',					('serie ep01','ep01', 'serie')),
-			('serie EP02',					('serie ep02','ep02', 'serie')),
-			('serie s2e1',					('serie s2e1','s2e1', 'serie')),
-			('serie s02E01',				('serie s02e01','s02e01', 'serie')),
-			('serie ep33 something',		('serie ep33.something','ep33', 'serie')),
-			('serie s33_e45',				('serie s33_e45','s33_e45', 'serie')),
+			('my title 0X23',				('My Title 0x23', '0x23', 'My Title')),
+			('1x35my title 3x33',			('1x35.My Title 3X33', '1x35', None)),
+			('My serie1x55my title',		('My Serie 1x55.My Title', '1x55', 'My Serie')),
+			('my title 123',				('My Title 1x23', '1x23', 'My Title')),
+			('my title 234-[[[',			('My Title 2x34', '2x34', 'My Title')),
+			('ending in a year 1985',		('Ending in a Year 1985', None, None)),
+			('my title 3x45-.',				('My Title 3x45', '3x45', 'My Title')),
+			('my title Cap456-.',			('My Title ep456', 'ep456', 'My Title')),
+			('my serie 2x33.and a subtitle',('My Serie 2x33.and a Subtitle', '2x33', 'My Serie')),
+			('serie ep01',					('Serie ep01', 'ep01', 'Serie')),
+			('serie EP02',					('Serie ep02', 'ep02', 'Serie')),
+			('serie s2e1',					('Serie s2e1', 's2e1', 'Serie')),
+			('serie s02E01',				('Serie s02e01', 's02e01', 'Serie')),
+			('serie ep33 something',		('Serie ep33.Something', 'ep33', 'Serie')),
+			('serie s33_e45',				('Serie s33.e45', 's33.e45', 'Serie')),
+			('Serie temporada456',			('Serie Temporada456', None, None)),
+			('Serie 456.__',				('Serie 4x56', '4x56', 'Serie')),
+			('alg1x02.titulo456',			('Alg 1x02.Titulo456', '1x02', 'Alg')),
+			('algo1x02',					('Algo 1x02', '1x02', 'Algo')),
+			('alg1x02.titulo456',			('Alg 1x02.Titulo456', '1x02', 'Alg')),
+			('LaZona 1x02',					('Lazona 1x02', '1x02', 'Lazona')),
+			('LaZona Temporada 2 cap.3',	('Lazona 2x03', '2x03', 'Lazona')),
+			('LaZona Chapter3 temporada4',	('Lazona 4x03', '4x03', 'Lazona')),
+			('LaZona Temp2 cap3',			('Lazona 2x03', '2x03', 'Lazona')),
+			('Chance temporada 1 capitulo 1.www_.DivxTotaL.com',	('Chance 1x01', '1x01', 'Chance')),
 			])
 
 		for i1,expectedtuple in wanted_values:
@@ -680,9 +690,10 @@ class namefilmcleaner (unittest.TestCase):
 			'''
 		wanted_values = ([
 			('Change temporada 1 capitulo 1.www_.somedomain.com','Change Temporada 1 Capitulo 1 Somedomain'),
-			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16.Somedomain'),
+			('VelsMAR.Gente.Of_.S.H.E.L.D.O.M-4x16.HDTV_.XviD_.www_.somedomain.com_','Velsmar Gente of S H E L D o M 4X16 Somedomain'),
 			('08 Z. La ciudad perdida DVDRip www.DivxTotaL.com','08 Z. la Ciudad Perdida'),
 			('Savva. El corazón del guerrero (microHD) (EliteTorrent.net)','Savva. el Corazón del Guerrero'),
+			('LaZona_101_www.DivxTotaL.com','Lazona 101'),			
 			])
 
 		for i1,expectedstring in wanted_values:
