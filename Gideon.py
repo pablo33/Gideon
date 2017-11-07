@@ -2123,7 +2123,7 @@ def Selectcase (matrix, inputtype):
 
 		DefTest OK"""
 	# Selectig case of only one video file:
-	if matrix.nfiles >= 1 and matrix.nvideos == 1 and (matrix.naudios+matrix.ncompressed+matrix.nimagefiles+matrix.nother)==0 and matrix.folderlevels==1:
+	if matrix.nfiles >= 1 and matrix.nvideos == 1 and (matrix.naudios+matrix.ncompressed+matrix.nimagefiles+matrix.nother)==0:
 		NCase = 1
 
 	elif matrix.nfiles > 1 and matrix.nvideos==1 and (matrix.naudios+matrix.ncompressed)==0 and matrix.nother==0 and matrix.folderlevels==1:
