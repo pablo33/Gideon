@@ -425,7 +425,8 @@ ext = {
 # List of prohibited words. This words will be deleted from files and folder-names
 prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www','mp3','HDTV','DVDRip','rip','Xvid','bluray','microhd','LeoParis',
 	'Widescreen','DVD9.','dvd9','dvdr','.FULL.','PAL','Eng.','Ger.','Spa.','Ita.','Fra.','Multisubs','x264',
-	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]'
+	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]',
+	'mkv','Web-DL','Mpeg','m4v','mp4','avi','web','qt','flv','asf','wmv','mov','dl'
 	]
 
 """
@@ -2040,11 +2041,29 @@ def ProcessSecuence(con, Id, Psecuence):
 			con.commit()
 			continue
 		elif process == 'assign folder seriename':
+			# Checks for a Serie name for the whole pack of files.
+			# Is a serie name is found it will set as sub-folder name.
+			seriecandidates = list ()
+			FinalSeriename, conc = None, 0
 			for entry in cursor2:
-				filename , ext  = (os.path.splitext(os.path.basename(entry[3])))
-				filename, Chap, Seriename = Chapterfinder (filename)
+				filename0 , ext  = (os.path.splitext(os.path.basename(entry[3])))
+				filename, Chap, Seriename = Chapterfinder (filename0)
+				logging.debug ('Chapterfinder ({}) >> filename={}, Chap={}, Seriename={}'.format(filename0,filename,Chap,Seriename))
 				if Seriename != None:
-					newdest = addslash(Seriename) + filename + ext
+					seriecandidates.append (Seriename)
+					serieconc = seriecandidates.count (Seriename)
+					logging.debug ('Seriename candidate added: {}'.format(Seriename))
+					if serieconc > conc:
+						conc = serieconc
+						FinalSeriename = Seriename
+						logging.debug ('Seriename top candidate: {}, {} concurrences'.format(FinalSeriename,conc))
+			logging.debug ('Selected Seriename: {}'.format(FinalSeriename))
+			if FinalSeriename != None:
+				cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id)
+				for entry in cursor2:
+					filename0 , ext  = (os.path.splitext(os.path.basename(entry[3])))
+					filename, Chap, Seriename = Chapterfinder (filename0)
+					newdest = addslash(FinalSeriename) + filename + ext
 					params = (newdest, entry[0])
 					con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 					con.commit()
@@ -2087,7 +2106,7 @@ Psecuensedict = {
 	5 : ['assign Comics destination'],
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
-	8 : ['(o)cleanDWfoldername', 'cleanfilenames', 'deletenonwantedfiles','assign folder seriename','assign serie destination'],
+	8 : ['(o)cleanDWfoldername','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles','assign serie destination'],
 	}
 
 Casos = {
@@ -2099,7 +2118,7 @@ Casos = {
 	5 : "(Comic) It has only one file and is a comic extension",
 	6 : "(ebook) It has only one file and is a e-book extension",
 	7 : "(audio) Contains one or more audio files, may contain some image files, and more that one level of folders.",
-	8 : "(serie) Content has one or more series chapters and it may have some NonWantedFiles.",
+	8 : "(serie) Content has one or more series chapters, image-files and it may have some NonWantedFiles.",
 	}
 
 def Selectcase (matrix, inputtype):
@@ -2141,7 +2160,7 @@ def Selectcase (matrix, inputtype):
 	elif matrix.nfiles == 1 and matrix.nbooks == 1:
 		NCase = 6
 
-	elif matrix.nfiles >= 1 and matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos+matrix.nimagefiles)==0 :
+	elif matrix.nfiles >= 1 and matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos)==0 :
 		NCase = 8
 
 	elif inputtype == 'Telegram':
