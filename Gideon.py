@@ -521,15 +521,6 @@ seasonidentifer = GideonConfig.seasonidentifer
 minmatch = 15  # Points to match files and cover/posters names, the more points the more strict must be a match
 players = ['mplayer','vlc']
 
-''' Not used
-Msgtimming = {
-	'low': datetime.timedelta(seconds=3600),
-	'med':datetime.timedelta(seconds=600),
-	'high':datetime.timedelta(seconds=0)
-	}
-'''
-
-
 Msgtopics = {
 	1 : 'Added incoming torrent to process',
 	2 : 'Torrent has been added to Transmission for downloading',
@@ -546,19 +537,6 @@ Msgtopics = {
 	13: 'Error by adding a Torrent file to Transmission Service',
 	}
 
-'''  # Not used.
-Codemimes = {
-	'video' : 1,
-	'audio' : 2,
-	'notwanted' : 3,
-	'compressed' : 4,
-	'image' : 5,
-	'other' : 6,
-	'ebook' : 7,
-	'comic' : 8,
-	'vserie': 9,
-	}
-'''
 
 # (1.6) Prequisites:
 #=============
@@ -583,7 +561,6 @@ elif Telegraminbox == TelegramNoCasedest:
 	print ("You can't assign the same Telegram folder as input/output")
 	print ('\tplease edit your user configuration file at: \n',  userconfig)
 	Telegraminbox = None  # This prevent using this Service.
-
 
 
 # Checking and setting up Fvideodest file:
@@ -1614,7 +1591,6 @@ def mailErrors(con):
 		con.commit()
 	return
 
-
 def mailStartedSevice(con):
 	cursor = con.cursor ()
 	ncount = cursor.execute ("SELECT count (nreg) FROM msg_inputs WHERE topic = 9 and status = 'Ready'").fetchone()[0]
@@ -1958,7 +1934,9 @@ def ProcessSecuence(con, Id, Psecuence):
 	print ('Processing:{}'.format(Id))
 	for process in Psecuence:
 		print ("\t",process,'...........')
-		cursor2 = con.execute("SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id)
+		filesetquery = "SELECT nreg, mime, originalfile, destfile FROM files WHERE trid = %s and wanted = 1"%Id
+		cursor2 = con.execute (filesetquery)  # Is an iterator over the torrent files at database.
+		
 		if process == 'assign video destination':
 			for entry in cursor2:
 				params = (Fmovie_Folder+entry[3],
@@ -2012,16 +1990,16 @@ def ProcessSecuence(con, Id, Psecuence):
 				filename, ext = os.path.splitext(os.path.basename(entry[3]))
 				cleanedfilename = clearfilename(filename)
 				newdest = os.path.join(folder,(cleanedfilename+ext))
-				params = (newdest,
-					entry[0])
+				params = (newdest, entry[0])
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
-		elif process == '(o)cleanDWfoldername':
-			#Clear the input folder name and set the result as destination at DB
+		
+		elif process == 'CleanDWtreefoldername':
+			#Clear the destination tree folder, apply before assign a fullpath to destination.
 			for entry in cursor2:
-				folder= os.path.dirname(entry[2])
-				filename = os.path.basename(entry[2])
+				folder= os.path.dirname(entry[3])
+				filename = os.path.basename(entry[3])
 				if folder != '':
 					folder = clearfilename(folder)
 				newdest = os.path.join(folder,filename)
@@ -2029,6 +2007,15 @@ def ProcessSecuence(con, Id, Psecuence):
 				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
 			con.commit()
 			continue
+		
+		elif process == '(o>d)CopyTreeStructure':
+			# Copy the origin structure to destination as is.
+			for entry in cursor2:
+				params = (entry[2], entry[0])
+				con.execute("UPDATE files SET destfile=? WHERE nreg = ?",params)
+			con.commit()
+			continue
+
 		elif process == 'moveupfileandrename':
 			# (Valid when there is only one file to process)
 			entry = cursor2.fetchone()
@@ -2098,15 +2085,15 @@ def ProcessSecuence(con, Id, Psecuence):
 	return
 
 Psecuensedict = {
-	0 : list(),
-	1 : ['(o)cleanDWfoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination'],
-	2 : ['(o)cleanDWfoldername','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
-	3 : ['(o)cleanDWfoldername','assign audio destination','cleanfilenames'],
+	0 : list(),  # It does nothing
+	1 : ['(o>d)CopyTreeStructure','CleanDWtreefoldername','deletenonwantedfiles','moveupfileandrename','(o)assign local path from videodest.ini','assign video destination'],
+	2 : ['(o>d)CopyTreeStructure','deletenonwantedfiles','(o)assign local path from videodest.ini','assign video destination',],
+	3 : ['(o>d)CopyTreeStructure','CleanDWtreefoldername','assign audio destination','cleanfilenames'],
 	4 : ['assign Telegram destination'],
 	5 : ['assign Comics destination'],
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
-	8 : ['(o)cleanDWfoldername','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles','assign serie destination'],
+	8 : ['(o>d)CopyTreeStructure','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles','assign serie destination'],
 	}
 
 Casos = {
@@ -2145,6 +2132,7 @@ def Selectcase (matrix, inputtype):
 	if matrix.nfiles >= 1 and matrix.nvideos == 1 and (matrix.naudios+matrix.ncompressed+matrix.nimagefiles+matrix.nother)==0:
 		NCase = 1
 
+	# Only one video with some image files.
 	elif matrix.nfiles > 1 and matrix.nvideos==1 and (matrix.naudios+matrix.ncompressed)==0 and matrix.nother==0 and matrix.folderlevels==1:
 		NCase = 2
 
@@ -2160,7 +2148,8 @@ def Selectcase (matrix, inputtype):
 	elif matrix.nfiles == 1 and matrix.nbooks == 1:
 		NCase = 6
 
-	elif matrix.nfiles >= 1 and matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos)==0 :
+	# One or more series with some images or nonwanted files.
+	elif matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos)==0 :
 		NCase = 8
 
 	elif inputtype == 'Telegram':
