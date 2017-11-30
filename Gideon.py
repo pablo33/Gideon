@@ -1088,7 +1088,7 @@ def clearfilename(filename):
 		
 		DefTest >> OK
 		"""
-	logging.info("# Cleaning filename: "+filename)
+	logging.debug ("# Cleaning filename: "+filename)
 	filenametmp = filename
 
 	
@@ -1134,7 +1134,7 @@ def clearfilename(filename):
 	#8 Replacing little words to lowerCase
 	filenametmp = littlewords (filenametmp)
 
-	logging.info("# Final Filename   : "+ filenametmp)
+	logging.debug ("# Final Filename   : "+ filenametmp)
 	return filenametmp
 
 # Main Functions -------------------------
