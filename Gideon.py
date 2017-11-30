@@ -2288,11 +2288,11 @@ def CoverService (Fmovie_Folder, Availablecoversfd, inivideodest):
 				filemovieset.add(i)
 		else:
 			LogOnce ('CSVC', folder2scan, msg='(coverservice):Folder %s does not exist.'%folder2scan, action='print')
-	coverperformer (filemovieset, Availablecoversfd)		
+	coverperformer (filemovieset, Availablecoversfd)
 
 def coverperformer(filemovieset,Availablecoversfd):
 	''' Assign cover files and moves matched cover next to the film file.
-		input sould be a list, but also a string with a /path/to/filename.ext is possible
+		input should be a list, but also a string with a /path/to/filename.ext is possible
 		'''
 	if type (filemovieset) == str():
 		filemovieset = [filemovieset,]
@@ -2649,7 +2649,7 @@ if __name__ == '__main__':
 		if getappstatus (['mplayer','vlc']) == False:
 			DeliverFiles ()
 
-		if TransmissionInbox != None:
+		if TransmissionInbox != None and len(listcovers(Availablecoversfd))>0 :
 			CoverService (Fmovie_Folder, Availablecoversfd, TransmissionInbox+"Videodest.ini")
 		
 		if getappstatus(['transmission-gtk']):
