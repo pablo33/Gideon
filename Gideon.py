@@ -1398,8 +1398,8 @@ def addinputs (entrieslist):
 		for Entry, Filetype in entrieslist:
 			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Added' ", (Entry,)).fetchone()[0] == 0:
 				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
-				logging.info ('added incoming job to process: %s' %Entry)
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
+				logging.info ('({})added incoming job to process: {}'.format(Id, Entry))
 				SpoolUserMessages(con, 1, TRid = Id)
 				con.commit()
 		con.close()
@@ -1423,7 +1423,7 @@ def SendtoTransmission():
 	cursor = con.cursor()
 	nfound = (cursor.execute ("SELECT count(id) FROM tw_inputs WHERE status = 'Ready' and ( filetype = '.magnet' or filetype = '.torrent')").fetchone())[0]
 	if nfound > 0:
-		logging.info (str(nfound) + 'new torrent entries have been found.')
+		logging.info (str(nfound) + ' new torrent entries have been found.')
 		tc = connectTR ()
 		cursor.execute ("SELECT id, fullfilepath FROM tw_inputs WHERE status = 'Ready'  and ( filetype = '.magnet' or filetype = '.torrent')")
 		for Id, Fullfilepath in cursor:
@@ -1917,7 +1917,7 @@ def AddFilesToDB (con, TRid, filesdict, inputtype):
 		con.execute ("INSERT INTO files (trid, size, originalfile, mime ) VALUES (?,?,?,?)",params)
 		Tmtx.addfile(Originalfile)
 	# Selecting Case and processing torrent files.
-	Caso, Psecuence = Selectcase (Tmtx, inputtype)
+	Caso, Psecuence = Selectcase (Tmtx, inputtype, TRid=TRid)
 	Deliverstatus = 'Added'
 	if Caso == 0:
 		Deliverstatus = None  # Torrents with no case are not delivered
@@ -2108,9 +2108,9 @@ Casos = {
 	8 : "(serie) Content has one or more series chapters, image-files and it may have some NonWantedFiles.",
 	}
 
-def Selectcase (matrix, inputtype):
+def Selectcase (matrix, inputtype, TRid=""):
 	""" Selects a case to deliver the torrent files and an operational behaviour for files.
-		operational behaviour is returned a a list of number of codes that operates on all the files of
+		operational behaviour is returned as a list of numbers's codes that operates on all the files for 
 		the torrent.
 		If no case is matched, it returns None.
 		Actual Matrix properties:
@@ -2158,7 +2158,7 @@ def Selectcase (matrix, inputtype):
 	else:
 		NCase = 0
 
-	logging.info ("Selected case %s : "%NCase + Casos[NCase])
+	logging.info ("({}) Selected case {} : {}".format(TRid, NCase, Casos[NCase]))
 	
 	return NCase, Psecuensedict[NCase]
 
@@ -2341,13 +2341,13 @@ def RetentionPService(tc):
 
 		# DBid exists, it means that the torrent is beign tracked on the DataBase
 		elif trr.seed_ratio_mode == 'unlimited' or (trr.seed_ratio_mode == 'global' and not tc.session.seedRatioLimited):
-			LogOnce('RPSF',DBid,"Retention policy does not apply to torrents that seeds forever: %s"%trr.name,'Print')
+			LogOnce('RPSF',DBid,"({}) Retention policy does not apply to torrents that seeds forever: {}".format(DBid, trr.name), 'Print')
 			continue
 		elif trr.doneDate == 0:
-			LogOnce('RPMT',DBid,"Retention policy does not apply to unfinished torrents: %s"%trr.name,'Print')
+			LogOnce('RPMT',DBid,"({}) Retention policy does not apply to unfinished torrents: {}".format(DBid, trr.name), 'Print')
 			continue
 		elif Deliverstatus == None:
-			LogOnce('RPNMC',DBid,"Retention policy does not apply to Torrents that has no match Case: %s"%trr.name,'Print')
+			LogOnce('RPNMC',DBid,"({}) Retention policy does not apply to Torrents that has no match Case: {}".format(DBid, trr.name), 'Print')
 			#you can stablish a retention policy for this torrents here, or delete them manually.
 			continue
 
