@@ -1074,7 +1074,7 @@ def chapid(item):
 def littlewords(filename):
 	''' Change little words starting uppercase to lowercase. This words must be defined.
 		'''
-	words = ["in","to","my","the","and","on","at","of","en","a","y","de","o","el","la","los","las","del", "lo", "es"]
+	words = ["in","to","my","the","and","on","at","of","en","a","y","de","o","el","la","los","las","del", "lo", "es","su", "mi", "tu" ]
 	for a in words:
 		wa=" "+a[0].upper()+a[1:]+" "
 		wb=" "+a+" "
