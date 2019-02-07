@@ -32,7 +32,7 @@ __author__  = "pablo33"
 	Note about trasnmissionrpc:
 	This module helps using Python to connect to a Transmission JSON-RPC service.
 	transmissionrpc is compatible with Transmission 1.31 and later.
-	transmissionrpc is licensed under the MIT licenseself.
+	transmissionrpc is licensed under the MIT license.
 	https://pythonhosted.org/transmissionrpc/
 
 	'''
@@ -1396,7 +1396,7 @@ def addinputs (entrieslist):
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for Entry, Filetype in entrieslist:
-			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Added' ", (Entry,)).fetchone()[0] == 0:
+			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and (status = 'Added' or status = 'Ready')", (Entry,)).fetchone()[0] == 0:
 				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
 				logging.info ('({})added incoming job to process: {}'.format(Id, Entry))
@@ -2529,6 +2529,27 @@ def Removetorrent (tc, con, trr_id, DBid, sendtoTrash=True):
 			os.remove (indextodelete)
 	return
 
+def GetPasswordFromFilename (filename):
+	""" Retrieve the chunk of text after the last @ from the filename and
+		until the end of the string or a symbol.   (' .-_~#,;:  ') 
+		"""
+	pwd = None
+	chunks = filename.split('@')
+	if len (chunks) > 1:
+		pwd = chunks.pop()
+		if pwd == '':
+			pwd = None
+		else:
+			firstchar = len (pwd)
+			for i in '.-_~#,;:':
+				place = pwd.find(i)
+				if -1 < place < firstchar:
+					firstchar = place
+			pwd = pwd [:firstchar]
+			if pwd == '':
+				pwd = None
+	return pwd
+
 def PreProcessReadyRARInputs():
 	''' Checks 'Ready' .rar files at DB and set them to 'Added' if all rar's volume files are available.
 		'''
@@ -2536,6 +2557,7 @@ def PreProcessReadyRARInputs():
 	cursor = con.cursor()
 	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
 	rarentrydict = dict()
+	#Checks if rar files are already on the filesystem.
 	for DBid, Fullfilepath in cursor:
 		if itemcheck (Fullfilepath) != 'file':
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (DBid,))
@@ -2568,18 +2590,22 @@ def PreProcessReadyRARInputs():
 			if toaddflag == True:
 				##  Check rar file, because rf.volumelist is not the expected complete volume list, just the actual files found in folder by order.
 				## I need to check the rar file.
-				if not rf.needs_password():
-					try:
-						rf.testrar()
-					except rarfile.RarCRCError:
-						logging.warning ('Rar file has errors or it is incomplete:'+ entry)
-					else:
-						for i in toaddvolumelist_id:
-							CompleteDBids.append (i)
-				else:
-					msg = '(%s) This rar file needs password: %s'%(DBid,entry)
+				pwd = None
+				if rf.needs_password():
+					pwd = GetPasswordFromFilename (os.path.basename (entry))
+					if pwd != None:
+						logging.info ('Password has been retrieved from filename: %s'%pwd)
+						rf.setpassword (pwd)
+				try:
+					rf.testrar()
+				except rarfile.RarWrongPassword :
+					msg = '(%s) This rar file needs password or has a wrong password: %s (password=%s)'%(DBid,entry,pwd)
 					LogOnce ('RFNP', DBid, msg = msg, action='Print')
-
+				except rarfile.RarCRCError:
+					logging.warning ('Rar file has errors or it is incomplete:'+ entry)
+				else:
+					for i in toaddvolumelist_id:
+						CompleteDBids.append (i)
 
 	for DBid in CompleteDBids:
 		dwfolder = None
@@ -2601,13 +2627,13 @@ def UncompressRARFiles():
 	for DBid, Fullfilepath, Dwfolder in cursor:
 		rf = rarfile.RarFile (Fullfilepath)
 		if rf. needs_password():
-			# send e-mail 
-			logging.info ('(%s) This RAR file needs password to be decompressed:%s'%(DBid,Fullfilepath))
-			remove = False
-		else:
-			print ('Decompressing:','(',DBid,')',Fullfilepath)
-			rf.extractall(path=Dwfolder, pwd=None)
-			remove = True
+			pwd = GetPasswordFromFilename (os.path.basename (Fullfilepath))
+			rf.setpassword (pwd)
+			#remove = False (you can copy original RAR file if remove = False)
+		print ('Decompressing:','(',DBid,')',Fullfilepath)
+		rf.extractall(path=Dwfolder, pwd=None)
+		remove = True
+
 		for vfile in rf.volumelist():
 			con.execute ("UPDATE tw_inputs SET status='Completed', deliverstatus='Delivered' WHERE fullfilepath = ? AND status = 'Added'", (vfile,))
 			if remove:

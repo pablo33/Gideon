@@ -307,7 +307,6 @@ class getappstatus (unittest.TestCase):
 			result = MD.getappstatus (process)
 			self.assertEqual (status, result)
 
-
 class fileclasify (unittest.TestCase):
 	""" Tipify a file by its extension
 		"""
@@ -533,6 +532,7 @@ class test_Utils_Functions (unittest.TestCase):
 			self.assertEqual (expected, result)			
 
 
+
 #####TESTS########
 MD2 = Gideon
 
@@ -698,6 +698,33 @@ class namefilmcleaner (unittest.TestCase):
 
 		for i1,expectedstring in wanted_values:
 			result = MD2.clearfilename(i1)
+			self.assertEqual(result,expectedstring)
+
+	def test_GetPasswordFromFilename (self):
+		''' Fetch the text after the last @ symbol and before a symbol (' .-_~#,;: ').
+		Returns an empty string if @ is the last character or there is not @ present
+			'''
+		wanted_values = ([
+			('foo@word', 'word'),
+			('foo@lalala@word', 'word'),
+			('foo@lalala@word.part1', 'word'),
+			('@',None),
+			('lalalafoobar.lala',None),
+			('lalalafoobar',None),
+			('',None),
+			('foolalala@',None),
+			('foolalala@pass.','pass'),
+			('foolalala@WORD.part1','WORD'),
+			('foolalala@foo.__@here_.','here'),
+			('foolalala@.',None),
+			('foolalala@.__##~nopass',None),
+			('foolalala@.__##~-',None),
+			('@foolalala@.__##~-',None),
+			('@@@@.',None),
+			])
+
+		for i1,expectedstring in wanted_values:
+			result = MD2.GetPasswordFromFilename (i1)
 			self.assertEqual(result,expectedstring)
 
 
