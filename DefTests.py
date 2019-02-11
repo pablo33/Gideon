@@ -609,6 +609,30 @@ class namefilmcleaner (unittest.TestCase):
 			result = MD2.prohibitedwords(i1,i2)
 			self.assertEqual(result,expectedstring)
 
+	def test_prohibitedchunks (self):
+		'''  Eliminates chunks in text entries
+			those chunks of text matches always and are not case sensitive.
+			input: "string with some text."
+			input: ['List','of','text']
+			outputt: "string with some .".
+		'''
+		wanted_values = ([
+			('1my TesT to delete some words', ['test','words'],'1my  to delete some '),
+			('title@cinemaquest', ['@cinema'], 'titlequest'),
+			('1my test to delete some words', ['test','words'],'1my  to delete some '),
+			('2my.test.to delete some words', ['test','words'],'2my..to delete some '),
+			('3my.test.to delete some final url Www.DivxTotal.com', ['www.divxtotal.com','words'],'3my.test.to delete some final url '),
+			('4my.test.to delete (some) [nonwanted] words enclosed', ['some','nonwanted'],'4my.test.to delete () [] words enclosed'),
+			('my', ['test','my'],''),
+			(' my ', ['test','my'],'  '),
+			('', ['test','my'],''),
+			])
+
+		for i1,i2,expectedstring in wanted_values:
+			result = MD2.prohibitedchunks (i1,i2)
+			self.assertEqual(result,expectedstring)
+
+
 	def test_Chapterfinder (self):
 		""" This little Function, scans for a chapter-counter, 
 			it will delete any punctuation characters if it is at the end of the filename (if any)

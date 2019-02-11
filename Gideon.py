@@ -5,7 +5,7 @@ __version__ = "1.0"
 __author__  = "pablo33"
 
 
-''' This program is intended to process torrents.
+''' This program is intended to process torrents and a hot folder
 	
 	Program main functions:
 
@@ -428,6 +428,9 @@ prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www'
 	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]',
 	'mkv','Web-DL','Mpeg','m4v','mp4','avi','web','qt','flv','asf','wmv','mov','dl'
 	]
+
+# List of prohibited chunks. This strings will be deleted from files and folder-names. No case sensitive, just delete them.
+prohibited_chunks = ('@cinepalomitas',)
 
 """
 
@@ -897,7 +900,20 @@ def dotreplacement(a,lim):
 				a = a[0:st]+lim[1]+a[st+1:]
 	return a
 
-def prohibitedwords(a,lista):
+def prohibitedchunks (a, lista):
+	'''  Eliminates chunks in text entries
+		those chunks of text matches always and are not case sensitive.
+		input: "string with some text."
+		input: ['List','of','text']
+		outputt: "string with some .".
+	'''
+	for pw in lista:
+		pos = a.lower().find (pw.lower())
+		if pos > -1:
+			a = a[:pos] + a[pos+len(pw):]
+	return a
+
+def prohibitedwords (a,lista):
 	'''  Eliminates words in text entries
 		those words matches if they are between spaces.
 		input: "string with some words."
@@ -1091,7 +1107,9 @@ def clearfilename(filename):
 	logging.debug ("# Cleaning filename: "+filename)
 	filenametmp = filename
 
-	
+	#0 Getting rid of prohibited chunks
+	filenametmp = prohibitedchunks (filenametmp, GideonConfig.prohibited_chunks)
+
 	#1 replacing dots, underscores & half  between leters.
 	filenametmp = filenametmp.replace('_.','.')
 	filenametmp = dotreplacement(filenametmp, "_ ")
@@ -2430,10 +2448,10 @@ def Telegramfd (Tfolder):
 		elif os.path.isfile (entry):
 			extension = os.path.splitext(entry)[1].lower()
 			if extension in ('.zip','.7z'):
-				logging.info("Detected job %s was not processed because it is not a rar compressed file." %entry)
+				logging.info("Job detected %s was not processed because it is not a rar compressed file." %entry)
 				continue
 			elif fileinuse (entry) == True:
-				logging.info("Detected job %s was not processed because it were open by an application." %entry)
+				logging.info("Job detected %s was not processed because it were open by an application." %entry)
 				continue
 			elif extension == '.rar':
 				LogOnce ('DRARJob', entry, msg="Detected a .rar job:"+ entry, action = 'log')
