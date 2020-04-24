@@ -26,7 +26,10 @@ It can detect chapter-numbers at the end of the file/s, and rename them as nxnn 
 ** 3rd party software: **
 This programs needs to run the following programs in your system:  
 
- * Transmission, with rpc API for python3
+ * Transmission, with rpc API for python3. You can install it by typing:
+ 
+        sudo apt-get install python3-transmissionrpc
+    
  * And as an option: Dropbox, Telegram, Drive, or some filesync desktop client  
 
  ** Notes: **  
