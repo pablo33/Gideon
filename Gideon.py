@@ -2112,7 +2112,7 @@ Psecuensedict = {
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
 	8 : ['(o>d)CopyTreeStructure','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles','assign serie destination'],
-	9 : ['(o>d)CopyTreeStructure','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles', 'assign video destination'],
+	9 : ['(o>d)CopyTreeStructure','CleanDWtreefoldername','cleanfilenames', 'deletenonwantedfiles', 'assign video destination'],
 	}
 
 Casos = {
@@ -2173,7 +2173,7 @@ def Selectcase (matrix, inputtype, TRid=""):
 		NCase = 8
 
 	# one or more video files in a folder.
-	elif matrix.nfiles >= 1 and matrix.nvideos>=1 and (matrix.nseries+matrix.nother)==0 and matrix.nfolders>=1 and matrix.folderlevels>=1:
+	elif matrix.nfiles >= 1 and matrix.nvideos>=1 and (matrix.nseries+matrix.nother)==0 and matrix.nfolders>=1 and matrix.folderlevels>1:
 		NCase = 9
 
 	elif inputtype == 'Telegram':
