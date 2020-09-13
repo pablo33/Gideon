@@ -252,6 +252,7 @@ class Selectcase (unittest.TestCase):
 		(12,[1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
 		(13,[61,0,61,0,0,0,0,0,0, 6,2], None, 7),  # Audio files in a discography
 		(14,[313,0,226,0,0,87,0,0,0, 37,4], None, 7),  # Audio files in a discography
+		(15,[2,2,0,0,0,0,0,0,0 ,1,1], None, 9), # One folder with two or more videos videos.
 		)
 	def test_Selectcase (self):
 		for testID, example, inputtype, target in self.known_values:

@@ -2112,6 +2112,7 @@ Psecuensedict = {
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
 	8 : ['(o>d)CopyTreeStructure','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles','assign serie destination'],
+	9 : ['(o>d)CopyTreeStructure','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles', 'assign video destination'],
 	}
 
 Casos = {
@@ -2124,6 +2125,7 @@ Casos = {
 	6 : "(ebook) It has only one file and is a e-book extension",
 	7 : "(audio) Contains one or more audio files, may contain some image files, and more that one level of folders.",
 	8 : "(serie) Content has one or more series chapters, image-files and it may have some NonWantedFiles.",
+	9 : "(videos) Content has one or more videos, image-files and it may have some NonWantedFiles",
 	}
 
 def Selectcase (matrix, inputtype, TRid=""):
@@ -2169,6 +2171,10 @@ def Selectcase (matrix, inputtype, TRid=""):
 	# One or more series with some images or nonwanted files.
 	elif matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos)==0 :
 		NCase = 8
+
+	# one or more video files in a folder.
+	elif matrix.nfiles >= 1 and matrix.nvideos>1 and (matrix.nseries+matrix.nother)==0 and matrix.nfolders==1 and matrix.folderlevels==1:
+		NCase = 9
 
 	elif inputtype == 'Telegram':
 		NCase = 4
