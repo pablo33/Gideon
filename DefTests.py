@@ -246,13 +246,14 @@ class Selectcase (unittest.TestCase):
 		(6,[26,0,13,1,0,1,0,0,0,  1,1], 'Telegram', 3),
 		(7,[27,0,13,1,0,1,1,0,0,  1,1], None, 0),
 		(8,[27,0,13,1,0,1,1,0,0,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
-		(9,[4,0,0,3,1,0,0,0,0, 1,1], None, 0),  # Compressed file
-		(10,[1,0,0,0,0,0,0,1,0, 1,1], 'Telegram', 6),  # e-book file
-		(11,[1,0,0,0,0,0,0,1,0, 1,1], None, 6),  # e-book file
-		(12,[1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
-		(13,[61,0,61,0,0,0,0,0,0, 6,2], None, 7),  # Audio files in a discography
-		(14,[313,0,226,0,0,87,0,0,0, 37,4], None, 7),  # Audio files in a discography
-		(15,[2,2,0,0,0,0,0,0,0 ,1,1], None, 9), # One folder with two or more videos videos.
+		(9,[4,0,0,3,1,0,0,0,0,  1,1], None, 0),  # Compressed file
+		(10,[1,0,0,0,0,0,0,1,0,  1,1], 'Telegram', 6),  # e-book file
+		(11,[1,0,0,0,0,0,0,1,0,  1,1], None, 6),  # e-book file
+		(12,[1,0,0,0,0,0,0,0,1,  1,1], 'Telegram', 5),  # Comic file file
+		(13,[61,0,61,0,0,0,0,0,0,  6,2], None, 7),  # Audio files in a discography
+		(14,[313,0,226,0,0,87,0,0,0,  37,4], None, 7),  # Audio files in a discography
+		(15,[2,2,0,0,0,0,0,0,0,    1,2], None, 9), # One folder with two or more videos videos.
+		(16,[4,1,0,1,0,2,0,0,0,    1,2], None, 9), # 
 		)
 	def test_Selectcase (self):
 		for testID, example, inputtype, target in self.known_values:
