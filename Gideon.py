@@ -5,7 +5,7 @@ __version__ = "1.0"
 __author__  = "pablo33"
 
 
-''' This program is intended to process torrents.
+''' This program is intended to process torrents and a hot folder
 	
 	Program main functions:
 
@@ -32,7 +32,7 @@ __author__  = "pablo33"
 	Note about trasnmissionrpc:
 	This module helps using Python to connect to a Transmission JSON-RPC service.
 	transmissionrpc is compatible with Transmission 1.31 and later.
-	transmissionrpc is licensed under the MIT licenseself.
+	transmissionrpc is licensed under the MIT license.
 	https://pythonhosted.org/transmissionrpc/
 
 	'''
@@ -428,6 +428,9 @@ prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www'
 	'720p','1080p','DVD','AC3','  ', 'Divxtotal','Com','..','__','--','()','[]',
 	'mkv','Web-DL','Mpeg','m4v','mp4','avi','web','qt','flv','asf','wmv','mov','dl'
 	]
+
+# List of prohibited chunks. This strings will be deleted from files and folder-names. No case sensitive, just delete them.
+prohibited_chunks = ('@cinepalomitas',)
 
 """
 
@@ -897,7 +900,20 @@ def dotreplacement(a,lim):
 				a = a[0:st]+lim[1]+a[st+1:]
 	return a
 
-def prohibitedwords(a,lista):
+def prohibitedchunks (a, lista):
+	'''  Eliminates chunks in text entries
+		those chunks of text matches always and are not case sensitive.
+		input: "string with some text."
+		input: ['List','of','text']
+		outputt: "string with some .".
+	'''
+	for pw in lista:
+		pos = a.lower().find (pw.lower())
+		if pos > -1:
+			a = a[:pos] + a[pos+len(pw):]
+	return a
+
+def prohibitedwords (a,lista):
 	'''  Eliminates words in text entries
 		those words matches if they are between spaces.
 		input: "string with some words."
@@ -1091,7 +1107,9 @@ def clearfilename(filename):
 	logging.debug ("# Cleaning filename: "+filename)
 	filenametmp = filename
 
-	
+	#0 Getting rid of prohibited chunks
+	filenametmp = prohibitedchunks (filenametmp, GideonConfig.prohibited_chunks)
+
 	#1 replacing dots, underscores & half  between leters.
 	filenametmp = filenametmp.replace('_.','.')
 	filenametmp = dotreplacement(filenametmp, "_ ")
@@ -1396,7 +1414,7 @@ def addinputs (entrieslist):
 		con = sqlite3.connect (dbpath)
 		cursor = con.cursor()
 		for Entry, Filetype in entrieslist:
-			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and status = 'Added' ", (Entry,)).fetchone()[0] == 0:
+			if cursor.execute ("SELECT count (id) from tw_inputs where fullfilepath = ? and (status = 'Added' or status = 'Ready')", (Entry,)).fetchone()[0] == 0:
 				cursor.execute ("INSERT INTO tw_inputs (fullfilepath, filetype) VALUES (?,?)", (Entry,Filetype))
 				Id = (con.execute ('SELECT max (id) from tw_inputs').fetchone())[0]
 				logging.info ('({})added incoming job to process: {}'.format(Id, Entry))
@@ -2094,6 +2112,7 @@ Psecuensedict = {
 	6 : ['assign e-books destination'],
 	7 : ['assign audio destination','cleanfilenames'],
 	8 : ['(o>d)CopyTreeStructure','assign folder seriename', 'cleanfilenames', 'deletenonwantedfiles','assign serie destination'],
+	9 : ['(o>d)CopyTreeStructure','CleanDWtreefoldername','cleanfilenames', 'deletenonwantedfiles', 'assign video destination'],
 	}
 
 Casos = {
@@ -2106,6 +2125,7 @@ Casos = {
 	6 : "(ebook) It has only one file and is a e-book extension",
 	7 : "(audio) Contains one or more audio files, may contain some image files, and more that one level of folders.",
 	8 : "(serie) Content has one or more series chapters, image-files and it may have some NonWantedFiles.",
+	9 : "(videos) Content has one or more videos, image-files and it may have some NonWantedFiles",
 	}
 
 def Selectcase (matrix, inputtype, TRid=""):
@@ -2151,6 +2171,10 @@ def Selectcase (matrix, inputtype, TRid=""):
 	# One or more series with some images or nonwanted files.
 	elif matrix.nseries >= 1 and (matrix.naudios+matrix.ncompressed+matrix.nother+matrix.nvideos)==0 :
 		NCase = 8
+
+	# one or more video files in a folder.
+	elif matrix.nfiles >= 1 and matrix.nvideos>=1 and (matrix.nseries+matrix.nother)==0 and matrix.nfolders>=1 and matrix.folderlevels>1:
+		NCase = 9
 
 	elif inputtype == 'Telegram':
 		NCase = 4
@@ -2430,10 +2454,10 @@ def Telegramfd (Tfolder):
 		elif os.path.isfile (entry):
 			extension = os.path.splitext(entry)[1].lower()
 			if extension in ('.zip','.7z'):
-				logging.info("Detected job %s was not processed because it is not a rar compressed file." %entry)
+				logging.info("Job detected %s was not processed because it is not a rar compressed file." %entry)
 				continue
 			elif fileinuse (entry) == True:
-				logging.info("Detected job %s was not processed because it were open by an application." %entry)
+				logging.info("Job detected %s was not processed because it were open by an application." %entry)
 				continue
 			elif extension == '.rar':
 				LogOnce ('DRARJob', entry, msg="Detected a .rar job:"+ entry, action = 'log')
@@ -2529,6 +2553,27 @@ def Removetorrent (tc, con, trr_id, DBid, sendtoTrash=True):
 			os.remove (indextodelete)
 	return
 
+def GetPasswordFromFilename (filename):
+	""" Retrieve the chunk of text after the last @ from the filename and
+		until the end of the string or a symbol.   (' .-_~#,;:  ') 
+		"""
+	pwd = None
+	chunks = filename.split('@')
+	if len (chunks) > 1:
+		pwd = chunks.pop()
+		if pwd == '':
+			pwd = None
+		else:
+			firstchar = len (pwd)
+			for i in '.-_~#,;:':
+				place = pwd.find(i)
+				if -1 < place < firstchar:
+					firstchar = place
+			pwd = pwd [:firstchar]
+			if pwd == '':
+				pwd = None
+	return pwd
+
 def PreProcessReadyRARInputs():
 	''' Checks 'Ready' .rar files at DB and set them to 'Added' if all rar's volume files are available.
 		'''
@@ -2536,6 +2581,7 @@ def PreProcessReadyRARInputs():
 	cursor = con.cursor()
 	cursor.execute ("SELECT id, fullfilepath from tw_inputs WHERE status = 'Ready' AND filetype = '.rar'")
 	rarentrydict = dict()
+	#Checks if rar files are already on the filesystem.
 	for DBid, Fullfilepath in cursor:
 		if itemcheck (Fullfilepath) != 'file':
 			con.execute ("UPDATE tw_inputs SET status='Deleted' WHERE id = ?", (DBid,))
@@ -2568,18 +2614,22 @@ def PreProcessReadyRARInputs():
 			if toaddflag == True:
 				##  Check rar file, because rf.volumelist is not the expected complete volume list, just the actual files found in folder by order.
 				## I need to check the rar file.
-				if not rf.needs_password():
-					try:
-						rf.testrar()
-					except rarfile.RarCRCError:
-						logging.warning ('Rar file has errors or it is incomplete:'+ entry)
-					else:
-						for i in toaddvolumelist_id:
-							CompleteDBids.append (i)
-				else:
-					msg = '(%s) This rar file needs password: %s'%(DBid,entry)
+				pwd = None
+				if rf.needs_password():
+					pwd = GetPasswordFromFilename (os.path.basename (entry))
+					if pwd != None:
+						logging.info ('Password has been retrieved from filename: %s'%pwd)
+						rf.setpassword (pwd)
+				try:
+					rf.testrar()
+				except rarfile.RarWrongPassword :
+					msg = '(%s) This rar file needs password or has a wrong password: %s (password=%s)'%(DBid,entry,pwd)
 					LogOnce ('RFNP', DBid, msg = msg, action='Print')
-
+				except rarfile.RarCRCError:
+					logging.warning ('Rar file has errors or it is incomplete:'+ entry)
+				else:
+					for i in toaddvolumelist_id:
+						CompleteDBids.append (i)
 
 	for DBid in CompleteDBids:
 		dwfolder = None
@@ -2601,13 +2651,13 @@ def UncompressRARFiles():
 	for DBid, Fullfilepath, Dwfolder in cursor:
 		rf = rarfile.RarFile (Fullfilepath)
 		if rf. needs_password():
-			# send e-mail 
-			logging.info ('(%s) This RAR file needs password to be decompressed:%s'%(DBid,Fullfilepath))
-			remove = False
-		else:
-			print ('Decompressing:','(',DBid,')',Fullfilepath)
-			rf.extractall(path=Dwfolder, pwd=None)
-			remove = True
+			pwd = GetPasswordFromFilename (os.path.basename (Fullfilepath))
+			rf.setpassword (pwd)
+			#remove = False (you can copy original RAR file if remove = False)
+		print ('Decompressing:','(',DBid,')',Fullfilepath)
+		rf.extractall(path=Dwfolder, pwd=None)
+		remove = True
+
 		for vfile in rf.volumelist():
 			con.execute ("UPDATE tw_inputs SET status='Completed', deliverstatus='Delivered' WHERE fullfilepath = ? AND status = 'Added'", (vfile,))
 			if remove:

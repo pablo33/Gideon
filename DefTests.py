@@ -246,12 +246,14 @@ class Selectcase (unittest.TestCase):
 		(6,[26,0,13,1,0,1,0,0,0,  1,1], 'Telegram', 3),
 		(7,[27,0,13,1,0,1,1,0,0,  1,1], None, 0),
 		(8,[27,0,13,1,0,1,1,0,0,  1,1], 'Telegram', 4),  # If there is a no suitable case, and inputtype is 'Telegram', then Case is 4
-		(9,[4,0,0,3,1,0,0,0,0, 1,1], None, 0),  # Compressed file
-		(10,[1,0,0,0,0,0,0,1,0, 1,1], 'Telegram', 6),  # e-book file
-		(11,[1,0,0,0,0,0,0,1,0, 1,1], None, 6),  # e-book file
-		(12,[1,0,0,0,0,0,0,0,1, 1,1], 'Telegram', 5),  # Comic file file
-		(13,[61,0,61,0,0,0,0,0,0, 6,2], None, 7),  # Audio files in a discography
-		(14,[313,0,226,0,0,87,0,0,0, 37,4], None, 7),  # Audio files in a discography
+		(9,[4,0,0,3,1,0,0,0,0,  1,1], None, 0),  # Compressed file
+		(10,[1,0,0,0,0,0,0,1,0,  1,1], 'Telegram', 6),  # e-book file
+		(11,[1,0,0,0,0,0,0,1,0,  1,1], None, 6),  # e-book file
+		(12,[1,0,0,0,0,0,0,0,1,  1,1], 'Telegram', 5),  # Comic file file
+		(13,[61,0,61,0,0,0,0,0,0,  6,2], None, 7),  # Audio files in a discography
+		(14,[313,0,226,0,0,87,0,0,0,  37,4], None, 7),  # Audio files in a discography
+		(15,[2,2,0,0,0,0,0,0,0,    1,2], None, 9), # One folder with two or more videos videos.
+		(16,[4,1,0,1,0,2,0,0,0,    1,2], None, 9), # 
 		)
 	def test_Selectcase (self):
 		for testID, example, inputtype, target in self.known_values:
@@ -306,7 +308,6 @@ class getappstatus (unittest.TestCase):
 		for process, status in self.known_values:
 			result = MD.getappstatus (process)
 			self.assertEqual (status, result)
-
 
 class fileclasify (unittest.TestCase):
 	""" Tipify a file by its extension
@@ -533,6 +534,7 @@ class test_Utils_Functions (unittest.TestCase):
 			self.assertEqual (expected, result)			
 
 
+
 #####TESTS########
 MD2 = Gideon
 
@@ -608,6 +610,30 @@ class namefilmcleaner (unittest.TestCase):
 		for i1,i2,expectedstring in wanted_values:
 			result = MD2.prohibitedwords(i1,i2)
 			self.assertEqual(result,expectedstring)
+
+	def test_prohibitedchunks (self):
+		'''  Eliminates chunks in text entries
+			those chunks of text matches always and are not case sensitive.
+			input: "string with some text."
+			input: ['List','of','text']
+			outputt: "string with some .".
+		'''
+		wanted_values = ([
+			('1my TesT to delete some words', ['test','words'],'1my  to delete some '),
+			('title@cinemaquest', ['@cinema'], 'titlequest'),
+			('1my test to delete some words', ['test','words'],'1my  to delete some '),
+			('2my.test.to delete some words', ['test','words'],'2my..to delete some '),
+			('3my.test.to delete some final url Www.DivxTotal.com', ['www.divxtotal.com','words'],'3my.test.to delete some final url '),
+			('4my.test.to delete (some) [nonwanted] words enclosed', ['some','nonwanted'],'4my.test.to delete () [] words enclosed'),
+			('my', ['test','my'],''),
+			(' my ', ['test','my'],'  '),
+			('', ['test','my'],''),
+			])
+
+		for i1,i2,expectedstring in wanted_values:
+			result = MD2.prohibitedchunks (i1,i2)
+			self.assertEqual(result,expectedstring)
+
 
 	def test_Chapterfinder (self):
 		""" This little Function, scans for a chapter-counter, 
@@ -698,6 +724,33 @@ class namefilmcleaner (unittest.TestCase):
 
 		for i1,expectedstring in wanted_values:
 			result = MD2.clearfilename(i1)
+			self.assertEqual(result,expectedstring)
+
+	def test_GetPasswordFromFilename (self):
+		''' Fetch the text after the last @ symbol and before a symbol (' .-_~#,;: ').
+		Returns an empty string if @ is the last character or there is not @ present
+			'''
+		wanted_values = ([
+			('foo@word', 'word'),
+			('foo@lalala@word', 'word'),
+			('foo@lalala@word.part1', 'word'),
+			('@',None),
+			('lalalafoobar.lala',None),
+			('lalalafoobar',None),
+			('',None),
+			('foolalala@',None),
+			('foolalala@pass.','pass'),
+			('foolalala@WORD.part1','WORD'),
+			('foolalala@foo.__@here_.','here'),
+			('foolalala@.',None),
+			('foolalala@.__##~nopass',None),
+			('foolalala@.__##~-',None),
+			('@foolalala@.__##~-',None),
+			('@@@@.',None),
+			])
+
+		for i1,expectedstring in wanted_values:
+			result = MD2.GetPasswordFromFilename (i1)
 			self.assertEqual(result,expectedstring)
 
 
