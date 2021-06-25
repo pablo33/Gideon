@@ -2646,8 +2646,10 @@ if __name__ == '__main__':
 
 		SendtoTransmission ()
 
-		if getappstatus (['mplayer','vlc']) == False:
+		if getappstatus (players) == False:
 			DeliverFiles ()
+		else:
+			logging.warning ('Some videoplayer is currently running, I will not deliver any files.')
 
 		if TransmissionInbox != None and len(listcovers(Availablecoversfd))>0 :
 			CoverService (Fmovie_Folder, Availablecoversfd, TransmissionInbox+"Videodest.ini")
