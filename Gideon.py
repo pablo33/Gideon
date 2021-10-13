@@ -1317,11 +1317,14 @@ def emailme(msgfrom, msgsubject, msgto, textfile, msgcc=''):
 	msg['Cc'] = msgcc
 
 	# Send the message via our own SMTP server.
-	s = smtplib.SMTP(GideonConfig.mailmachine)
-	s.starttls()
-	s.login( GideonConfig.mailsender, GideonConfig.mailpassw) # your user account and password
-	s.send_message(msg)
-	s.quit( )
+	try:
+		s = smtplib.SMTP(GideonConfig.mailmachine)
+		s.starttls()
+		s.login( GideonConfig.mailsender, GideonConfig.mailpassw) # your user account and password
+		s.send_message(msg)
+		s.quit( )
+	except Exception as e:
+		logging.critical (e)
 	return
 
 def get_pid (app):
