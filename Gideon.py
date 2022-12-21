@@ -45,7 +45,11 @@ from subprocess import check_output  # Checks if transmission is active or not
 import sqlite3  # for sqlite3 Database management
 
 # Specific library module import
-import transmissionrpc  # transmission rpc API
+try:
+	import transmissionrpc  # transmission rpc API
+except:
+	print ('No transmissionrpc module found, you can install it by typing: \nsudo apt-get install python3-transmissionrpc \n')
+	exit()
 dyntestfolder = 'TESTS'  # local path for Deftests
 
 # importing rarfile utility rarinit()
@@ -67,9 +71,8 @@ else:
 
 
 # ===================================
-# 				UTILS		
+# 	UTILS	(General util functions)
 # ===================================
-# 				(General util functions)
 
 # errors
 class OutOfRangeError(ValueError):
@@ -343,16 +346,16 @@ __author__ = "pablo33"
 
 
 # Setting variables, default paths to store processed files.
-Fmovie_Folder = "/home/user/Videos/movies/"  # Place to store processed movies
-Fseries_Folder = "/home/user/Videos/series/"  # Place to store processed movies
-Faudio_Folder = "/home/user/Music/"  # Place to store processed music
-Fbooks_Folder = "/home/user/Calibre_inbox/"  # Place to store processed e-books
-Fcomic_Folder = "/home/user/Documents/Comix/"  # Place to store processed Comics
-TelegramNoCasedest = "/home/user/Downloads/"  # Destination file where telegram files goes if no Case is found.
+Fmovie_Folder = "{home}/Videos/movies/"  # Place to store processed movies
+Fseries_Folder = "{home}/Videos/series/"  # Place to store processed movies
+Faudio_Folder = "{home}/Music/"  # Place to store processed music
+Fbooks_Folder = "{home}/Calibre_inbox/"  # Place to store processed e-books
+Fcomic_Folder = "{home}/Documents/Comix/"  # Place to store processed Comics
+TelegramNoCasedest = "{home}/Downloads/"  # Destination file where telegram files goes if no Case is found.
 
 # Incomming folders, default paths to fetch files from
-TransmissionInbox = "/home/user/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers/posters. (this files will be moved to Torrentinbox folder).
-Telegraminbox = None  #  "/home/user/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
+TransmissionInbox = "{home}/Dropbox/TRinbox/"  # (input folder) Place to get new .torrents and .jpg .png covers/posters. (this files will be moved to Torrentinbox folder).
+Telegraminbox = None  #  "{home}/Downloads/Telegram/"  # (input folder) Place to get new files and folders to process. Use this if you want to Gideon to process an incoming file.
 
 # mail config (this example is for a gmx account, with SSL autentication)
 mailmachine = 'mail.gmx.com'		# your mail service machine
@@ -365,9 +368,9 @@ mailpassw = 'yourPa$$wordhere'		# your email password.
 # Asociate msg topics by a code-number. (note that only topics marked OK are enabled)
 
 mail_topic_recipients = {
-	'adminemail@gmx.es' 		: set(range (1,100)),
-	'user1@email.com' 			: set([7,]),
-	'user2@email.com' 			: set([6,7,10,]),	
+	'adminemail@gmx.es'			: set(range (1,100)),
+	'user1@email.com'			: set([7,]),
+	'user2@email.com'			: set([6,7,10,]),	
 	}
 
 #Msgtopics:
@@ -432,7 +435,10 @@ prohibited_words = ['zonatorrent','lokotorrents','com','Spanish','English','www'
 # List of prohibited chunks. This strings will be deleted from files and folder-names. No case sensitive, just delete them.
 prohibited_chunks = ('@cinepalomitas',)
 
-"""
+# list of hot folders to scan for active or new torrents
+# Not in use for now
+lsdy = ["{home}/Downloads","{home}/transmission_tmp"]
+""".replace("{home}", os.environ['HOME'])
 
 
 # ===================================
@@ -505,7 +511,10 @@ Fcomic_Folder = addslash(GideonConfig.Fcomic_Folder)  # Default place to store C
 TelegramNoCasedest = addslash (GideonConfig.TelegramNoCasedest)  # Telegram files with no Case goes here, preserving the file/folder structure
 
 TransmissionInbox = addslash (GideonConfig.TransmissionInbox)  # Hotfolder to retrieve user incoming files, usually a sycronized Dropbox folder
-Telegraminbox = addslash (GideonConfig.Telegraminbox)  # Hotfolder to retrieve Telegram Downloaded files or whatever other files
+if GideonConfig.Telegraminbox != None:
+	Telegraminbox = addslash (GideonConfig.Telegraminbox)  # Hotfolder to retrieve Telegram Downloaded files or whatever other files
+else:
+	Telegraminbox = None
 
 s =  GideonConfig.s # Time to sleep between checks (Dropbox folder / transmission spool)
 cmd  = GideonConfig.cmd # Command line to lauch transmission
@@ -553,17 +562,18 @@ if itemcheck (TransmissionInbox) != 'folder' :
 	print ('\tor create this configured path to start using it.')
 	TransmissionInbox = None  # This prevent using this Service.
 
-if itemcheck (Telegraminbox) != 'folder' :
-	print ('\Telegraminbox does not exist: %s'%TransmissionInbox)
-	print ('\tIf you want to use this inbox service,')
-	print ('\tplease edit your user configuration file at: \n',  userconfig)
-	print ('\tor create this configured path to start using it.')
-	Telegraminbox = None  # This prevent using this Service.
+if Telegraminbox != None:
+	if itemcheck (Telegraminbox) != 'folder' :
+		print ('\Telegraminbox does not exist: %s'%TransmissionInbox)
+		print ('\tIf you want to use this inbox service,')
+		print ('\tplease edit your user configuration file at: \n',  userconfig)
+		print ('\tor create this configured path to start using it.')
+		Telegraminbox = None  # This prevent using this Service.
 
-elif Telegraminbox == TelegramNoCasedest:
-	print ("You can't assign the same Telegram folder as input/output")
-	print ('\tplease edit your user configuration file at: \n',  userconfig)
-	Telegraminbox = None  # This prevent using this Service.
+	elif Telegraminbox == TelegramNoCasedest:
+		print ("You can't assign the same Telegram folder as input/output")
+		print ('\tplease edit your user configuration file at: \n',  userconfig)
+		Telegraminbox = None  # This prevent using this Service.
 
 
 # Checking and setting up Fvideodest file:
@@ -1435,7 +1445,13 @@ def launchTR (cmdline, seconds=0):
 def connectTR():
 	if not getappstatus(['transmission-gtk']):
 		launchTR (cmd, 5)
-	tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
+	try:
+		tc = transmissionrpc.Client(address=TRmachine, port = '9091' ,user=TRuser, password=TRpassword)
+	except Exception as e:
+		print ("Can't connect to Transmission service, revise your configuration.")
+		print (f'Exception: {e}')
+		logging.error(f'Exception: {e}')
+		exit()
 	logging.debug('A Transmission rpc session has started')
 	return tc
 
